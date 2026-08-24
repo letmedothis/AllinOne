@@ -21,8 +21,13 @@ export function delReport(id: string | string[]): Promise<AjaxResult> {
   return request({ url: '/collect/report/' + id, method: 'delete' })
 }
 
-export function saveSheet(id: string, data: any): Promise<AjaxResult> {
-  return request({ url: '/collect/report/sheet/' + id, method: 'put', data: { data: data } })
+export interface SheetIdMapping {
+  clientSheetId: string
+  sheetDbId: string
+}
+
+export function saveSheet(id: string, data: any, deletedSheetIds: string[] = []): Promise<AjaxResult<SheetIdMapping[]>> {
+  return request({ url: '/collect/report/sheet/' + id, method: 'put', data: { data, deletedSheetIds } })
 }
 
 export function getSheet(id: string): Promise<AjaxResult<any[]>> {

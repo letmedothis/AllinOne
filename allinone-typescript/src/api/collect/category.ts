@@ -1,17 +1,18 @@
 import request from '@/utils/request'
 import type { AjaxResult } from '@/types'
-import type { CollectCategory } from '@/types/api/collect/category'
+import type { CategoryQueryParams, CollectCategory } from '@/types/api/collect/category'
 
 /** 查询分类树形列表 */
-export function listCategory(): Promise<AjaxResult<CollectCategory[]>> {
+export function listCategory(query?: CategoryQueryParams): Promise<AjaxResult<CollectCategory[]>> {
   return request({
     url: '/collect/category/list',
-    method: 'get'
+    method: 'get',
+    params: query
   })
 }
 
 /** 新增分类 */
-export function addCategory(data: CollectCategory): Promise<AjaxResult> {
+export function addCategory(data: CollectCategory): Promise<AjaxResult<CollectCategory>> {
   return request({
     url: '/collect/category',
     method: 'post',

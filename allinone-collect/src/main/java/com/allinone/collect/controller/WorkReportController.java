@@ -3,11 +3,15 @@ package com.allinone.collect.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 import com.allinone.common.annotation.Log;
 import com.allinone.common.core.controller.BaseController;
 import com.allinone.common.core.domain.AjaxResult;
@@ -35,6 +39,10 @@ public class WorkReportController extends BaseController
     @Autowired private IWorkReportCellService workReportCellService;
     @Autowired private IWorkReportSheetPermissionService permissionService;
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final int MAX_SHEETS_PER_REPORT = 100;
+    private static final int MAX_CELLS_PER_REQUEST = 5000;
+    private static final int MAX_RANGE_CELLS = 10000;
+    private static final int CELL_BATCH_SIZE = 500;
 
     // ==================== Report CRUD ====================
     @PreAuthorize("@ss.hasPermi('collect:report:list')")
@@ -81,22 +89,52 @@ public class WorkReportController extends BaseController
     @PreAuthorize("@ss.hasPermi('collect:report:edit')")
     @Log(title = "报表Sheet", businessType = BusinessType.UPDATE)
     @PutMapping("/sheet/{reportId}")
+    @Transactional(rollbackFor = Exception.class)
     public AjaxResult saveSheet(@PathVariable String reportId, @RequestBody Map<String, Object> body) {
         WorkReport report = workReportService.selectWorkReportById(reportId);
         if (report == null) return error("报表不存在");
         Object data = body.get("data");
         if (data == null) return error("表格数据不能为空");
-        List<Map<String, Object>> sheetList = (List<Map<String, Object>>) data;
+        if (!(data instanceof List<?> rawSheets)) return error("表格数据格式错误");
+        List<Map<String, Object>> sheetList = new ArrayList<>();
+        for (Object rawSheet : rawSheets) {
+            if (!(rawSheet instanceof Map<?, ?>)) return error("Sheet数据格式错误");
+            sheetList.add((Map<String, Object>) rawSheet);
+        }
+        if (sheetList.size() > MAX_SHEETS_PER_REPORT) return error("单个报表最多包含100个Sheet");
         WorkReportSheet query = new WorkReportSheet();
         query.setReportId(reportId);
         List<WorkReportSheet> existingSheets = workReportSheetService.selectAccessibleSheets(query);
         Map<String, WorkReportSheet> existingMap = existingSheets.stream()
             .collect(Collectors.toMap(WorkReportSheet::getId, s -> s));
+        Set<String> deletedSheetIds = new HashSet<>();
+        Object rawDeletedSheetIds = body.get("deletedSheetIds");
+        if (rawDeletedSheetIds instanceof List<?> rawDeletedList) {
+            for (Object rawId : rawDeletedList) {
+                if (!(rawId instanceof String id) || id.isBlank()) return error("待删除Sheet ID格式错误");
+                if (!existingMap.containsKey(id)) return error("待删除Sheet不存在或无权访问");
+                deletedSheetIds.add(id);
+            }
+        } else if (rawDeletedSheetIds != null) {
+            return error("待删除Sheet列表格式错误");
+        }
+        Set<String> referencedSheetIds = new HashSet<>();
+        for (Map<String, Object> sheetObj : sheetList) {
+            Object rawSheetDbId = sheetObj.get("_sheetDbId");
+            if (rawSheetDbId == null) continue;
+            if (!(rawSheetDbId instanceof String sheetDbId) || sheetDbId.isBlank()) {
+                return error("Sheet ID格式错误");
+            }
+            if (!referencedSheetIds.add(sheetDbId)) return error("Sheet ID不能重复");
+            if (deletedSheetIds.contains(sheetDbId)) return error("同一Sheet不能同时保存和删除");
+        }
+        List<Map<String, String>> idMappings = new ArrayList<>();
         for (Map<String, Object> sheetObj : sheetList) {
             String sheetName = (String) sheetObj.get("name");
             Integer sheetIndex = sheetObj.get("order") != null ? Integer.parseInt(sheetObj.get("order").toString())
                 : (sheetObj.get("index") != null ? Integer.parseInt(sheetObj.get("index").toString()) : 0);
             String sheetDbId = (String) sheetObj.get("_sheetDbId");
+            String clientSheetId = String.valueOf(sheetObj.getOrDefault("index", sheetIndex));
             Map<String, Object> metaOnly = extractMeta(sheetObj, sheetName);
             if (sheetDbId != null && existingMap.containsKey(sheetDbId)) {
                 WorkReportSheet us = new WorkReportSheet();
@@ -118,9 +156,16 @@ public class WorkReportController extends BaseController
                 ns.setDelStatus(0L); ns.setCreateTime(DateUtils.getNowDate());
                 workReportSheetService.insertWorkReportSheet(ns);
             }
-            extractAndSaveCells(sheetObj, sheetDbId);
+            Map<String, String> mapping = new HashMap<>();
+            mapping.put("clientSheetId", clientSheetId);
+            mapping.put("sheetDbId", sheetDbId);
+            idMappings.add(mapping);
         }
-        return success("保存成功");
+        for (String deletedSheetId : deletedSheetIds) {
+            workReportCellService.deleteCellsBySheetId(deletedSheetId);
+            workReportSheetService.deleteWorkReportSheetById(deletedSheetId);
+        }
+        return success(idMappings);
     }
     @PreAuthorize("@ss.hasPermi('collect:report:query')")
     @GetMapping("/sheet/{reportId}")
@@ -145,19 +190,31 @@ public class WorkReportController extends BaseController
     public AjaxResult loadCells(@RequestParam String sheetDbId,
         @RequestParam(defaultValue = "0") int startRow, @RequestParam(defaultValue = "99") int endRow,
         @RequestParam(defaultValue = "0") int startCol, @RequestParam(defaultValue = "29") int endCol) {
-        WorkReportSheet sheet = workReportSheetService.selectWorkReportSheetById(sheetDbId);
-        if (sheet == null) return error("Sheet不存在");
+        WorkReportSheet sheet = workReportSheetService.selectAccessibleSheetById(sheetDbId);
+        if (sheet == null) return error("Sheet不存在或无权访问");
+        if (startRow < 0 || startCol < 0 || endRow < startRow || endCol < startCol)
+            return error("单元格范围参数无效");
+        long requestedCells = (long) (endRow - startRow + 1) * (endCol - startCol + 1);
+        if (requestedCells > MAX_RANGE_CELLS) return error("单次最多加载10000个单元格");
         return success(workReportCellService.selectCellsByRange(sheetDbId, startRow, endRow, startCol, endCol));
     }
     @SuppressWarnings("unchecked")
     @PreAuthorize("@ss.hasPermi('collect:report:edit')")
     @Log(title = "报表单元格", businessType = BusinessType.UPDATE)
     @PutMapping("/cells")
+    @Transactional(rollbackFor = Exception.class)
     public AjaxResult saveCells(@RequestBody Map<String, Object> body) {
         Object raw = body.get("cells");
         if (raw == null) return success("无变更");
         List<Map<String, Object>> cellList = (List<Map<String, Object>>) raw;
         if (cellList.isEmpty()) return success("无变更");
+        if (cellList.size() > MAX_CELLS_PER_REQUEST) return error("单次最多保存5000个单元格");
+        Set<String> sheetIds = cellList.stream().map(m -> (String) m.get("sheetDbId")).collect(Collectors.toSet());
+        if (sheetIds.contains(null)) return error("缺少Sheet ID");
+        for (String sheetId : sheetIds) {
+            if (workReportSheetService.selectAccessibleSheetById(sheetId) == null)
+                return error("Sheet不存在或无权访问");
+        }
         List<WorkReportCell> cells = cellList.stream().map(m -> {
             WorkReportCell c = new WorkReportCell();
             c.setSheetId((String) m.get("sheetDbId"));
@@ -168,7 +225,11 @@ public class WorkReportController extends BaseController
             c.setCellType((String) m.get("cellType"));
             return c;
         }).collect(Collectors.toList());
-        workReportCellService.batchUpsertCells(cells);
+        if (cells.stream().anyMatch(c -> c.getRowIndex() < 0 || c.getColIndex() < 0))
+            return error("单元格坐标不能为负数");
+        for (int from = 0; from < cells.size(); from += CELL_BATCH_SIZE) {
+            workReportCellService.batchUpsertCells(cells.subList(from, Math.min(from + CELL_BATCH_SIZE, cells.size())));
+        }
         return success("保存成功");
     }
 
@@ -176,7 +237,7 @@ public class WorkReportController extends BaseController
     @PreAuthorize("@ss.hasPermi('collect:report:query')")
     @GetMapping("/permissions/{sheetDbId}")
     public AjaxResult listPermissions(@PathVariable String sheetDbId) {
-        if (workReportSheetService.selectWorkReportSheetById(sheetDbId) == null) return error("Sheet不存在");
+        if (workReportSheetService.selectAccessibleSheetById(sheetDbId) == null) return error("Sheet不存在或无权访问");
         return success(permissionService.listBySheet(sheetDbId));
     }
     @PreAuthorize("@ss.hasPermi('collect:report:edit')")
@@ -191,6 +252,8 @@ public class WorkReportController extends BaseController
         String permType = (String) body.get("permType");
         Number permIdNum = (Number) body.get("permId");
         if (permType == null || permIdNum == null) return error("缺少permType或permId");
+        if (!Set.of("role", "dept", "user").contains(permType) || permIdNum.longValue() <= 0)
+            return error("权限类型或目标ID无效");
         WorkReportSheetPermission p = new WorkReportSheetPermission();
         p.setSheetId(sheetDbId); p.setPermType(permType);
         p.setPermId(permIdNum.longValue()); p.setGrantedBy(currentUserId);
@@ -207,6 +270,8 @@ public class WorkReportController extends BaseController
         Long currentUserId = SecurityUtils.getUserId();
         if (!currentUserId.equals(sheet.getUserId()) && !SecurityUtils.isAdmin(currentUserId))
             return error("只有创建者和管理员可以撤销权限");
+        if (!Set.of("role", "dept", "user").contains(permType) || permId <= 0)
+            return error("权限类型或目标ID无效");
         permissionService.revoke(sheetDbId, permType, permId);
         return success("权限撤销成功");
     }
@@ -238,35 +303,6 @@ public class WorkReportController extends BaseController
             }
         }
         return m;
-    }
-    @SuppressWarnings("unchecked")
-    private void extractAndSaveCells(Map<String, Object> sheetObj, String sheetDbId) {
-        Object celldata = sheetObj.get("celldata");
-        if (!(celldata instanceof List)) return;
-        List<Map<String, Object>> cellList = (List<Map<String, Object>>) celldata;
-        if (cellList.isEmpty()) return;
-        List<WorkReportCell> cells = cellList.stream().map(m -> {
-            WorkReportCell c = new WorkReportCell();
-            c.setSheetId(sheetDbId);
-            c.setRowIndex(((Number) m.get("r")).intValue());
-            c.setColIndex(((Number) m.get("c")).intValue());
-            Object v = m.get("v");
-            if (v instanceof Map) {
-                Map<String, Object> vm = (Map<String, Object>) v;
-                Object raw = vm.get("v");
-                c.setCellValue(raw != null ? raw.toString() : null);
-                c.setCellFormula((String) vm.get("f"));
-                c.setCellType(vm.containsKey("f") ? "formula" : (raw instanceof Number ? "number" : "string"));
-                try { c.setCellStyle(MAPPER.writeValueAsString(vm)); } catch (Exception e) {
-                    log.warn("Cell样式序列化失败 sheetId={}, row={}, col={}", sheetDbId,
-                            m.get("r"), m.get("c"), e);
-                }
-            } else {
-                c.setCellValue(v != null ? v.toString() : null);
-            }
-            return c;
-        }).collect(Collectors.toList());
-        workReportCellService.batchUpsertCells(cells);
     }
     private ObjectNode createDefaultSheetJson(String name, int index) {
         ObjectNode s = MAPPER.createObjectNode();

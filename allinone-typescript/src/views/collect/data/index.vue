@@ -11,10 +11,10 @@
           @keyup.enter="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="填报状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="填报状态" clearable style="width: 150px">
-          <el-option label="草稿" value="0" />
-          <el-option label="已提交" value="1" />
+      <el-form-item label="填报状态" prop="bizStatus">
+        <el-select v-model="queryParams.bizStatus" placeholder="填报状态" clearable style="width: 150px">
+          <el-option label="草稿" value="draft" />
+          <el-option label="已提交" value="submitted" />
         </el-select>
       </el-form-item>
       <el-form-item label="创建人" prop="createBy">
@@ -78,14 +78,14 @@
     <!-- 数据表格 -->
     <el-table v-loading="loading" :data="dataList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="编号" align="center" prop="id" width="80" />
-      <el-table-column label="数据标题" align="center" prop="title" min-width="160" :show-overflow-tooltip="true" />
+      <el-table-column label="编号" align="center" prop="dataId" min-width="150" />
+      <el-table-column label="业务编码" align="center" prop="dataCode" min-width="140" :show-overflow-tooltip="true" />
       <el-table-column label="模板名称" align="center" prop="templateName" width="140" :show-overflow-tooltip="true" />
       <el-table-column label="模板编码" align="center" prop="templateCode" width="120" />
-      <el-table-column label="填报状态" align="center" prop="status" width="100">
+      <el-table-column label="填报状态" align="center" prop="bizStatus" width="100">
         <template #default="scope">
-          <el-tag :type="scope.row.status === '1' ? 'success' : 'warning'" disable-transitions>
-            {{ scope.row.status === '1' ? '已提交' : '草稿' }}
+          <el-tag :type="scope.row.bizStatus === 'submitted' ? 'success' : 'warning'" disable-transitions>
+            {{ scope.row.bizStatus === 'submitted' ? '已提交' : '草稿' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -106,7 +106,7 @@
             查看
           </el-button>
           <el-button
-            v-if="scope.row.status !== '1'"
+            v-if="scope.row.bizStatus !== 'submitted'"
             link
             type="primary"
             icon="Edit"
@@ -133,34 +133,31 @@
 
 <script setup lang="ts" name="CollectData">
 import type { CollectData, CollectDataQueryParams } from '@/types/api/collect/data'
-import { listData, getData, delData } from '@/api/collect/data'
+import { listData, delData } from '@/api/collect/data'
 import { useRouter } from 'vue-router'
 
 const { proxy } = getCurrentInstance()!
 const router = useRouter()
 
 const dataList = ref<CollectData[]>([])
-const open = ref<boolean>(false)
 const loading = ref<boolean>(true)
 const showSearch = ref<boolean>(true)
 const ids = ref<number[]>([])
 const single = ref<boolean>(true)
 const multiple = ref<boolean>(true)
 const total = ref<number>(0)
-const title = ref<string>('')
 
 const data = reactive({
-  form: {} as CollectData,
   queryParams: {
     pageNum: 1,
     pageSize: 10,
     templateName: undefined,
-    status: undefined,
+    bizStatus: undefined,
     createBy: undefined
   } as CollectDataQueryParams
 })
 
-const { queryParams, form } = toRefs(data)
+const { queryParams } = toRefs(data)
 
 /** 查询填报数据列表 */
 function getList() {
@@ -170,11 +167,6 @@ function getList() {
     total.value = response.total
     loading.value = false
   })
-}
-
-/** 取消 */
-function cancel() {
-  open.value = false
 }
 
 /** 搜索 */
@@ -191,7 +183,7 @@ function resetQuery() {
 
 /** 多选变化 */
 function handleSelectionChange(selection: CollectData[]) {
-  ids.value = selection.map(item => item.id!)
+  ids.value = selection.map(item => item.dataId!)
   single.value = selection.length !== 1
   multiple.value = !selection.length
 }
@@ -203,18 +195,18 @@ function handleAdd() {
 
 /** 修改 */
 function handleUpdate(row: CollectData) {
-  const id = row.id || ids.value[0]
+  const id = row.dataId || ids.value[0]
   router.push({ path: '/collect/data/edit', query: { id } })
 }
 
 /** 查看详情（只读） */
 function handleDetail(row: CollectData) {
-  router.push({ path: '/collect/data/detail', query: { id: row.id } })
+  router.push({ path: '/collect/data/detail', query: { id: row.dataId } })
 }
 
 /** 删除 */
 function handleDelete(row: CollectData) {
-  const delIds = row.id || ids.value
+  const delIds = row.dataId || ids.value
   proxy.$modal.confirm(`是否确认删除填报数据编号为"${delIds}"的数据项？`).then(() => {
     return delData(delIds)
   }).then(() => {

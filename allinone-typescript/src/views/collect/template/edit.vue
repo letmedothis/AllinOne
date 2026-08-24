@@ -26,12 +26,12 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="模板名称">
-              <el-input v-model="form.name" placeholder="请输入模板名称" maxlength="100" />
+              <el-input v-model="form.templateName" placeholder="请输入模板名称" maxlength="100" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="模板编码">
-              <el-input v-model="form.code" placeholder="请输入模板编码" maxlength="64" />
+              <el-input v-model="form.templateCode" placeholder="请输入模板编码" maxlength="64" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -39,7 +39,7 @@
               <el-tree-select
                 v-model="form.categoryId"
                 :data="categoryOptions"
-                :props="{ value: 'id', label: 'name', children: 'children' }"
+                :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
                 placeholder="选择分类"
                 check-strictly
                 clearable
@@ -64,7 +64,7 @@
     <el-card shadow="never" class="sheet-card">
       <CollectSheet
         ref="sheetRef"
-        :sheetData="form.config"
+        :sheetData="form.templateJson"
         :readonly="readonly"
         :height="700"
         @save="handleSheetSave"
@@ -93,16 +93,16 @@ const categoryOptions = ref<any[]>([])
 /** 页面标题 */
 const pageTitle = computed(() => {
   if (readonly.value) return '模板预览'
-  return form.value.id ? '编辑模板' : '新建模板'
+  return form.value.templateId ? '编辑模板' : '新建模板'
 })
 
 /** 表单数据 */
 const form = ref<CollectTemplate>({
-  name: undefined,
-  code: undefined,
+  templateName: undefined,
+  templateCode: undefined,
   categoryId: undefined,
-  description: undefined,
-  config: undefined,
+  remark: undefined,
+  templateJson: undefined,
   status: '0'
 })
 
@@ -115,8 +115,8 @@ function loadTemplate() {
     const data = response.data!
     form.value = data
     // 将config配置加载到Luckysheet
-    if (data.config && sheetRef.value) {
-      sheetRef.value.loadData(data.config)
+    if (data.templateJson && sheetRef.value) {
+      sheetRef.value.loadData(data.templateJson)
     }
   })
 }
@@ -124,19 +124,19 @@ function loadTemplate() {
 /** 加载分类树 */
 function loadCategoryTree() {
   listCategory().then(response => {
-    categoryOptions.value = proxy.handleTree(response.data, 'id')
+    categoryOptions.value = proxy.handleTree(response.data, 'categoryId')
   })
 }
 
 /** 保存模板 */
-async function handleSave() {
-  if (!form.value.name) {
+async function handleSave(): Promise<boolean> {
+  if (!form.value.templateName) {
     proxy.$modal.msgWarning('请输入模板名称')
-    return
+    return false
   }
-  if (!form.value.code) {
+  if (!form.value.templateCode) {
     proxy.$modal.msgWarning('请输入模板编码')
-    return
+    return false
   }
 
   saving.value = true
@@ -145,22 +145,25 @@ async function handleSave() {
     // 从Luckysheet获取当前表格数据
     if (sheetRef.value) {
       const sheetData = sheetRef.value.getData()
-      form.value.config = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
+      form.value.templateJson = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
     }
 
-    if (form.value.id) {
-      await updateTemplate(form.value)
+    if (form.value.templateId) {
+      const response = await updateTemplate(form.value)
+      form.value = response.data || form.value
       proxy.$modal.msgSuccess('保存成功')
     } else {
-      const res: any = await addTemplate(form.value)
-      form.value.id = res?.data?.id
+      const res = await addTemplate(form.value)
+      form.value = res.data || form.value
       // 更新URL参数
-      router.replace({ query: { ...route.query, id: form.value.id } })
+      router.replace({ query: { ...route.query, id: form.value.templateId } })
       proxy.$modal.msgSuccess('创建成功')
     }
+    return true
   } catch (e) {
     proxy.$modal.msgError('保存模板失败')
     console.error('保存模板失败:', e)
+    return false
   } finally {
     saving.value = false
   }
@@ -168,7 +171,7 @@ async function handleSave() {
 
 /** 发布模板 */
 async function handlePublish() {
-  if (!form.value.id) {
+  if (!form.value.templateId) {
     proxy.$modal.msgWarning('请先保存模板')
     return
   }
@@ -176,8 +179,9 @@ async function handlePublish() {
   publishing.value = true
   try {
     // 先保存再发布
-    await handleSave()
-    await publishTemplate(form.value.id)
+    const saved = await handleSave()
+    if (!saved) return
+    await publishTemplate(form.value.templateId, '1')
     form.value.status = '1'
     proxy.$modal.msgSuccess('发布成功')
   } catch (e) {

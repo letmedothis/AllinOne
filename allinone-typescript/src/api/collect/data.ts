@@ -19,7 +19,7 @@ export function getData(id: number): Promise<AjaxResult<CollectData>> {
 }
 
 /** 新增或保存草稿 */
-export function addData(data: CollectData): Promise<AjaxResult> {
+export function addData(data: CollectData): Promise<AjaxResult<CollectData>> {
   return request({
     url: '/collect/data',
     method: 'post',
@@ -28,7 +28,7 @@ export function addData(data: CollectData): Promise<AjaxResult> {
 }
 
 /** 修改填报数据 */
-export function updateData(data: CollectData): Promise<AjaxResult> {
+export function updateData(data: CollectData): Promise<AjaxResult<CollectData>> {
   return request({
     url: '/collect/data',
     method: 'put',

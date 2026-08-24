@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import com.allinone.common.core.domain.model.LoginUser;
+import com.allinone.common.core.domain.entity.SysRole;
 
 /**
  * JimuReport 鉴权集成
@@ -25,14 +28,7 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
      */
     @Override
     public String getToken(HttpServletRequest request) {
-        String token = request.getParameter("token");
-        if (token == null || token.isEmpty()) {
-            token = request.getHeader("X-Access-Token");
-        }
-        if (token == null || token.isEmpty()) {
-            token = request.getHeader("token");
-        }
-        return token;
+        return tokenService.getJimuReportToken(request);
     }
 
     /**
@@ -41,8 +37,7 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
     @Override
     public Boolean verifyToken(String token) {
         try {
-            String username = tokenService.getUsernameFromToken(token);
-            return username != null;
+            return tokenService.getLoginUserFromToken(token) != null;
         } catch (Exception e) {
             return false;
         }
@@ -53,17 +48,23 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
      */
     @Override
     public String getUsername(String token) {
-        return tokenService.getUsernameFromToken(token);
+        LoginUser loginUser = tokenService.getLoginUserFromToken(token);
+        return loginUser == null ? null : loginUser.getUsername();
     }
 
     @Override
     public String[] getRoles(String token) {
-        return new String[0];
+        LoginUser loginUser = tokenService.getLoginUserFromToken(token);
+        if (loginUser == null || loginUser.getUser() == null || loginUser.getUser().getRoles() == null)
+            return new String[0];
+        return loginUser.getUser().getRoles().stream().map(SysRole::getRoleKey).toArray(String[]::new);
     }
 
     @Override
     public String[] getPermissions(String token) {
-        return new String[0];
+        LoginUser loginUser = tokenService.getLoginUserFromToken(token);
+        Set<String> permissions = loginUser == null ? null : loginUser.getPermissions();
+        return permissions == null ? new String[0] : permissions.toArray(new String[0]);
     }
 
     /**
@@ -73,7 +74,12 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
     @Override
     public Map<String, Object> getUserInfo(String token) {
         Map<String, Object> info = new HashMap<>();
-        info.put("username", tokenService.getUsernameFromToken(token));
+        LoginUser loginUser = tokenService.getLoginUserFromToken(token);
+        if (loginUser == null || loginUser.getUser() == null) return info;
+        info.put("username", loginUser.getUsername());
+        info.put("user_id", loginUser.getUserId());
+        info.put("dept_id", loginUser.getDeptId());
+        info.put("roles", getRoles(token));
         return info;
     }
 }

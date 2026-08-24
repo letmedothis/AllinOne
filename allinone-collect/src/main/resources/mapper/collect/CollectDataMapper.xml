@@ -5,6 +5,8 @@
     <resultMap type="CollectData" id="CollectDataResult">
         <id property="dataId" column="data_id"/>
         <result property="templateId" column="template_id"/>
+        <result property="templateName" column="template_name"/>
+        <result property="templateCode" column="template_code"/>
         <result property="formData" column="form_data"/>
         <result property="bizStatus" column="biz_status"/>
         <result property="deptId" column="dept_id"/>
@@ -22,22 +24,29 @@
     </resultMap>
 
     <sql id="selectCollectDataVo">
-        select data_id, template_id, biz_status, dept_id, data_code, version, submit_by, submit_time, remark, del_flag, create_by, create_time, update_by, update_time
-        from collect_data
+        select cd.data_id, cd.template_id, ct.template_name, ct.template_code, cd.biz_status, cd.dept_id,
+               cd.data_code, cd.version, cd.submit_by, cd.submit_time, cd.remark, cd.del_flag,
+               cd.create_by, cd.create_time, cd.update_by, cd.update_time
+        from collect_data cd left join collect_template ct on ct.template_id = cd.template_id
     </sql>
 
     <select id="selectCollectDataList" parameterType="CollectData" resultMap="CollectDataResult">
         <include refid="selectCollectDataVo"/>
-        where del_flag = '0'
-        <if test="templateId != null"> and template_id = #{templateId}</if>
-        <if test="bizStatus != null and bizStatus != ''"> and biz_status = #{bizStatus}</if>
-        <if test="submitBy != null and submitBy != ''"> and submit_by = #{submitBy}</if>
-        order by create_time desc
+        where cd.del_flag = '0'
+        <if test="templateId != null"> and cd.template_id = #{templateId}</if>
+        <if test="templateName != null and templateName != ''"> and ct.template_name like concat('%', #{templateName}, '%')</if>
+        <if test="bizStatus != null and bizStatus != ''"> and cd.biz_status = #{bizStatus}</if>
+        <if test="submitBy != null and submitBy != ''"> and cd.submit_by = #{submitBy}</if>
+        <if test="createBy != null and createBy != ''"> and cd.create_by = #{createBy}</if>
+        order by cd.create_time desc
     </select>
 
     <select id="selectCollectDataById" parameterType="Long" resultMap="CollectDataResult">
-        select data_id, template_id, form_data, biz_status, dept_id, data_code, version, submit_by, submit_time, remark, del_flag, create_by, create_time, update_by, update_time
-        from collect_data where data_id = #{dataId}
+        select cd.data_id, cd.template_id, ct.template_name, ct.template_code, cd.form_data, cd.biz_status,
+               cd.dept_id, cd.data_code, cd.version, cd.submit_by, cd.submit_time, cd.remark, cd.del_flag,
+               cd.create_by, cd.create_time, cd.update_by, cd.update_time
+        from collect_data cd left join collect_template ct on ct.template_id = cd.template_id
+        where cd.data_id = #{dataId} and cd.del_flag = '0'
     </select>
 
     <insert id="insertCollectData" parameterType="CollectData">
@@ -49,28 +58,28 @@
         update collect_data
         <set>
             <if test="formData != null">form_data = #{formData},</if>
-            <if test="bizStatus != null">biz_status = #{bizStatus},</if>
             <if test="dataCode != null">data_code = #{dataCode},</if>
             <if test="remark != null">remark = #{remark},</if>
             <if test="version != null">version = version + 1,</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             update_time = #{updateTime}
         </set>
-        where data_id = #{dataId}
+        where data_id = #{dataId} and version = #{version} and biz_status = 'draft' and del_flag = '0'
     </update>
 
     <update id="updateCollectDataStatus" parameterType="CollectData">
         update collect_data set biz_status = #{bizStatus}, submit_by = #{submitBy}, submit_time = #{submitTime},
             version = version + 1, update_time = #{updateTime}
-        where data_id = #{dataId}
+        where data_id = #{dataId} and version = #{version} and biz_status = 'draft' and del_flag = '0'
     </update>
 
     <update id="deleteCollectDataById" parameterType="Long">
-        update collect_data set del_flag = '2' where data_id = #{dataId}
+        update collect_data set del_flag = '2'
+        where data_id = #{dataId} and biz_status = 'draft' and del_flag = '0'
     </update>
 
     <update id="deleteCollectDataByIds" parameterType="Long">
-        update collect_data set del_flag = '2' where data_id in
+        update collect_data set del_flag = '2' where biz_status = 'draft' and del_flag = '0' and data_id in
         <foreach item="dataId" collection="array" open="(" separator="," close=")">#{dataId}</foreach>
     </update>
 

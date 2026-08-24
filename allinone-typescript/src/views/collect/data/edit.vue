@@ -5,11 +5,11 @@
       <template #extra>
         <el-space>
           <el-button @click="handleBack">返回</el-button>
-          <el-button v-if="!isEdit" type="primary" :loading="saving" @click="handleSaveDraft">
+          <el-button v-if="submitStatus !== 'submitted'" type="primary" :loading="saving" @click="handleSaveDraft">
             保存草稿
           </el-button>
           <el-button
-            v-if="!isEdit"
+            v-if="submitStatus !== 'submitted'"
             type="success"
             :loading="submitting"
             @click="handleSubmit"
@@ -28,17 +28,17 @@
           <el-select v-model="selectedTemplateId" placeholder="请选择模板" style="width: 300px" @change="onTemplateChange">
             <el-option
               v-for="item in publishedTemplates"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
+              :key="item.templateId"
+              :label="item.templateName"
+              :value="item.templateId"
             >
-              <span>{{ item.name }}</span>
-              <span class="template-code">[{{ item.code }}]</span>
+              <span>{{ item.templateName }}</span>
+              <span class="template-code">[{{ item.templateCode }}]</span>
             </el-option>
           </el-select>
         </el-form-item>
         <el-form-item v-if="selectedTemplate">
-          <el-tag>{{ selectedTemplate.categoryName || '未分类' }}</el-tag>
+          <el-tag>分类ID：{{ selectedTemplate.categoryId || '-' }}</el-tag>
         </el-form-item>
       </el-form>
     </el-card>
@@ -46,29 +46,29 @@
     <!-- 已选模板信息 -->
     <el-card v-if="templateId" shadow="never" class="mb8">
       <el-descriptions :column="4" size="small">
-        <el-descriptions-item label="模板名称">{{ templateInfo.name }}</el-descriptions-item>
-        <el-descriptions-item label="模板编码">{{ templateInfo.code }}</el-descriptions-item>
+        <el-descriptions-item label="模板名称">{{ templateInfo.templateName }}</el-descriptions-item>
+        <el-descriptions-item label="模板编码">{{ templateInfo.templateCode }}</el-descriptions-item>
         <el-descriptions-item label="版本号">v{{ templateInfo.version }}</el-descriptions-item>
         <el-descriptions-item label="填报状态">
-          <el-tag :type="submitStatus === '1' ? 'success' : 'warning'" disable-transitions>
-            {{ submitStatus === '1' ? '已提交' : '草稿' }}
+          <el-tag :type="submitStatus === 'submitted' ? 'success' : 'warning'" disable-transitions>
+            {{ submitStatus === 'submitted' ? '已提交' : '草稿' }}
           </el-tag>
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
 
-    <!-- 数据标题 -->
-    <el-card v-if="templateId && !isEdit" shadow="never" class="mb8">
+    <!-- 业务编码 -->
+    <el-card v-if="templateId" shadow="never" class="mb8">
       <el-form :inline="true">
-        <el-form-item label="数据标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入数据标题" style="width: 400px" maxlength="200" />
+        <el-form-item label="业务编码" prop="dataCode">
+          <el-input v-model="form.dataCode" placeholder="可选，用于关联业务数据" style="width: 400px" maxlength="64" />
         </el-form-item>
       </el-form>
     </el-card>
 
     <!-- 提交状态提示 -->
     <el-alert
-      v-if="submitStatus === '1'"
+      v-if="submitStatus === 'submitted'"
       title="该数据已提交，无法编辑。如需修改请先联系管理员。"
       type="success"
       :closable="false"
@@ -82,8 +82,8 @@
         v-if="sheetKey"
         :key="sheetKey"
         ref="sheetRef"
-        :sheetData="form.data"
-        :readonly="isEdit || submitStatus === '1'"
+        :sheetData="form.formData"
+        :readonly="submitStatus === 'submitted'"
         :height="700"
         @change="onSheetChange"
         @save="onSheetSave"
@@ -94,7 +94,7 @@
 
 <script setup lang="ts" name="CollectDataEdit">
 import { useRouter, useRoute } from 'vue-router'
-import { listTemplate } from '@/api/collect/template'
+import { getTemplate, listTemplate } from '@/api/collect/template'
 import { getData, addData, updateData, submitData } from '@/api/collect/data'
 import type { CollectTemplate } from '@/types/api/collect/template'
 import type { CollectData } from '@/types/api/collect/data'
@@ -121,14 +121,14 @@ const selectedTemplateId = ref<number | undefined>(undefined)
 
 /** 当前选中的模板信息 */
 const selectedTemplate = computed(() => {
-  return publishedTemplates.value.find(t => t.id === selectedTemplateId.value)
+  return publishedTemplates.value.find(t => t.templateId === selectedTemplateId.value)
 })
 
 /** 模板信息（编辑时） */
 const templateInfo = ref<CollectTemplate>({})
 
 /** 提交状态 */
-const submitStatus = ref<string>('0')
+const submitStatus = ref<'draft' | 'submitted'>('draft')
 
 /** 页面标题 */
 const pageTitle = computed(() => {
@@ -138,10 +138,10 @@ const pageTitle = computed(() => {
 
 /** 表单数据 */
 const form = ref<CollectData>({
-  title: undefined,
   templateId: undefined,
-  data: undefined,
-  status: '0'
+  formData: undefined,
+  bizStatus: 'draft',
+  version: 1
 })
 
 /** 加载已发布的模板列表 */
@@ -152,12 +152,14 @@ function loadPublishedTemplates() {
 }
 
 /** 模板切换 */
-function onTemplateChange(id: number) {
+async function onTemplateChange(id: number) {
   templateId.value = id
   form.value.templateId = id
-  const tmpl = selectedTemplate.value
-  if (tmpl?.config) {
-    form.value.data = tmpl.config
+  const response = await getTemplate(id)
+  const tmpl = response.data
+  if (tmpl) templateInfo.value = tmpl
+  if (tmpl?.templateJson) {
+    form.value.formData = tmpl.templateJson
   }
   // 刷新sheet
   sheetKey.value++
@@ -172,12 +174,13 @@ function loadData() {
     const data = response.data!
     form.value = data
     templateId.value = data.templateId
-    submitStatus.value = data.status || '0'
+    submitStatus.value = data.bizStatus || 'draft'
+    sheetKey.value++
 
     // 加载模板信息
     if (data.templateId) {
       listTemplate({ pageNum: 1, pageSize: 100 }).then(res => {
-        const tmpl = res.rows.find(t => t.id === data.templateId)
+        const tmpl = res.rows.find(t => t.templateId === data.templateId)
         if (tmpl) {
           templateInfo.value = tmpl
         }
@@ -188,12 +191,12 @@ function loadData() {
 
 /** 表格数据变更 */
 function onSheetChange(data: any) {
-  form.value.data = typeof data === 'string' ? data : JSON.stringify(data)
+  form.value.formData = typeof data === 'string' ? data : JSON.stringify(data)
 }
 
 /** 表格保存事件 */
 function onSheetSave(data: any) {
-  form.value.data = typeof data === 'string' ? data : JSON.stringify(data)
+  form.value.formData = typeof data === 'string' ? data : JSON.stringify(data)
 }
 
 /** 保存草稿 */
@@ -202,27 +205,23 @@ async function handleSaveDraft() {
     proxy.$modal.msgWarning('请选择模板')
     return
   }
-  if (!form.value.title) {
-    proxy.$modal.msgWarning('请输入数据标题')
-    return
-  }
-
   saving.value = true
   try {
     // 从Luckysheet获取数据
     if (sheetRef.value) {
       const sheetData = sheetRef.value.getData()
-      form.value.data = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
+      form.value.formData = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
     }
-    form.value.status = '0'
+    form.value.bizStatus = 'draft'
 
-    if (form.value.id) {
-      await updateData(form.value)
+    if (form.value.dataId) {
+      const response = await updateData(form.value)
+      form.value = response.data || form.value
       proxy.$modal.msgSuccess('草稿已更新')
     } else {
       const res: any = await addData(form.value)
-      form.value.id = res?.data?.id
-      router.replace({ query: { ...route.query, id: form.value.id } })
+      form.value = res.data || form.value
+      router.replace({ query: { ...route.query, id: form.value.dataId } })
       proxy.$modal.msgSuccess('草稿已保存')
     }
   } catch (e) {
@@ -239,33 +238,29 @@ async function handleSubmit() {
     proxy.$modal.msgWarning('请选择模板')
     return
   }
-  if (!form.value.title) {
-    proxy.$modal.msgWarning('请输入数据标题')
-    return
-  }
-
   proxy.$modal.confirm('确认提交该填报数据？提交后不可修改。').then(async () => {
     submitting.value = true
     try {
       // 保存数据
       if (sheetRef.value) {
         const sheetData = sheetRef.value.getData()
-        form.value.data = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
+        form.value.formData = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
       }
 
-      let dataId = form.value.id
+      let dataId = form.value.dataId
       if (dataId) {
-        await updateData(form.value)
+        const response = await updateData(form.value)
+        form.value = response.data || form.value
       } else {
         const res: any = await addData(form.value)
-        dataId = res?.data?.id
-        form.value.id = dataId
+        form.value = res.data || form.value
+        dataId = form.value.dataId
       }
 
       // 执行提交
       if (dataId) {
         await submitData(dataId)
-        submitStatus.value = '1'
+        submitStatus.value = 'submitted'
         proxy.$modal.msgSuccess('提交成功')
       }
     } catch (e) {

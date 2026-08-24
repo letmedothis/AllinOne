@@ -25,6 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectWorkReportList" parameterType="WorkReport" resultMap="WorkReportResult">
         <include refid="selectWorkReportVo"/>
         <where> wr.del_status = 0
+            <if test="id != null and id != ''"> and wr.id = #{id}</if>
             <if test="reportName != null  and reportName != ''"> and wr.report_name like concat('%', #{reportName}, '%')</if>
             <if test="reportJianjie != null  and reportJianjie != ''"> and wr.report_jianjie = #{reportJianjie}</if>
             <if test="reportBeizhu != null  and reportBeizhu != ''"> and wr.report_beizhu = #{reportBeizhu}</if>
@@ -36,9 +37,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by wr.create_datetime desc
     </select>
     
-    <select id="selectWorkReportById" parameterType="String" resultMap="WorkReportResult">
+    <select id="selectWorkReportById" parameterType="WorkReport" resultMap="WorkReportResult">
         <include refid="selectWorkReportVo"/>
-        where wr.id = #{id}
+        where wr.id = #{id} and wr.del_status = 0
+        ${params.dataScope}
     </select>
 
     <insert id="insertWorkReport" parameterType="WorkReport">

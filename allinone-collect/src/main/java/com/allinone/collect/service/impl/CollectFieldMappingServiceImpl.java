@@ -5,6 +5,9 @@ import com.allinone.collect.mapper.CollectFieldMappingMapper;
 import com.allinone.collect.service.ICollectFieldMappingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.allinone.common.utils.DateUtils;
+import com.allinone.common.utils.SecurityUtils;
+import com.allinone.common.utils.uuid.IdUtils;
 import java.util.List;
 
 @Service
@@ -30,11 +33,17 @@ public class CollectFieldMappingServiceImpl implements ICollectFieldMappingServi
 
     @Override
     public int insertCollectFieldMapping(CollectFieldMapping mapping) {
+        mapping.setMappingId(IdUtils.nextLongId());
+        if (mapping.getSheetIndex() == null) mapping.setSheetIndex(0);
+        mapping.setCreateBy(SecurityUtils.getUsername());
+        mapping.setCreateTime(DateUtils.getNowDate());
         return collectFieldMappingMapper.insertCollectFieldMapping(mapping);
     }
 
     @Override
     public int updateCollectFieldMapping(CollectFieldMapping mapping) {
+        mapping.setUpdateBy(SecurityUtils.getUsername());
+        mapping.setUpdateTime(DateUtils.getNowDate());
         return collectFieldMappingMapper.updateCollectFieldMapping(mapping);
     }
 

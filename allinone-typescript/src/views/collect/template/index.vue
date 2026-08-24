@@ -2,9 +2,9 @@
   <div class="app-container">
     <!-- 搜索栏 -->
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
-      <el-form-item label="模板名称" prop="name">
+      <el-form-item label="模板名称" prop="templateName">
         <el-input
-          v-model="queryParams.name"
+          v-model="queryParams.templateName"
           placeholder="请输入模板名称"
           clearable
           style="width: 200px"
@@ -22,7 +22,7 @@
         <el-tree-select
           v-model="queryParams.categoryId"
           :data="categoryTree"
-          :props="{ value: 'id', label: 'name', children: 'children' }"
+          :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
           placeholder="选择分类"
           clearable
           style="width: 200px"
@@ -81,9 +81,9 @@
     <!-- 数据表格 -->
     <el-table v-loading="loading" :data="templateList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="编号" align="center" prop="id" width="80" />
-      <el-table-column label="模板名称" align="center" prop="name" min-width="160" :show-overflow-tooltip="true" />
-      <el-table-column label="模板编码" align="center" prop="code" width="150" />
+      <el-table-column label="编号" align="center" prop="templateId" min-width="150" />
+      <el-table-column label="模板名称" align="center" prop="templateName" min-width="160" :show-overflow-tooltip="true" />
+      <el-table-column label="模板编码" align="center" prop="templateCode" width="150" />
       <el-table-column label="分类" align="center" prop="categoryName" width="120" />
       <el-table-column label="状态" align="center" prop="status" width="100">
         <template #default="scope">
@@ -135,24 +135,24 @@
     <!-- 添加或修改对话框 -->
     <el-dialog :title="title" v-model="open" width="600px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="模板名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入模板名称" maxlength="100" />
+        <el-form-item label="模板名称" prop="templateName">
+          <el-input v-model="form.templateName" placeholder="请输入模板名称" maxlength="100" />
         </el-form-item>
-        <el-form-item label="模板编码" prop="code">
-          <el-input v-model="form.code" placeholder="请输入模板编码（唯一标识）" maxlength="64" />
+        <el-form-item label="模板编码" prop="templateCode">
+          <el-input v-model="form.templateCode" placeholder="请输入模板编码（唯一标识）" maxlength="64" />
         </el-form-item>
         <el-form-item label="所属分类" prop="categoryId">
           <el-tree-select
             v-model="form.categoryId"
             :data="categoryTree"
-            :props="{ value: 'id', label: 'name', children: 'children' }"
+            :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
             placeholder="选择分类"
             check-strictly
             clearable
           />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
+        <el-form-item label="描述" prop="remark">
+          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入描述" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -194,13 +194,13 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
-    name: undefined,
+    templateName: undefined,
     status: undefined,
     categoryId: undefined
   } as CollectTemplateQueryParams,
   rules: {
-    name: [{ required: true, message: '模板名称不能为空', trigger: 'blur' }],
-    code: [
+    templateName: [{ required: true, message: '模板名称不能为空', trigger: 'blur' }],
+    templateCode: [
       { required: true, message: '模板编码不能为空', trigger: 'blur' },
       { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '模板编码必须以字母开头，仅允许字母数字下划线', trigger: 'blur' }
     ]
@@ -222,7 +222,7 @@ function getList() {
 /** 加载分类树 */
 function loadCategoryTree() {
   listCategory().then(response => {
-    categoryTree.value = proxy.handleTree(response.data, 'id')
+    categoryTree.value = proxy.handleTree(response.data, 'categoryId')
   })
 }
 
@@ -235,11 +235,11 @@ function cancel() {
 /** 表单重置 */
 function reset() {
   form.value = {
-    id: undefined,
-    name: undefined,
-    code: undefined,
+    templateId: undefined,
+    templateName: undefined,
+    templateCode: undefined,
     categoryId: undefined,
-    description: undefined,
+    remark: undefined,
     status: '0'
   }
   proxy.resetForm('formRef')
@@ -259,7 +259,7 @@ function resetQuery() {
 
 /** 多选变化 */
 function handleSelectionChange(selection: CollectTemplate[]) {
-  ids.value = selection.map(item => item.id!)
+  ids.value = selection.map(item => item.templateId!)
   single.value = selection.length !== 1
   multiple.value = !selection.length
 }
@@ -276,7 +276,7 @@ function handleAdd() {
 function handleUpdate(row: CollectTemplate) {
   reset()
   loadCategoryTree()
-  const id = row.id || ids.value[0]
+  const id = row.templateId || ids.value[0]
   getTemplate(id).then(response => {
     form.value = response.data!
     open.value = true
@@ -288,7 +288,7 @@ function handleUpdate(row: CollectTemplate) {
 function submitForm() {
   proxy.$refs['formRef'].validate((valid: boolean) => {
     if (valid) {
-      if (form.value.id !== undefined) {
+      if (form.value.templateId !== undefined) {
         updateTemplate(form.value).then(() => {
           proxy.$modal.msgSuccess('修改成功')
           open.value = false
@@ -307,7 +307,7 @@ function submitForm() {
 
 /** 删除 */
 function handleDelete(row: CollectTemplate) {
-  const delIds = row.id || ids.value
+  const delIds = row.templateId || ids.value
   proxy.$modal.confirm('是否确认删除模板编号为"' + delIds + '"的数据项？').then(() => {
     return delTemplate(delIds)
   }).then(() => {
@@ -318,19 +318,19 @@ function handleDelete(row: CollectTemplate) {
 
 /** 设计模板（进入编辑页） */
 function handleEditConfig(row: CollectTemplate) {
-  router.push({ path: '/collect/template/edit', query: { id: row.id } })
+  router.push({ path: '/collect/template/edit', query: { id: row.templateId } })
 }
 
 /** 预览模板 */
 function handlePreview(row: CollectTemplate) {
-  router.push({ path: '/collect/template/edit', query: { id: row.id, readonly: '1' } })
+  router.push({ path: '/collect/template/edit', query: { id: row.templateId, readonly: '1' } })
 }
 
 /** 发布/下架 */
 function handlePublish(row: CollectTemplate) {
   const action = row.status === '1' ? '下架' : '发布'
-  proxy.$modal.confirm('是否确认' + action + '模板"' + row.name + '"？').then(() => {
-    return publishTemplate(row.id!)
+  proxy.$modal.confirm('是否确认' + action + '模板"' + row.templateName + '"？').then(() => {
+    return publishTemplate(row.templateId!, row.status === '1' ? '2' : '1')
   }).then(() => {
     proxy.$modal.msgSuccess(action + '成功')
     getList()

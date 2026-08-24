@@ -5,6 +5,7 @@ import com.allinone.common.core.controller.BaseController;
 import com.allinone.common.core.domain.AjaxResult;
 import com.allinone.common.core.page.TableDataInfo;
 import com.allinone.common.enums.BusinessType;
+import com.allinone.common.utils.poi.ExcelUtil;
 import com.allinone.collect.domain.CollectTemplate;
 import com.allinone.collect.service.ICollectTemplateService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/collect/template")
@@ -28,6 +30,14 @@ public class CollectTemplateController extends BaseController {
         return getDataTable(list);
     }
 
+    @PreAuthorize("@ss.hasPermi('collect:template:export')")
+    @Log(title = "填报模板", businessType = BusinessType.EXPORT)
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, CollectTemplate template) {
+        List<CollectTemplate> list = collectTemplateService.selectCollectTemplateList(template);
+        new ExcelUtil<>(CollectTemplate.class).exportExcel(response, list, "填报模板");
+    }
+
     @PreAuthorize("@ss.hasPermi('collect:template:query')")
     @GetMapping("/{templateId}")
     public AjaxResult getInfo(@PathVariable Long templateId) {
@@ -38,14 +48,16 @@ public class CollectTemplateController extends BaseController {
     @Log(title = "填报模板", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult add(@RequestBody CollectTemplate template) {
-        return toAjax(collectTemplateService.insertCollectTemplate(template));
+        int rows = collectTemplateService.insertCollectTemplate(template);
+        return rows > 0 ? success(template) : error("新增填报模板失败");
     }
 
     @PreAuthorize("@ss.hasPermi('collect:template:edit')")
     @Log(title = "填报模板", businessType = BusinessType.UPDATE)
     @PutMapping
     public AjaxResult edit(@RequestBody CollectTemplate template) {
-        return toAjax(collectTemplateService.updateCollectTemplate(template));
+        int rows = collectTemplateService.updateCollectTemplate(template);
+        return rows > 0 ? success(collectTemplateService.selectCollectTemplateById(template.getTemplateId())) : error("修改填报模板失败");
     }
 
     @PreAuthorize("@ss.hasPermi('collect:template:remove')")

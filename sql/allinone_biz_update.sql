@@ -76,3 +76,29 @@ CREATE TABLE IF NOT EXISTS `work_report_sheet_permission` (
   KEY `idx_sheet` (`sheet_id`),
   KEY `idx_target` (`perm_type`,`perm_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sheet 显式权限分配';
+
+-- -----------------------------------------------------------
+-- Phase 5: 修正多 Sheet 单元格唯一键
+-- 仅对已经执行过旧版 allinone_biz.sql 的数据库执行一次。
+-- -----------------------------------------------------------
+ALTER TABLE `collect_data_cell`
+  DROP INDEX `uk_cdc_data_rc`,
+  ADD UNIQUE KEY `uk_cdc_data_rc` (`data_id`, `sheet_index`, `row_index`, `col_index`);
+
+-- -----------------------------------------------------------
+-- Phase 6: 字段映射支持多 Sheet
+-- 仅对尚未增加 sheet_index 的数据库执行一次。
+-- -----------------------------------------------------------
+SET @add_sheet_index_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_field_mapping' AND COLUMN_NAME = 'sheet_index') = 0,
+  'ALTER TABLE `collect_field_mapping` ADD COLUMN `sheet_index` int(8) NOT NULL DEFAULT 0 COMMENT ''Sheet序号（0-based）'' AFTER `cell_ref`',
+  'SELECT 1'
+);
+PREPARE add_sheet_index_stmt FROM @add_sheet_index_sql;
+EXECUTE add_sheet_index_stmt;
+DEALLOCATE PREPARE add_sheet_index_stmt;
+
+ALTER TABLE `collect_field_mapping`
+  DROP INDEX `uk_cfm_rc`,
+  ADD UNIQUE KEY `uk_cfm_rc` (`template_id`, `sheet_index`, `row_index`, `col_index`);

@@ -6,6 +6,7 @@
         <id property="mappingId" column="mapping_id"/>
         <result property="templateId" column="template_id"/>
         <result property="cellRef" column="cell_ref"/>
+        <result property="sheetIndex" column="sheet_index"/>
         <result property="rowIndex" column="row_index"/>
         <result property="colIndex" column="col_index"/>
         <result property="targetTable" column="target_table"/>
@@ -25,8 +26,8 @@
     </resultMap>
 
     <sql id="selectVo">
-        select mapping_id, template_id, cell_ref, row_index, col_index, target_table, target_column,
-               data_type, pk_order, default_value, transform_type, order_num, remark,
+        select mapping_id, template_id, cell_ref, sheet_index, row_index, col_index, target_table, target_column,
+               data_type, pk_order, default_value, transform_type, transform_script, order_num, remark,
                del_flag, create_by, create_time, update_by, update_time
         from collect_field_mapping
     </sql>
@@ -48,21 +49,24 @@
     </select>
 
     <insert id="insertCollectFieldMapping" parameterType="CollectFieldMapping">
-        insert into collect_field_mapping (mapping_id, template_id, cell_ref, row_index, col_index, target_table, target_column, data_type, pk_order, default_value, transform_type, order_num, remark, del_flag, create_by, create_time)
-        values (#{mappingId}, #{templateId}, #{cellRef}, #{rowIndex}, #{colIndex}, #{targetTable}, #{targetColumn}, #{dataType}, #{pkOrder}, #{defaultValue}, #{transformType}, #{orderNum}, #{remark}, '0', #{createBy}, #{createTime})
+        insert into collect_field_mapping (mapping_id, template_id, cell_ref, sheet_index, row_index, col_index, target_table, target_column, data_type, pk_order, default_value, transform_type, transform_script, order_num, remark, del_flag, create_by, create_time)
+        values (#{mappingId}, #{templateId}, #{cellRef}, #{sheetIndex}, #{rowIndex}, #{colIndex}, #{targetTable}, #{targetColumn}, #{dataType}, #{pkOrder}, #{defaultValue}, #{transformType}, #{transformScript}, #{orderNum}, #{remark}, '0', #{createBy}, #{createTime})
     </insert>
 
     <update id="updateCollectFieldMapping" parameterType="CollectFieldMapping">
         update collect_field_mapping
         <set>
             <if test="cellRef != null">cell_ref = #{cellRef},</if>
+            <if test="sheetIndex != null">sheet_index = #{sheetIndex},</if>
             <if test="rowIndex != null">row_index = #{rowIndex},</if>
             <if test="colIndex != null">col_index = #{colIndex},</if>
             <if test="targetTable != null">target_table = #{targetTable},</if>
             <if test="targetColumn != null">target_column = #{targetColumn},</if>
             <if test="dataType != null">data_type = #{dataType},</if>
+            <if test="pkOrder != null">pk_order = #{pkOrder},</if>
             <if test="defaultValue != null">default_value = #{defaultValue},</if>
             <if test="transformType != null">transform_type = #{transformType},</if>
+            <if test="transformScript != null">transform_script = #{transformScript},</if>
             <if test="orderNum != null">order_num = #{orderNum},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             update_time = #{updateTime}

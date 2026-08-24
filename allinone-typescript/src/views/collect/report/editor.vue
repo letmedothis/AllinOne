@@ -26,33 +26,78 @@ const reportId = ref('')
 const reportName = ref('')
 const saving = ref(false)
 const initLoading = ref(true)
-const canManage = ref(false)  // 当前用户是创建�? 可管理权�?
+const canManage = ref(false)
 const permDialogRef = ref<InstanceType<typeof SheetPermissionDialog> | null>(null)
-
 const userStore = useUserStore()
 
 const CELL_PAGE_ROWS = 100
 const CELL_PAGE_COLS = 30
+const MAX_CELLS_PER_REQUEST = 5000
 const loadedRanges = new Map<string, Set<string>>()
-const cellSnapshots = new Map<string, Map<string, any>>()
+const cellSnapshots = new Map<string, Map<string, string>>()
+const initialSheetIds = new Set<string>()
+let scrollLoadTimer: number | undefined
 
 function makeCellKey(r: number, c: number): string { return `${r},${c}` }
+
+function getSerializedSheets(): any[] {
+  const sheets = luckysheet.getAllSheets?.()
+  return Array.isArray(sheets) ? sheets : []
+}
+
+function getRawCellValue(cell: any): any {
+  return cell?.v && typeof cell.v === 'object' && 'v' in cell.v ? cell.v.v : cell?.v
+}
+
+function findIndexAtOffset(boundaries: number[] | undefined, offset: number, fallbackSize: number): number {
+  if (!boundaries || boundaries.length === 0) return Math.max(0, Math.floor(offset / fallbackSize))
+  let low = 0
+  let high = boundaries.length - 1
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2)
+    if (boundaries[mid] < offset) low = mid + 1
+    else high = mid
+  }
+  return low
+}
+
+function scheduleVisibleCellLoad(position: { scrollLeft?: number; scrollTop?: number }) {
+  if (scrollLoadTimer !== undefined) window.clearTimeout(scrollLoadTimer)
+  scrollLoadTimer = window.setTimeout(() => {
+    const file = luckysheet.getluckysheetfile?.() || []
+    const activeSheet = file.find((sheet: any) => sheet.status === '1')
+    if (!activeSheet?._sheetDbId) return
+    const row = findIndexAtOffset(activeSheet.visibledatarow, Number(position.scrollTop || 0), 20)
+    const col = findIndexAtOffset(activeSheet.visibledatacolumn, Number(position.scrollLeft || 0), 73)
+    const startRow = Math.floor(row / CELL_PAGE_ROWS) * CELL_PAGE_ROWS
+    const startCol = Math.floor(col / CELL_PAGE_COLS) * CELL_PAGE_COLS
+    void loadVisibleCellsAndSnapshot(
+      activeSheet._sheetDbId,
+      startRow,
+      startRow + CELL_PAGE_ROWS - 1,
+      startCol,
+      startCol + CELL_PAGE_COLS - 1
+    )
+  }, 120)
+}
 
 async function initEditor() {
   initLoading.value = true
   reportId.value = route.params.id as string
   const res = await getReport(reportId.value)
   reportName.value = res.data.reportName
-
-  // 判断当前用户是否是创建�?  const reportUserId = res.data.userId
-  canManage.value = Number(userStore.id) === Number(reportUserId)
+  canManage.value = Number(userStore.id) === Number(res.data.userId)
 
   const sheetRes = await getSheet(reportId.value)
   const data = sheetRes.data && sheetRes.data.length > 0 ? sheetRes.data : []
+  initialSheetIds.clear()
+  for (const sheet of data) {
+    if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
+  }
 
   luckysheet.create({
     container: 'luckysheet',
-    data: data,
+    data,
     title: reportName.value,
     lang: 'zh',
     allowUpdate: false,
@@ -66,12 +111,12 @@ async function initEditor() {
       workbookCreated: async () => {
         const file = luckysheet.getluckysheetfile()
         for (const sheet of file) {
-          const sheetDbId = sheet._sheetDbId
-          if (!sheetDbId) continue
-          await loadVisibleCellsAndSnapshot(sheetDbId, 0, CELL_PAGE_ROWS - 1, 0, CELL_PAGE_COLS - 1)
+          if (!sheet._sheetDbId) continue
+          await loadVisibleCellsAndSnapshot(sheet._sheetDbId, 0, CELL_PAGE_ROWS - 1, 0, CELL_PAGE_COLS - 1)
         }
         initLoading.value = false
-      }
+      },
+      scroll: (position: { scrollLeft?: number; scrollTop?: number }) => scheduleVisibleCellLoad(position)
     }
   })
 }
@@ -79,52 +124,73 @@ async function initEditor() {
 async function loadVisibleCellsAndSnapshot(
   sheetDbId: string, startRow: number, endRow: number, startCol: number, endCol: number
 ) {
-  const key = `${startRow}-${endRow}-${startCol}-${endCol}`
-  const rangeSet = loadedRanges.get(sheetDbId) || new Set()
-  if (rangeSet.has(key)) return
-  rangeSet.add(key)
+  const rangeKey = `${startRow}-${endRow}-${startCol}-${endCol}`
+  const rangeSet = loadedRanges.get(sheetDbId) || new Set<string>()
+  if (rangeSet.has(rangeKey)) return
+  rangeSet.add(rangeKey)
   loadedRanges.set(sheetDbId, rangeSet)
 
   try {
     const res = await loadCells(sheetDbId, startRow, endRow, startCol, endCol)
-    if (res.data && res.data.length > 0) {
-      const file = luckysheet.getluckysheetfile()
-      const sheetIndex = file.findIndex((s: any) => s._sheetDbId === sheetDbId)
-      if (sheetIndex < 0) return
-      const sheet = file[sheetIndex]
-      if (!sheet.celldata) sheet.celldata = []
-      const snapMap = cellSnapshots.get(sheetDbId) || new Map()
-      for (const cell of res.data) {
-        const cellObj = { r: cell.rowIndex, c: cell.colIndex, v: cell.cellValue }
-        sheet.celldata.push(cellObj)
-        snapMap.set(makeCellKey(cell.rowIndex, cell.colIndex), JSON.stringify(cell.cellValue))
-      }
-      cellSnapshots.set(sheetDbId, snapMap)
+    if (!res.data || res.data.length === 0) return
+    const file = luckysheet.getluckysheetfile()
+    const sheetIndex = file.findIndex((sheet: any) => sheet._sheetDbId === sheetDbId)
+    if (sheetIndex < 0) {
+      rangeSet.delete(rangeKey)
+      return
     }
-  } catch (e) { console.warn('load cells failed:', e) }
+
+    for (let index = 0; index < res.data.length; index++) {
+      const cell = res.data[index]
+      let value = cell.cellValue
+      try { value = cell.cellValue == null ? null : JSON.parse(cell.cellValue) } catch { /* 兼容旧的纯文本数据 */ }
+      luckysheet.setCellValue(cell.rowIndex, cell.colIndex, value, {
+        order: sheetIndex,
+        isRefresh: index === res.data.length - 1
+      })
+    }
+
+    const serializedSheet = getSerializedSheets().find((sheet: any) => sheet._sheetDbId === sheetDbId)
+    const currentCells = new Map<string, any>()
+    for (const cell of serializedSheet?.celldata || []) currentCells.set(makeCellKey(cell.r, cell.c), cell)
+    const snapMap = cellSnapshots.get(sheetDbId) || new Map<string, string>()
+    for (const cell of res.data) {
+      const current = currentCells.get(makeCellKey(cell.rowIndex, cell.colIndex))
+      snapMap.set(makeCellKey(cell.rowIndex, cell.colIndex), JSON.stringify(current?.v ?? null))
+    }
+    cellSnapshots.set(sheetDbId, snapMap)
+  } catch (e) {
+    rangeSet.delete(rangeKey)
+    console.warn('load cells failed:', e)
+  }
 }
 
 function collectDirtyCells(): any[] {
   const dirty: any[] = []
-  const file = luckysheet.getluckysheetfile()
-  for (const sheet of file) {
+  for (const sheet of getSerializedSheets()) {
     const sheetDbId = sheet._sheetDbId
     if (!sheetDbId) continue
-    const snapMap = cellSnapshots.get(sheetDbId) || new Map()
-    const currentCelldata: any[] = sheet.celldata || []
+    const snapMap = cellSnapshots.get(sheetDbId) || new Map<string, string>()
     const currMap = new Map<string, any>()
-    for (const cell of currentCelldata) currMap.set(makeCellKey(cell.r, cell.c), cell)
+    for (const cell of sheet.celldata || []) currMap.set(makeCellKey(cell.r, cell.c), cell)
     for (const [key, cell] of currMap) {
-      const snapValue = snapMap.get(key)
       const currentValue = JSON.stringify(cell.v)
-      if (snapValue === undefined || snapValue !== currentValue) {
-        dirty.push({ sheetDbId, rowIndex: cell.r, colIndex: cell.c, cellValue: cell.v != null ? String(cell.v) : null, cellFormula: cell.f || null, cellType: typeof cell.v === 'number' ? 'number' : 'string' })
+      if (snapMap.get(key) !== currentValue) {
+        const rawValue = getRawCellValue(cell)
+        dirty.push({
+          sheetDbId,
+          rowIndex: cell.r,
+          colIndex: cell.c,
+          cellValue: cell.v != null ? currentValue : null,
+          cellFormula: cell.v?.f || null,
+          cellType: typeof rawValue === 'number' ? 'number' : typeof rawValue === 'boolean' ? 'bool' : 'string'
+        })
       }
     }
     for (const [key] of snapMap) {
       if (!currMap.has(key)) {
-        const [r, c] = key.split(',').map(Number)
-        dirty.push({ sheetDbId, rowIndex: r, colIndex: c, cellValue: null, cellFormula: null, cellType: 'string' })
+        const [rowIndex, colIndex] = key.split(',').map(Number)
+        dirty.push({ sheetDbId, rowIndex, colIndex, cellValue: null, cellFormula: null, cellType: 'string' })
       }
     }
   }
@@ -134,28 +200,57 @@ function collectDirtyCells(): any[] {
 async function handleSave() {
   saving.value = true
   try {
+    const serializedSheets = getSerializedSheets()
+    const currentSheetIds = new Set(
+      serializedSheets.map((sheet: any) => sheet._sheetDbId).filter(Boolean).map(String)
+    )
+    const deletedSheetIds = [...initialSheetIds].filter(id => !currentSheetIds.has(id))
+    const metadata = serializedSheets.map((sheet: any) => {
+      const persistedMetadata = { ...sheet }
+      delete persistedMetadata.celldata
+      delete persistedMetadata.data
+      return persistedMetadata
+    })
+    const saveResponse = await saveSheet(reportId.value, metadata, deletedSheetIds)
+
     const file = luckysheet.getluckysheetfile()
-    await saveSheet(reportId.value, file)
+    for (const mapping of saveResponse.data || []) {
+      const sheet = file.find((item: any) => String(item.index) === mapping.clientSheetId)
+      if (sheet) sheet._sheetDbId = mapping.sheetDbId
+    }
+
     const dirty = collectDirtyCells()
-    if (dirty.length > 0) {
-      await saveCells(dirty)
-      for (const cell of dirty) {
-        const snapMap = cellSnapshots.get(cell.sheetDbId)
-        if (snapMap) snapMap.set(makeCellKey(cell.rowIndex, cell.colIndex), JSON.stringify(cell.cellValue))
+    for (let from = 0; from < dirty.length; from += MAX_CELLS_PER_REQUEST) {
+      const batch = dirty.slice(from, from + MAX_CELLS_PER_REQUEST)
+      await saveCells(batch)
+      for (const cell of batch) {
+        const snapMap = cellSnapshots.get(cell.sheetDbId) || new Map<string, string>()
+        cellSnapshots.set(cell.sheetDbId, snapMap)
+        const key = makeCellKey(cell.rowIndex, cell.colIndex)
+        if (cell.cellValue == null) snapMap.delete(key)
+        else snapMap.set(key, cell.cellValue)
       }
     }
+
+    initialSheetIds.clear()
+    for (const sheet of file) {
+      if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
+    }
     proxy.$modal.msgSuccess('保存成功')
-  } catch (e) { proxy.$modal.msgError('保存失败') }
-  finally { saving.value = false }
+  } catch (e) {
+    proxy.$modal.msgError('保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
 function openPermissionDialog() {
-  // 取当�?sheet（活跃的 sheet�?  const file = luckysheet.getluckysheetfile()
-  const activeSheet = file?.find((s: any) => s.status === '1')
+  const file = luckysheet.getluckysheetfile()
+  const activeSheet = file?.find((sheet: any) => sheet.status === '1')
   if (activeSheet?._sheetDbId) {
     permDialogRef.value?.open(activeSheet._sheetDbId, activeSheet.name || reportName.value, canManage.value)
   } else {
-    proxy.$modal.msgWarning('请先选择一�?Sheet')
+    proxy.$modal.msgWarning('请先选择一个Sheet')
   }
 }
 
@@ -166,10 +261,12 @@ function onKeydown(e: KeyboardEvent) {
 onMounted(() => { initEditor(); document.addEventListener('keydown', onKeydown) })
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
+  if (scrollLoadTimer !== undefined) window.clearTimeout(scrollLoadTimer)
   try {
     luckysheet.destroy()
     loadedRanges.clear()
     cellSnapshots.clear()
+    initialSheetIds.clear()
   } catch (e) {
     console.warn('Luckysheet destroy failed:', e)
   }

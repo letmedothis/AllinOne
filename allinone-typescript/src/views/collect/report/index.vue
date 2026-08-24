@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="报表�? prop="reportName">
+      <el-form-item label="报表名称" prop="reportName">
         <el-input
           v-model="queryParams.reportName"
-          placeholder="请输入报表名"
+          placeholder="请输入报表名称"
           clearable
           @keyup.enter="handleQuery"
         />
@@ -59,8 +59,8 @@
     <el-table v-loading="loading" :data="reportList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="主键" align="center" prop="id" />
-      <el-table-column label="报表�? align="center" prop="reportName" />
-      <el-table-column label="报表简�? align="center" prop="reportJianjie" />
+      <el-table-column label="报表名称" align="center" prop="reportName" />
+      <el-table-column label="报表简介" align="center" prop="reportJianjie" />
       <el-table-column label="备注" align="center" prop="reportBeizhu" />
       <el-table-column label="创建时间" align="center" prop="createTime" width="180">
         <template #default="scope">
@@ -89,26 +89,26 @@
       <el-form ref="reportRef" :model="form" :rules="rules" label-width="100px">
         <el-row>
           <el-col :span="24">
-            <el-form-item label="报表�? prop="reportName">
-              <el-input v-model="form.reportName" placeholder="请输入报表名" />
+            <el-form-item label="报表名称" prop="reportName">
+              <el-input v-model="form.reportName" placeholder="请输入报表名称" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="报表简�? prop="reportJianjie">
-              <el-input v-model="form.reportJianjie" placeholder="请输入报表简�? />
+            <el-form-item label="报表简介" prop="reportJianjie">
+              <el-input v-model="form.reportJianjie" placeholder="请输入报表简介" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item label="备注" prop="reportBeizhu">
-              <el-input v-model="form.reportBeizhu" placeholder="请输入备�? />
+              <el-input v-model="form.reportBeizhu" placeholder="请输入备注" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button type="primary" @click="submitForm">�?�?/el-button>
-          <el-button @click="cancel">�?�?/el-button>
+          <el-button type="primary" @click="submitForm">确定</el-button>
+          <el-button @click="cancel">取消</el-button>
         </div>
       </template>
     </el-dialog>
@@ -242,7 +242,7 @@ function submitForm() {
 /** 删除按钮操作 */
 function handleDelete(row: WorkReport) {
   const _ids = row.id || ids.value
-  proxy.$modal.confirm('是否确认删除报表编号�?' + _ids + '"的数据项�?).then(function() {
+  proxy.$modal.confirm('是否确认删除报表编号为"' + _ids + '"的数据项？').then(function() {
     return delReport(_ids)
   }).then(() => {
     getList()
@@ -262,7 +262,7 @@ function handleEditSheet(row: WorkReport) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download('system/report/export', {
+  proxy.download('collect/report/export', {
     ...queryParams.value
   }, `report_${new Date().getTime()}.xlsx`)
 }

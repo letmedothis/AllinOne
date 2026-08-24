@@ -1,4 +1,4 @@
-# 项目相关配置
+﻿# 项目相关配置
 ruoyi:
   # 名称
   name: RuoYi
@@ -69,7 +69,7 @@ spring:
     # redis 配置
     redis:
       # 地址
-      host: ${REDIS_HOST:localhost}
+      host: localhost
       # 端口，默认为6379
       port: 6379
       # 数据库索引
@@ -138,10 +138,14 @@ referer:
 # JimuReport 集成配置
 jimureport:
   # 启用设计器界面
-  ui-enable: true
+  ui-enable: ${JIMUREPORT_UI_ENABLE:false}
 
 # 文件上传配置
 allinone:
+  collect:
+    write-back:
+      # 逗号分隔的业务表白名单；默认禁用动态回写。
+      allowed-tables: ${COLLECT_WRITE_BACK_ALLOWED_TABLES:}
   file:
     # 文件存储路径（本地模式）
     path: ./upload

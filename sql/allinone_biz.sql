@@ -109,7 +109,7 @@ create table collect_data_cell (
   update_by          varchar(64)     default ''                 comment '更新者',
   update_time        datetime                                   comment '更新时间',
   primary key (cell_id),
-  unique key uk_cdc_data_rc (data_id, row_index, col_index),
+  unique key uk_cdc_data_rc (data_id, sheet_index, row_index, col_index),
   key idx_cdc_template (template_id),
   key idx_cdc_sheet (data_id, sheet_index),
   key idx_cdc_tmpl_rc (template_id, row_index, col_index, sheet_index)
@@ -123,6 +123,7 @@ create table collect_field_mapping (
   mapping_id       bigint(20)      not null                   comment '雪花主键',
   template_id      bigint(20)      not null                   comment '关联模板ID',
   cell_ref         varchar(20)     default null               comment '单元格坐标（如B3）',
+  sheet_index      int(8)          not null default 0         comment 'Sheet序号（0-based）',
   row_index        int(8)          not null                   comment '行号（0-based）',
   col_index        int(8)          not null                   comment '列号（0-based）',
   target_table     varchar(100)    not null                   comment '目标表名',
@@ -140,7 +141,7 @@ create table collect_field_mapping (
   update_by        varchar(64)     default ''                 comment '更新者',
   update_time      datetime                                   comment '更新时间',
   primary key (mapping_id),
-  unique key uk_cfm_rc (template_id, row_index, col_index),
+  unique key uk_cfm_rc (template_id, sheet_index, row_index, col_index),
   key idx_cfm_table (target_table, target_column)
 ) engine=innodb default charset=utf8mb4 collate=utf8mb4_general_ci comment = '字段映射配置表（三层架构Tier 3）';
 

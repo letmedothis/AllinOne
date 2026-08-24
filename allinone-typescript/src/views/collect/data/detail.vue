@@ -18,10 +18,10 @@
           <span>基本信息</span>
         </template>
         <el-descriptions :column="3" border>
-          <el-descriptions-item label="数据标题" :span="2">{{ detail.title }}</el-descriptions-item>
+          <el-descriptions-item label="业务编码" :span="2">{{ detail.dataCode || '-' }}</el-descriptions-item>
           <el-descriptions-item label="填报状态">
-            <el-tag :type="detail.status === '1' ? 'success' : 'warning'" disable-transitions>
-              {{ detail.status === '1' ? '已提交' : '草稿' }}
+            <el-tag :type="detail.bizStatus === 'submitted' ? 'success' : 'warning'" disable-transitions>
+              {{ detail.bizStatus === 'submitted' ? '已提交' : '草稿' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="模板名称">{{ detail.templateName }}</el-descriptions-item>
@@ -38,10 +38,10 @@
           <span>填报数据</span>
         </template>
         <CollectSheet
-          v-if="detail.data"
-          :key="'detail-' + detail.id"
+          v-if="detail.formData"
+          :key="'detail-' + detail.dataId"
           ref="sheetRef"
-          :sheetData="detail.data"
+          :sheetData="detail.formData"
           :readonly="true"
           :height="600"
         />
@@ -50,7 +50,7 @@
     </template>
 
     <!-- 数据为空 -->
-    <el-empty v-if="!loading && !detail.id" description="数据不存在" />
+    <el-empty v-if="!loading && !detail.dataId" description="数据不存在" />
   </div>
 </template>
 

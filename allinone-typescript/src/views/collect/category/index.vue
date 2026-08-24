@@ -2,9 +2,9 @@
   <div class="app-container">
     <!-- 搜索栏 -->
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
-      <el-form-item label="分类名称" prop="name">
+      <el-form-item label="分类名称" prop="categoryName">
         <el-input
-          v-model="queryParams.name"
+          v-model="queryParams.categoryName"
           placeholder="请输入分类名称"
           clearable
           style="width: 200px"
@@ -44,17 +44,16 @@
       v-if="refreshTable"
       v-loading="loading"
       :data="categoryList"
-      row-key="id"
+      row-key="categoryId"
       :default-expand-all="isExpandAll"
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
     >
-      <el-table-column prop="name" label="分类名称" width="260">
+      <el-table-column prop="categoryName" label="分类名称" width="260">
         <template #default="scope">
           <el-icon class="tree-icon"><FolderOpened v-if="scope.row.children?.length" /><Document v-else /></el-icon>
-          {{ scope.row.name }}
+          {{ scope.row.categoryName }}
         </template>
       </el-table-column>
-      <el-table-column prop="code" label="分类编码" width="160" />
       <el-table-column prop="orderNum" label="排序" width="120">
         <template #default="scope">
           <el-tag size="small">{{ scope.row.orderNum }}</el-tag>
@@ -99,21 +98,18 @@
               <el-tree-select
                 v-model="form.parentId"
                 :data="categoryOptions"
-                :props="{ value: 'id', label: 'name', children: 'children' }"
+                :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
                 placeholder="选择上级分类"
                 check-strictly
               />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="分类名称" prop="name">
-              <el-input v-model="form.name" placeholder="请输入分类名称" maxlength="50" />
+            <el-form-item label="分类名称" prop="categoryName">
+              <el-input v-model="form.categoryName" placeholder="请输入分类名称" maxlength="50" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="分类编码" prop="code">
-              <el-input v-model="form.code" placeholder="请输入分类编码" maxlength="64" />
-            </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="显示排序" prop="orderNum">
@@ -163,11 +159,10 @@ const refreshTable = ref<boolean>(true)
 const data = reactive({
   form: {} as CollectCategory,
   queryParams: {
-    name: undefined
+    categoryName: undefined
   },
   rules: {
-    name: [{ required: true, message: '分类名称不能为空', trigger: 'blur' }],
-    code: [{ required: true, message: '分类编码不能为空', trigger: 'blur' }],
+    categoryName: [{ required: true, message: '分类名称不能为空', trigger: 'blur' }],
     orderNum: [{ required: true, message: '显示排序不能为空', trigger: 'blur' }]
   }
 })
@@ -177,8 +172,8 @@ const { queryParams, form, rules } = toRefs(data)
 /** 查询分类列表 */
 function getList() {
   loading.value = true
-  listCategory().then(response => {
-    categoryList.value = proxy.handleTree(response.data, 'id')
+  listCategory(queryParams.value).then(response => {
+    categoryList.value = proxy.handleTree(response.data, 'categoryId')
     loading.value = false
   })
 }
@@ -192,10 +187,9 @@ function cancel() {
 /** 重置表单 */
 function reset() {
   form.value = {
-    id: undefined,
+    categoryId: undefined,
     parentId: 0,
-    name: undefined,
-    code: undefined,
+    categoryName: undefined,
     orderNum: 0,
     status: '0'
   }
@@ -226,10 +220,10 @@ function toggleExpandAll() {
 function handleAdd(row?: CollectCategory) {
   reset()
   listCategory().then(response => {
-    categoryOptions.value = proxy.handleTree(response.data, 'id')
+    categoryOptions.value = proxy.handleTree(response.data, 'categoryId')
   })
-  if (row?.id !== undefined) {
-    form.value.parentId = row.id
+  if (row?.categoryId !== undefined) {
+    form.value.parentId = row.categoryId
   }
   open.value = true
   title.value = '新增分类'
@@ -239,7 +233,7 @@ function handleAdd(row?: CollectCategory) {
 function handleUpdate(row: CollectCategory) {
   reset()
   listCategory().then(response => {
-    categoryOptions.value = proxy.handleTree(response.data, 'id')
+    categoryOptions.value = proxy.handleTree(response.data, 'categoryId')
   })
   form.value = { ...row }
   open.value = true
@@ -250,7 +244,7 @@ function handleUpdate(row: CollectCategory) {
 function submitForm() {
   proxy.$refs['formRef'].validate((valid: boolean) => {
     if (valid) {
-      if (form.value.id !== undefined) {
+      if (form.value.categoryId !== undefined) {
         updateCategory(form.value).then(() => {
           proxy.$modal.msgSuccess('修改成功')
           open.value = false
@@ -269,8 +263,8 @@ function submitForm() {
 
 /** 删除 */
 function handleDelete(row: CollectCategory) {
-  proxy.$modal.confirm('是否确认删除分类"' + row.name + '"？').then(() => {
-    return delCategory(row.id!)
+  proxy.$modal.confirm('是否确认删除分类"' + row.categoryName + '"？').then(() => {
+    return delCategory(row.categoryId!)
   }).then(() => {
     getList()
     proxy.$modal.msgSuccess('删除成功')

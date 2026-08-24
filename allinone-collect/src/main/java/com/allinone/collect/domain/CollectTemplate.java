@@ -3,6 +3,7 @@ package com.allinone.collect.domain;
 import com.allinone.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.allinone.common.annotation.Excel;
 
 /**
  * 填报模板表 collect_template
@@ -11,11 +12,16 @@ public class CollectTemplate extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     private Long templateId;
+    @Excel(name = "模板名称")
     private String templateName;
+    @Excel(name = "模板编码")
     private String templateCode;
     private Long categoryId;
+    @Excel(name = "分类名称")
+    private String categoryName;
     private String templateType;
     private String templateJson;
+    @Excel(name = "状态")
     private String status;
     private Integer version;
 
@@ -27,6 +33,8 @@ public class CollectTemplate extends BaseEntity {
     public void setTemplateCode(String templateCode) { this.templateCode = templateCode; }
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
     public String getTemplateType() { return templateType; }
     public void setTemplateType(String templateType) { this.templateType = templateType; }
     public String getTemplateJson() { return templateJson; }

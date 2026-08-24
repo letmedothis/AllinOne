@@ -11,6 +11,7 @@ public class CollectFieldMapping extends BaseEntity {
     private Long mappingId;
     private Long templateId;
     private String cellRef;
+    private Integer sheetIndex;
     private Integer rowIndex;
     private Integer colIndex;
     private String targetTable;
@@ -28,6 +29,8 @@ public class CollectFieldMapping extends BaseEntity {
     public void setTemplateId(Long templateId) { this.templateId = templateId; }
     public String getCellRef() { return cellRef; }
     public void setCellRef(String cellRef) { this.cellRef = cellRef; }
+    public Integer getSheetIndex() { return sheetIndex; }
+    public void setSheetIndex(Integer sheetIndex) { this.sheetIndex = sheetIndex; }
     public Integer getRowIndex() { return rowIndex; }
     public void setRowIndex(Integer rowIndex) { this.rowIndex = rowIndex; }
     public Integer getColIndex() { return colIndex; }

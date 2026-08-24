@@ -8,6 +8,7 @@ public interface IWorkReportSheetService
     WorkReportSheet selectWorkReportSheetById(String id);
     List<WorkReportSheet> selectWorkReportSheetList(WorkReportSheet workReportSheet);
     List<WorkReportSheet> selectAccessibleSheets(WorkReportSheet workReportSheet);
+    WorkReportSheet selectAccessibleSheetById(String id);
     int insertWorkReportSheet(WorkReportSheet workReportSheet);
     int updateWorkReportSheet(WorkReportSheet workReportSheet);
     int deleteWorkReportSheetById(String id);

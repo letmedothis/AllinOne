@@ -37,7 +37,8 @@ public class CollectFieldMappingController extends BaseController {
     @Log(title = "字段映射", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult add(@RequestBody CollectFieldMapping mapping) {
-        return toAjax(collectFieldMappingService.insertCollectFieldMapping(mapping));
+        int rows = collectFieldMappingService.insertCollectFieldMapping(mapping);
+        return rows > 0 ? success(mapping) : error("新增字段映射失败");
     }
 
     @PreAuthorize("@ss.hasPermi('collect:mapping:edit')")

@@ -7,6 +7,7 @@
         <result property="templateName" column="template_name"/>
         <result property="templateCode" column="template_code"/>
         <result property="categoryId" column="category_id"/>
+        <result property="categoryName" column="category_name"/>
         <result property="templateType" column="template_type"/>
         <result property="templateJson" column="template_json"/>
         <result property="status" column="status"/>
@@ -20,26 +21,32 @@
     </resultMap>
 
     <sql id="selectCollectTemplateVo">
-        select template_id, template_name, template_code, category_id, template_type, status, version, remark, del_flag, create_by, create_time, update_by, update_time
-        from collect_template
+        select ct.template_id, ct.template_name, ct.template_code, ct.category_id, cc.category_name,
+               ct.template_type, ct.status, ct.version, ct.remark, ct.del_flag,
+               ct.create_by, ct.create_time, ct.update_by, ct.update_time
+        from collect_template ct left join collect_category cc on cc.category_id = ct.category_id
     </sql>
 
     <select id="selectCollectTemplateList" parameterType="CollectTemplate" resultMap="CollectTemplateResult">
         <include refid="selectCollectTemplateVo"/>
-        where del_flag = '0'
-        <if test="templateName != null and templateName != ''"> and template_name like concat('%', #{templateName}, '%')</if>
-        <if test="templateCode != null and templateCode != ''"> and template_code = #{templateCode}</if>
-        <if test="categoryId != null"> and category_id = #{categoryId}</if>
-        <if test="status != null and status != ''"> and status = #{status}</if>
-        order by create_time desc
+        where ct.del_flag = '0'
+        <if test="templateName != null and templateName != ''"> and ct.template_name like concat('%', #{templateName}, '%')</if>
+        <if test="templateCode != null and templateCode != ''"> and ct.template_code = #{templateCode}</if>
+        <if test="categoryId != null"> and ct.category_id = #{categoryId}</if>
+        <if test="status != null and status != ''"> and ct.status = #{status}</if>
+        order by ct.create_time desc
     </select>
 
     <select id="selectCollectTemplateById" parameterType="Long" resultMap="CollectTemplateResult">
-        <include refid="selectCollectTemplateVo"/> where template_id = #{templateId}
+        select ct.template_id, ct.template_name, ct.template_code, ct.category_id, cc.category_name,
+               ct.template_type, ct.template_json, ct.status, ct.version, ct.remark, ct.del_flag,
+               ct.create_by, ct.create_time, ct.update_by, ct.update_time
+        from collect_template ct left join collect_category cc on cc.category_id = ct.category_id
+        where ct.template_id = #{templateId} and ct.del_flag = '0'
     </select>
 
     <select id="selectCollectTemplateByCode" parameterType="String" resultMap="CollectTemplateResult">
-        <include refid="selectCollectTemplateVo"/> where template_code = #{templateCode} and del_flag = '0'
+        <include refid="selectCollectTemplateVo"/> where ct.template_code = #{templateCode} and ct.del_flag = '0'
     </select>
 
     <insert id="insertCollectTemplate" parameterType="CollectTemplate">
@@ -55,19 +62,18 @@
             <if test="categoryId != null">category_id = #{categoryId},</if>
             <if test="templateType != null">template_type = #{templateType},</if>
             <if test="templateJson != null">template_json = #{templateJson},</if>
-            <if test="status != null">status = #{status},</if>
-            <if test="version != null">version = version + 1,</if>
+            version = version + 1,
             <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             update_time = #{updateTime}
         </set>
-        where template_id = #{templateId}
+        where template_id = #{templateId} and version = #{version} and del_flag = '0'
     </update>
 
     <update id="updateCollectTemplateStatus" parameterType="CollectTemplate">
         update collect_template set status = #{status}, update_time = #{updateTime}
         <if test="updateBy != null">, update_by = #{updateBy}</if>
-        where template_id = #{templateId}
+        where template_id = #{templateId} and del_flag = '0'
     </update>
 
     <update id="deleteCollectTemplateById" parameterType="Long">

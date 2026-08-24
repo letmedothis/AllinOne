@@ -19,7 +19,7 @@ export function getTemplate(id: number): Promise<AjaxResult<CollectTemplate>> {
 }
 
 /** 新增填报模板 */
-export function addTemplate(data: CollectTemplate): Promise<AjaxResult> {
+export function addTemplate(data: CollectTemplate): Promise<AjaxResult<CollectTemplate>> {
   return request({
     url: '/collect/template',
     method: 'post',
@@ -28,7 +28,7 @@ export function addTemplate(data: CollectTemplate): Promise<AjaxResult> {
 }
 
 /** 修改填报模板 */
-export function updateTemplate(data: CollectTemplate): Promise<AjaxResult> {
+export function updateTemplate(data: CollectTemplate): Promise<AjaxResult<CollectTemplate>> {
   return request({
     url: '/collect/template',
     method: 'put',
@@ -45,9 +45,10 @@ export function delTemplate(id: number | number[]): Promise<AjaxResult> {
 }
 
 /** 发布/下架填报模板 */
-export function publishTemplate(id: number): Promise<AjaxResult> {
+export function publishTemplate(id: number, status: '1' | '2'): Promise<AjaxResult> {
   return request({
     url: '/collect/template/' + id + '/publish',
-    method: 'post'
+    method: 'post',
+    data: { status }
   })
 }

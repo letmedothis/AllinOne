@@ -41,11 +41,7 @@ nbdist/
 *.log
 *.xml.versionsBackup
 *.swp
-
-# Local agent settings and generated review artifacts
 .claude/settings.local.json
-review_output.json
-tmp_output.json
 
 !*/build/*.java
 !*/build/*.html

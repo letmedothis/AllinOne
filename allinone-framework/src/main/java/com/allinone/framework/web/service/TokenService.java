@@ -22,6 +22,7 @@ import com.allinone.common.utils.uuid.IdUtils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -33,6 +34,10 @@ import jakarta.servlet.http.HttpServletRequest;
 public class TokenService
 {
     private static final Logger log = LoggerFactory.getLogger(TokenService.class);
+
+    private static final String JIMUREPORT_PATH = "/jmreport";
+
+    private static final String ADMIN_TOKEN_COOKIE = "Admin-Token";
 
     // 令牌自定义标识
     @Value("${token.header}")
@@ -207,7 +212,24 @@ public class TokenService
     public String getUsernameFromToken(String token)
     {
         Claims claims = parseToken(token);
-        return claims.getSubject();
+        Object username = claims.get(Constants.JWT_USERNAME);
+        return username == null ? null : username.toString();
+    }
+
+    /** 根据原始 JWT 获取 Redis 中的完整登录上下文。 */
+    public LoginUser getLoginUserFromToken(String token)
+    {
+        if (StringUtils.isEmpty(token)) return null;
+        try
+        {
+            Claims claims = parseToken(token);
+            String uuid = (String) claims.get(Constants.LOGIN_USER_KEY);
+            return StringUtils.isEmpty(uuid) ? null : redisCache.getCacheObject(getTokenKey(uuid));
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
     }
 
     /**
@@ -218,12 +240,63 @@ public class TokenService
      */
     private String getToken(HttpServletRequest request)
     {
+        return getToken(request, isJimuReportRequest(request));
+    }
+
+    /**
+     * 为 JimuReport 拦截器解析令牌。浏览器直接访问或 iframe 加载报表时无法附加
+     * Authorization 请求头，因此只在该集成边界允许读取同源 Admin-Token Cookie。
+     * 其他业务接口仍只接受请求头令牌，避免把 Cookie 认证扩散到整个无 CSRF 会话。
+     */
+    public String getJimuReportToken(HttpServletRequest request)
+    {
+        return getToken(request, true);
+    }
+
+    private String getToken(HttpServletRequest request, boolean allowAdminTokenCookie)
+    {
         String token = request.getHeader(header);
+        if (StringUtils.isEmpty(token))
+        {
+            token = request.getHeader("X-Access-Token");
+        }
+        if (StringUtils.isEmpty(token) && allowAdminTokenCookie)
+        {
+            token = getCookieValue(request, ADMIN_TOKEN_COOKIE);
+        }
         if (StringUtils.isNotEmpty(token) && token.startsWith(Constants.TOKEN_PREFIX))
         {
-            token = token.replace(Constants.TOKEN_PREFIX, "");
+            token = token.substring(Constants.TOKEN_PREFIX.length());
         }
         return token;
+    }
+
+    private boolean isJimuReportRequest(HttpServletRequest request)
+    {
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (StringUtils.isNotEmpty(contextPath) && requestUri.startsWith(contextPath))
+        {
+            requestUri = requestUri.substring(contextPath.length());
+        }
+        return JIMUREPORT_PATH.equals(requestUri) || requestUri.startsWith(JIMUREPORT_PATH + "/");
+    }
+
+    private String getCookieValue(HttpServletRequest request, String cookieName)
+    {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null)
+        {
+            return null;
+        }
+        for (Cookie cookie : cookies)
+        {
+            if (cookieName.equals(cookie.getName()))
+            {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 
     private String getTokenKey(String uuid)

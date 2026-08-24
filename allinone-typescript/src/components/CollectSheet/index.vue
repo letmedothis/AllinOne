@@ -70,7 +70,7 @@ const saving = ref<boolean>(false)
 const error = ref<string>('')
 
 /** 初始化 Luckysheet */
-async function initSheet() {
+async function initSheet(initialData: string | Record<string, any> | null = props.sheetData) {
   loading.value = true
   error.value = ''
 
@@ -106,12 +106,14 @@ async function initSheet() {
     }
 
     // 如果有初始数据，解析并设置
-    if (props.sheetData) {
-      const data = typeof props.sheetData === 'string'
-        ? JSON.parse(props.sheetData)
-        : props.sheetData
+    if (initialData) {
+      const data = typeof initialData === 'string'
+        ? JSON.parse(initialData)
+        : initialData
 
-      if (data.sheets) {
+      if (Array.isArray(data)) {
+        options.data = data
+      } else if (data.sheets) {
         options.data = data.sheets
       }
       if (data.title) {
@@ -140,7 +142,13 @@ async function initSheet() {
 function getData(): any {
   const luckysheet = (window as any).luckysheet
   if (!luckysheet) return null
-  return luckysheet.getLuckysheetfile()
+  const sheets = luckysheet.getAllSheets()
+  if (!Array.isArray(sheets)) return sheets
+  return sheets.map((sheet: any) => {
+    const persistedSheet = { ...sheet }
+    delete persistedSheet.data
+    return persistedSheet
+  })
 }
 
 /** 从外部加载数据 */
@@ -150,7 +158,7 @@ function loadData(data: string | Record<string, any>) {
   luckysheet.destroy()
   loading.value = true
   nextTick(() => {
-    initSheet()
+    initSheet(data)
   })
 }
 

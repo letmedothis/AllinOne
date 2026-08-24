@@ -30,28 +30,33 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <!--
       D3: 双层权限查询
-        管理�? �?全部可见
-        非管理员 �?(@DataScope 条件�?OR) + (自己是创建�? + (被显式分�?
+        管理员：全部可见
+        非管理员：数据范围、自己创建或被显式分配
     -->
     <select id="selectAccessibleSheets" parameterType="WorkReportSheet" resultMap="WorkReportSheetResult">
         <include refid="selectWorkReportSheetVo"/>
         <where> wrs.del_status = 0
+            <if test="id != null and id != ''"> and wrs.id = #{id}</if>
             <if test="reportId != null and reportId != ''"> and wrs.report_id = #{reportId}</if>
             and (
-                <!-- 管理员跳过所有权限检�?-->
+                <!-- 管理员跳过权限限制 -->
                 #{params.isAdmin} = 1
                 <!-- @DataScope 条件（由服务层构建） -->
                 <if test="params.dataScopeCondition != null and params.dataScopeCondition != ''">
                     or (${params.dataScopeCondition})
                 </if>
-                <!-- 自己是创建�?-->
+                <!-- 自己是创建者 -->
                 or wrs.user_id = #{params.currentUserId}
                 <!-- 被显式分配了权限 -->
                 or exists (
                     select 1 from work_report_sheet_permission p
                     where p.sheet_id = wrs.id and (
-                        (p.perm_type = 'role' and p.perm_id in (${params.roleIdList}))
-                        or (p.perm_type = 'dept' and p.perm_id = #{params.currentDeptId})
+                        <if test="params.roleIds != null and params.roleIds.size() > 0">
+                            (p.perm_type = 'role' and p.perm_id in
+                            <foreach item="roleId" collection="params.roleIds" open="(" separator="," close=")">#{roleId}</foreach>)
+                            or
+                        </if>
+                        (p.perm_type = 'dept' and p.perm_id = #{params.currentDeptId})
                         or (p.perm_type = 'user' and p.perm_id = #{params.currentUserId})
                     )
                 )
@@ -60,7 +65,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by wrs.sheet_index asc
     </select>
 
-    <!-- 保留�?@DataScope 查询（用于内部管理） -->
+    <!-- 保留 @DataScope 查询（用于内部管理） -->
     <select id="selectWorkReportSheetList" parameterType="WorkReportSheet" resultMap="WorkReportSheetResult">
         <include refid="selectWorkReportSheetVo"/>
         <where> wrs.del_status = 0

@@ -31,7 +31,8 @@ public class CollectCategoryController extends BaseController {
     @Log(title = "填报分类", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult add(@RequestBody CollectCategory category) {
-        return toAjax(collectCategoryService.insertCollectCategory(category));
+        int rows = collectCategoryService.insertCollectCategory(category);
+        return rows > 0 ? success(category) : error("新增填报分类失败");
     }
 
     @PreAuthorize("@ss.hasPermi('collect:category:edit')")

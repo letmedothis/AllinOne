@@ -171,15 +171,6 @@ allinone
 
 ## ⚡ 快速开始
 
-### 环境变量
-
-公开版本不包含数据库、监控页面或 JWT 凭据。启动后端前请配置：
-
-- `DB_URL`、`DB_USERNAME`、`DB_PASSWORD`
-- `DRUID_USERNAME`、`DRUID_PASSWORD`
-- `JWT_SECRET`
-- `REDIS_HOST`（默认 `localhost`）、`REDIS_PASSWORD`（默认空）
-
 ### 环境要求
 
 - JDK ≥ 17
@@ -312,12 +303,12 @@ server {
 
 | 步骤 | 脚本 | 来源 | 说明 |
 |:----:|------|------|------|
-| 1 | sql/ry_20260417.sql | RuoYi 官方 | 若依系统表（用户/角色/菜单等） |
+| 1 | sql/ry_20260417.sql | RuoYi 官方 | 若依系统表（用户/角色/菜单等，默认无公开通用密码） |
 | 2 | sql/quartz.sql | Quartz | 定时任务表 |
-| 3 | sql/jimureport.mysql5.7.create.sql | 本项目 | JimuReport + JimuBI 全部表（48 张，含示例数据） |
+| 3 | sql/jimureport.mysql5.7.create.sql | 本项目 | JimuReport + JimuBI 全部表（48 张，含已脱敏示例数据） |
 | 4 | sql/allinone_biz.sql | 本项目 | AllinOne 业务表（collect_*/report_*） |
 
-> `jimureport.mysql5.7.create.sql` 已预置在 sql/ 目录下，覆盖 JimuReport 和 JimuBI（onl_drag_*）全部引擎表，首次集成直接执行即可。
+> 导入前必须先阅读 [SQL 公开与初始化说明](sql/README.md)。公开脚本已清除数据源口令和分享令牌，内置管理员也不再携带通用默认密码。
 
 ## 📄 开源协议
 

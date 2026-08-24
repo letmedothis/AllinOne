@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import com.allinone.common.exception.ServiceException;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -40,6 +42,9 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Value("${allinone.collect.write-back.allowed-tables:}")
+    private String allowedTables;
+
     @Override
     @Transactional
     public void writeBack(Long dataId) {
@@ -54,6 +59,12 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
         List<CollectFieldMapping> mappings = collectFieldMappingMapper
                 .selectCollectFieldMappingByTemplate(data.getTemplateId());
         if (mappings == null || mappings.isEmpty()) return;
+
+        for (CollectFieldMapping mapping : mappings) {
+            if (mapping.getTargetTable() == null || mapping.getTargetTable().isBlank()) {
+                throw new ServiceException("回写目标表不能为空");
+            }
+        }
 
         // 按目标表分组
         Map<String, List<CollectFieldMapping>> tableGroups = mappings.stream()
@@ -71,10 +82,13 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
 
     private void executeWriteBack(String tableName, List<CollectFieldMapping> fields,
                                   Map<String, String> cellValueMap) {
-        // 表名白名单校验，防止 SQL 注入
         if (tableName == null || !TABLE_NAME_PATTERN.matcher(tableName).matches()) {
-            log.warn("非法表名，跳过回写: tableName={}", tableName);
-            return;
+            throw new ServiceException("非法的回写表名");
+        }
+        Set<String> tableAllowlist = Arrays.stream(allowedTables.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+        if (!tableAllowlist.contains(tableName)) {
+            throw new ServiceException("目标表未加入回写白名单: " + tableName);
         }
 
         List<CollectFieldMapping> pkFields = fields.stream()
@@ -99,11 +113,10 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
             // 列名也做校验
             String col = f.getTargetColumn();
             if (col == null || !TABLE_NAME_PATTERN.matcher(col).matches()) {
-                log.warn("非法列名，跳过: table={}, col={}", tableName, col);
-                return;
+                throw new ServiceException("非法的回写列名: " + col);
             }
             allCols.add(col);
-            String key = f.getRowIndex() + "," + f.getColIndex();
+            String key = cellKey(f.getSheetIndex(), f.getRowIndex(), f.getColIndex());
             String val = cellValueMap.getOrDefault(key, f.getDefaultValue());
             allVals.add("?");
             params.add(val);
@@ -119,7 +132,7 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
             CollectFieldMapping f = fields.get(i);
             if (f.getPkOrder() == null || f.getPkOrder() == 0) {
                 updates.add(f.getTargetColumn() + " = ?");
-                String key = f.getRowIndex() + "," + f.getColIndex();
+                String key = cellKey(f.getSheetIndex(), f.getRowIndex(), f.getColIndex());
                 String val = cellValueMap.getOrDefault(key, f.getDefaultValue());
                 params.add(val);
             }
@@ -131,32 +144,47 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
     }
 
     /**
-     * 解析 Luckysheet JSON 为 (row,col) → cell_text 映射
+     * 解析 Luckysheet JSON 为 (sheet,row,col) → cell_text 映射
      * JSON 格式: [{ "r":0, "c":0, "v":{ "v":"值", "m":"显示文本" } }, ...]
      */
-    private Map<String, String> parseFormDataToCellMap(String formData) {
+    @SuppressWarnings("unchecked")
+    protected Map<String, String> parseFormDataToCellMap(String formData) {
         Map<String, String> map = new HashMap<>();
         if (formData == null || formData.isEmpty()) return map;
 
         try {
-            List<Map<String, Object>> cells = MAPPER.readValue(formData, List.class);
-
-            for (Map<String, Object> cell : cells) {
-                int r = ((Number) cell.getOrDefault("r", 0)).intValue();
-                int c = ((Number) cell.getOrDefault("c", 0)).intValue();
-                String key = r + "," + c;
-
-                Object vObj = cell.get("v");
-                if (vObj instanceof Map) {
-                    Object mVal = ((Map) vObj).get("m");
-                    Object vVal = ((Map) vObj).get("v");
-                    map.put(key, mVal != null ? mVal.toString() :
-                            (vVal != null ? vVal.toString() : ""));
+            List<Map<String, Object>> root = MAPPER.readValue(formData, List.class);
+            if (!root.isEmpty() && root.get(0).containsKey("celldata")) {
+                for (int sheetIndex = 0; sheetIndex < root.size(); sheetIndex++) {
+                    Object rawCells = root.get(sheetIndex).get("celldata");
+                    if (rawCells instanceof List<?>) {
+                        appendCellValues(map, (List<Map<String, Object>>) rawCells, sheetIndex);
+                    }
                 }
+            } else {
+                appendCellValues(map, root, 0);
             }
         } catch (Exception e) {
-            log.warn("Luckysheet JSON解析失败 formData长度={}", formData != null ? formData.length() : 0, e);
+            throw new ServiceException("Luckysheet JSON解析失败").setDetailMessage(e.getMessage());
         }
         return map;
+    }
+
+    private void appendCellValues(Map<String, String> values, List<Map<String, Object>> cells, int sheetIndex) {
+        for (Map<String, Object> cell : cells) {
+            if (!(cell.get("r") instanceof Number row) || !(cell.get("c") instanceof Number column)) continue;
+            Object value = cell.get("v");
+            if (value instanceof Map<?, ?> valueMap) {
+                Object displayValue = valueMap.get("m");
+                Object rawValue = valueMap.get("v");
+                value = displayValue != null ? displayValue : rawValue;
+            }
+            values.put(cellKey(sheetIndex, row.intValue(), column.intValue()), value == null ? "" : value.toString());
+        }
+    }
+
+    private String cellKey(Integer sheetIndex, Integer rowIndex, Integer colIndex) {
+        int normalizedSheetIndex = sheetIndex == null ? 0 : sheetIndex;
+        return normalizedSheetIndex + "," + rowIndex + "," + colIndex;
     }
 }

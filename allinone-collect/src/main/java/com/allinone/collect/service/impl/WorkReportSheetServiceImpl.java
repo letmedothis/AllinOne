@@ -2,6 +2,7 @@ package com.allinone.collect.service.impl;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Collections;
 
 import com.allinone.common.annotation.DataScope;
 import com.allinone.common.constant.Constants;
@@ -44,21 +45,21 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
 
     /**
      * D3: 双层权限查询
-     * 组合 @DataScope 规则 + 自己创建�?sheet + 显式分配的权�?     */
+     * 组合数据范围、自己创建的 Sheet 和显式分配权限。
+     */
     @Override
     public List<WorkReportSheet> selectAccessibleSheets(WorkReportSheet workReportSheet)
     {
         LoginUser loginUser = SecurityUtils.getLoginUser();
-        if (loginUser == null) return workReportSheetMapper.selectWorkReportSheetList(workReportSheet);
+        if (loginUser == null || loginUser.getUser() == null) return Collections.emptyList();
 
         SysUser currentUser = loginUser.getUser();
         boolean isAdmin = currentUser.isAdmin();
         Long userId = currentUser.getUserId();
         Long deptId = currentUser.getDeptId();
 
-        String roleIdList = currentUser.getRoles().stream()
-                .map(r -> String.valueOf(r.getRoleId()))
-                .collect(Collectors.joining(","));
+        List<Long> roleIds = currentUser.getRoles() == null ? Collections.emptyList()
+                : currentUser.getRoles().stream().map(SysRole::getRoleId).collect(Collectors.toList());
 
         // 手动构建 @DataScope 条件
         String dataScopeCondition = buildDataScopeCondition(currentUser);
@@ -66,24 +67,35 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
         workReportSheet.getParams().put("isAdmin", isAdmin ? 1 : 0);
         workReportSheet.getParams().put("currentUserId", userId);
         workReportSheet.getParams().put("currentDeptId", deptId);
-        workReportSheet.getParams().put("roleIdList", roleIdList);
+        workReportSheet.getParams().put("roleIds", roleIds);
         workReportSheet.getParams().put("dataScopeCondition", dataScopeCondition);
 
         return workReportSheetMapper.selectAccessibleSheets(workReportSheet);
     }
 
+    @Override
+    public WorkReportSheet selectAccessibleSheetById(String id)
+    {
+        WorkReportSheet query = new WorkReportSheet();
+        query.setId(id);
+        List<WorkReportSheet> sheets = selectAccessibleSheets(query);
+        return sheets.isEmpty() ? null : sheets.get(0);
+    }
+
     /**
-     * 手动构建 @DataScope 条件片段（对�?DataScopeAspect.dataScopeFilter 逻辑�?     * 输出格式�?wrs.dept_id = 100 ...)，可直接嵌入 selectAccessibleSheets �?OR 表达�?     */
+     * 手动构建数据范围条件片段，可嵌入 selectAccessibleSheets 的 OR 表达式。
+     */
     private String buildDataScopeCondition(SysUser user) {
         if (user.isAdmin()) return "";
 
         StringBuilder sql = new StringBuilder();
+        if (user.getRoles() == null) return "1=0";
         for (SysRole role : user.getRoles()) {
             if (UserConstants.ROLE_DISABLE.equals(role.getStatus())) continue;
 
             String ds = role.getDataScope();
             if (Constants.Dept.DATA_SCOPE_ALL.equals(ds)) {
-                return "";
+                return "1=1";
             } else if (Constants.Dept.DATA_SCOPE_CUSTOM.equals(ds)) {
                 sql.append(" OR wrs.dept_id IN (SELECT dept_id FROM sys_role_dept WHERE role_id = ")
                    .append(role.getRoleId()).append(")");
@@ -104,7 +116,7 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
     @Override
     public int insertWorkReportSheet(WorkReportSheet workReportSheet)
     {
-        workReportSheet.setId(IdUtils.fastUUID());
+        if (workReportSheet.getId() == null) workReportSheet.setId(IdUtils.fastUUID());
         workReportSheet.setUserId(SecurityUtils.getUserId());
         workReportSheet.setDeptId(SecurityUtils.getDeptId());
         workReportSheet.setDelStatus(0L);
@@ -138,7 +150,7 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
     @Override
     public int deleteWorkReportSheetByReportId(String reportId)
     {
-        // 删除 sheet 时级联清理权�?
+        // 删除 Sheet 时级联清理权限
         WorkReportSheet q = new WorkReportSheet();
         q.setReportId(reportId);
         List<WorkReportSheet> sheets = workReportSheetMapper.selectWorkReportSheetList(q);
