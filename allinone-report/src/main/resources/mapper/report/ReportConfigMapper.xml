@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.report.mapper.ReportConfigMapper">
+
+    <resultMap type="ReportConfig" id="ReportConfigResult">
+        <id property="reportId" column="report_id"/>
+        <result property="reportName" column="report_name"/>
+        <result property="reportCode" column="report_code"/>
+        <result property="reportType" column="report_type"/>
+        <result property="jimuReportId" column="jimu_report_id"/>
+        <result property="jmbiId" column="jmbi_id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="icon" column="icon"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectReportConfigVo">
+        select report_id, report_name, report_code, report_type, jimu_report_id, jmbi_id, category_id, icon, order_num, status, remark, del_flag, create_by, create_time, update_by, update_time
+        from report_config
+    </sql>
+
+    <select id="selectReportConfigList" parameterType="ReportConfig" resultMap="ReportConfigResult">
+        <include refid="selectReportConfigVo"/>
+        where del_flag = '0'
+        <if test="reportName != null and reportName != ''"> and report_name like concat('%', #{reportName}, '%')</if>
+        <if test="reportType != null and reportType != ''"> and report_type = #{reportType}</if>
+        <if test="categoryId != null"> and category_id = #{categoryId}</if>
+        order by order_num
+    </select>
+
+    <select id="selectReportConfigById" parameterType="Long" resultMap="ReportConfigResult">
+        <include refid="selectReportConfigVo"/> where report_id = #{reportId}
+    </select>
+
+    <insert id="insertReportConfig" parameterType="ReportConfig">
+        insert into report_config (report_id, report_name, report_code, report_type, jimu_report_id, jmbi_id, category_id, icon, order_num, status, remark, del_flag, create_by, create_time)
+        values (#{reportId}, #{reportName}, #{reportCode}, #{reportType}, #{jimuReportId}, #{jmbiId}, #{categoryId}, #{icon}, #{orderNum}, #{status}, #{remark}, '0', #{createBy}, #{createTime})
+    </insert>
+
+    <update id="updateReportConfig" parameterType="ReportConfig">
+        update report_config
+        <set>
+            <if test="reportName != null">report_name = #{reportName},</if>
+            <if test="reportCode != null">report_code = #{reportCode},</if>
+            <if test="reportType != null">report_type = #{reportType},</if>
+            <if test="jimuReportId != null">jimu_report_id = #{jimuReportId},</if>
+            <if test="jmbiId != null">jmbi_id = #{jmbiId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="orderNum != null">order_num = #{orderNum},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = #{updateTime}
+        </set>
+        where report_id = #{reportId}
+    </update>
+
+    <update id="deleteReportConfigById" parameterType="Long">
+        update report_config set del_flag = '2' where report_id = #{reportId}
+    </update>
+
+    <update id="deleteReportConfigByIds" parameterType="Long">
+        update report_config set del_flag = '2' where report_id in
+        <foreach item="reportId" collection="array" open="(" separator="," close=")">#{reportId}</foreach>
+    </update>
+
+</mapper>
+

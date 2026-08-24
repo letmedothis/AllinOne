@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.CollectCategoryMapper">
+
+    <resultMap type="CollectCategory" id="CollectCategoryResult">
+        <id property="categoryId" column="category_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="ancestors" column="ancestors"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectCollectCategoryVo">
+        select category_id, category_name, parent_id, ancestors, order_num, status, remark, del_flag, create_by, create_time, update_by, update_time
+        from collect_category
+    </sql>
+
+    <select id="selectCollectCategoryList" parameterType="CollectCategory" resultMap="CollectCategoryResult">
+        <include refid="selectCollectCategoryVo"/>
+        where del_flag = '0'
+        <if test="categoryName != null and categoryName != ''"> and category_name like concat('%', #{categoryName}, '%')</if>
+        <if test="status != null and status != ''"> and status = #{status}</if>
+        order by parent_id, order_num
+    </select>
+
+    <select id="selectCollectCategoryById" parameterType="Long" resultMap="CollectCategoryResult">
+        <include refid="selectCollectCategoryVo"/> where category_id = #{categoryId}
+    </select>
+
+    <select id="selectCollectCategoryByParentId" parameterType="Long" resultMap="CollectCategoryResult">
+        <include refid="selectCollectCategoryVo"/> where parent_id = #{parentId} and del_flag = '0'
+    </select>
+
+    <insert id="insertCollectCategory" parameterType="CollectCategory">
+        insert into collect_category (category_id, category_name, parent_id, ancestors, order_num, status, remark, del_flag, create_by, create_time)
+        values (#{categoryId}, #{categoryName}, #{parentId}, #{ancestors}, #{orderNum}, #{status}, #{remark}, '0', #{createBy}, #{createTime})
+    </insert>
+
+    <update id="updateCollectCategory" parameterType="CollectCategory">
+        update collect_category
+        <set>
+            <if test="categoryName != null">category_name = #{categoryName},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="ancestors != null">ancestors = #{ancestors},</if>
+            <if test="orderNum != null">order_num = #{orderNum},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = #{updateTime}
+        </set>
+        where category_id = #{categoryId}
+    </update>
+
+    <update id="deleteCollectCategoryById" parameterType="Long">
+        update collect_category set del_flag = '2' where category_id = #{categoryId}
+    </update>
+
+    <update id="deleteCollectCategoryByIds" parameterType="Long">
+        update collect_category set del_flag = '2' where category_id in
+        <foreach item="categoryId" collection="array" open="(" separator="," close=")">#{categoryId}</foreach>
+    </update>
+
+</mapper>
+

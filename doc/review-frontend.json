@@ -1,0 +1,131 @@
+{
+  "summary": "设计文档审查发现22项前端缺陷，涵盖组件设计(4项)、页面设计(6项)、Store设计(3项)、类型定义(3项)、配置与文档(6项)。核心问题：API字段命名与TypeScript类型定义严重不一致(id vs templateId)、设计文档代码示例与实际实现脱节、组件交互细节缺失、错误处理不完善、Store缺少getters。",
+  "issues": [
+    {
+      "severity": "high",
+      "doc": "04-API接口与页面设计.md API接口响应示例 vs src/types/api/collect",
+      "description": "API响应示例字段名与TypeScript类型定义严重不一致。设计文档API示例使用templateId/templateName/templateCode/templateJson, 但CollectTemplate接口使用id/name/code/config。CollectData同样: 设计文档用formData, 实际类型用data。这会导致前端调用后端接口时所有数据字段均为undefined。",
+      "suggestion": "统一字段命名。推荐方案: 修改TypeScript类型定义匹配后端返回字段(templateId/templateName等), 遵循RuoYi后端命名约定。需同步修改CollectData/CategoryQueryParams等所有相关类型。"
+    },
+    {
+      "severity": "high",
+      "doc": "04-API接口与页面设计.md 第7.1节 edit.vue代码示例",
+      "description": "设计文档第291-416行展示的edit.vue代码与实际src/views/collect/data/edit.vue完全脱节。设计文档是简化伪代码(import方式/事件处理不同), 与实际实现差异大。且设计文档代码第355行和第361行同作用域内两次const res声明, 会导致TypeScript编译错误。第354-363行onMounted中异步调用没有catch, loadTemplate函数没有try-catch。",
+      "suggestion": "设计文档应与实际代码保持同步。更新设计文档代码示例反映真实实现, 或标记为伪代码仅供示意。修复const res重复声明问题, 补充catch处理。"
+    },
+    {
+      "severity": "high",
+      "doc": "04-API接口与页面设计.md 5.1 CollectSheet.vue",
+      "description": "CollectSheet组件三个问题: (1) 设计文档列出ready emit但实际代码未实现ready事件, 依赖ready事件的父组件永远收不到。(2) change事件参数不完整: 设计文档要求change(row,col,oldVal,newVal), 实际只传递data:any, 丢失行列坐标和旧值信息。(3) 设计文档说sheetData类型为Array/Object/null, 实际代码accepts String|Object|null, 不一致。",
+      "suggestion": "(1) initSheet成功后在loading=false后emit(ready)。(2) change事件增加row/col/oldVal/newVal参数, 从hook.cellUpdated中提取。(3) 更新设计文档类型描述与实际一致。"
+    },
+    {
+      "severity": "high",
+      "doc": "04-API接口与页面设计.md 5.1 CollectSheet.vue loadData方法",
+      "description": "CollectSheet的loadData(data)方法(第183-191行)接受data参数但完全忽略不处理, 仅调用了initSheet()读取旧的props.sheetData。在template/edit.vue第119行调用loadData(data.config)时, 传入的数据被丢弃, 实际依赖于前置的form.value=data的props更新。函数签名具有欺骗性, 且时序敏感。",
+      "suggestion": "loadData应将data参数赋值给内部临时变量, initSheet中优先使用该临时变量, 不依赖外部props变更时机。"
+    },
+    {
+      "severity": "medium",
+      "doc": "04-API接口与页面设计.md 第7.1节 data/edit.vue",
+      "description": "data/edit.vue中loadData()嵌套调用listTemplate导致重复API请求。loadData()加载已有数据(第167-187行)后为了获取模板信息又调用listTemplate()。同时onMounted中如果没有dataId也会调用loadPublishedTemplates()=listTemplate()。每次加载编辑数据都会额外发一次无用的listTemplate请求。",
+      "suggestion": "方案A: 将模板信息合并到getData接口返回中(服务端join)。方案B: getData后从store已加载的templates中查找, 避免额外API调用。"
+    },
+    {
+      "severity": "medium",
+      "doc": "04-API接口与页面设计.md 第7.1节 + 第5.1节",
+      "description": "组件和页面大量异步操作缺少错误处理。data/edit.vue中loadPublishedTemplates()和loadData()的链式then没有catch。template/edit.vue中loadCategoryTree().then()没有catch。handleSaveDraft和handleSubmit的catch块仅console.error没有用户提示(ElMessage.error), 用户在保存/提交失败时看不到任何反馈。",
+      "suggestion": "为所有异步操作添加catch处理, 至少: .catch(() => proxy.$modal.msgError(操作失败))。handleSaveDraft/handleSubmit的catch中增加ElMessage.error。"
+    },
+    {
+      "severity": "medium",
+      "doc": "04-API接口与页面设计.md 6.1 useCollectStore",
+      "description": "useCollectStore缺少getters设计。没有getTemplateById/getPublishedTemplates/getDataByStatus等便捷访问器。消费方(页面)需要手动在数组中find过滤, 不符合Pinia最佳实践, 且导致模板代码重复。",
+      "suggestion": "增加getters: publishedTemplates(过滤status=1), templateById(id), dataByStatus(status)。"
+    },
+    {
+      "severity": "medium",
+      "doc": "04-API接口与页面设计.md 2.1 API publishTemplate vs src/api/collect/template.ts",
+      "description": "设计文档API publishTemplate: POST /collect/template/{id}/publish 请求体应包含{status}用于区分发布/下架。但实际publishTemplate(id)不接受status参数, 始终POST空body, 无法实现下架操作。",
+      "suggestion": "修改publishTemplate函数签名: publishTemplate(id: number, status: string), 请求体传{status}。后端按status区分发布/下架。"
+    },
+    {
+      "severity": "medium",
+      "doc": "04-API接口与页面设计.md 6.1 useCollectStore + 6.2 useReportStore",
+      "description": "Design doc中store actions缺少错误处理。loadTemplates/loadDataList/loadCategoryTree/loadConfigList直接await无try-catch, 网络异常时store抛出未捕获Promise异常可能导致页面崩溃。defineStore也未使用完整泛型形态获得更好类型推断。",
+      "suggestion": "actions内部增加try-catch, 在catch中设置error状态或re-throw。defineStore使用完整泛型如defineStore<string,CollectState,{},{getter类型}>。"
+    },
+    {
+      "severity": "medium",
+      "doc": "04-API接口与页面设计.md 4.1 data/detail.vue + data/edit.vue",
+      "description": "collect模块页面统一使用route.query.id获取数据ID而非route.params.id。不符合RESTful路由规范(path: /collect/data/:id)。如果后续切换到动态路由参数模式, 所有组件都需要修改。",
+      "suggestion": "统一使用route.params.id。建议路由配置使用path: /collect/data/:id配合props:true, 组件通过props接收ID。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 5.2 ReportFrame.vue",
+      "description": "设计文档ReportFrame组件描述严重滞后。设计文档仅列出src/height/width三个props和load一个emit。实际组件有loading/error/30s超时/3次重试/autoLoad/reload等完整机制, 设计文档完全缺失。",
+      "suggestion": "更新设计文档ReportFrame表格, 补充autoLoad prop, load/timeout/retry机制, 以及reload暴露方法。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 5.3 CategoryTree.vue",
+      "description": "CategoryTree组件设计文档严重滞后。设计文档仅列出data/showFilter/showCheckbox/nodeKey四个props。实际组件有14个props(nodeKey实际用了id而非categoryId)、5个emits(node-click/check/drag-end等)、6个expose方法。差距过大。",
+      "suggestion": "更新设计文档CategoryTree组件表格, 补充labelKey/defaultExpandAll/draggable/showMeta/emptyText/currentKey等props说明。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 第4节 前端页面路径",
+      "description": "设计文档前端目录结构遗漏src/types/目录说明。src/types/api/collect/下的类型定义文件是前后端对接的核心资产, 设计文档未描述其设计原则和字段约定。",
+      "suggestion": "补充前端目录总览, 增加src/types/目录说明, 列出核心类型定义及其字段设计原则(如与后端字段映射关系)。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 第4节 路由配置",
+      "description": "设计文档未包含vue-router路由配置示例。虽然RuoYi通过菜单管理动态注册路由, 但Collect/Report模块的路由meta信息(title/icon/keepAlive等)应有明确配置说明。实际router/index.ts中也未包含自定义路由。",
+      "suggestion": "增加路由配置示例, 说明RuoYi动态路由原理, 以及collect/report模块的路由meta配置项。"
+    },
+    {
+      "severity": "low",
+      "doc": "01-总体设计说明书.md + 04-API接口与页面设计.md",
+      "description": "设计文档未提及vite.config.ts代理设置。实际配置中/dev-api代理到http://localhost:8080(第48-54行), 以及/v3/api-docs的SpringDoc代理(第56-58行)。代理机制是前后端联调关键配置, 应在文档中说明。",
+      "suggestion": "在总体设计或部署说明中补充vite代理配置: /dev-api到localhost:8080代理规则, 说明前端开发时如何避免跨域。"
+    },
+    {
+      "severity": "low",
+      "doc": "全体设计文档",
+      "description": "Design doc未说明Luckysheet版本管理和CDN加载策略。实际CollectSheet通过动态创建script/link标签从CDN加载Luckysheet 2.1.13(第126-172行), 企业内网无网络环境会完全不可用。",
+      "suggestion": "补充: (1) Luckysheet加载方式(CDN动态加载); (2) 内网部署方案(下载到本地static目录); (3) 版本锁定机制。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 2.3 + src/api/collect/category.ts",
+      "description": "分类API缺少获取单条记录的GET /collect/category/{id}接口。仅有list/add/update/delete四个接口。tree-select组件编辑回显时需要单条分类详情, 缺少该接口导致编辑回显困难。",
+      "suggestion": "增加GET /collect/category/{id}接口, 用于获取单条分类详情, 便于前端编辑回显。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 6.1 useCollectStore",
+      "description": "useCollectStore缺少currentTemplate/currentData等编辑态管理state。页面的编辑态数据(data/edit.vue的form/template/edit.vue的form)散落在各自组件中, 无法跨组件共享。",
+      "suggestion": "store中增加currentTemplate和currentData状态及对应setCurrentTemplate/setCurrentData actions, 用于组件间共享编辑态。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 7.1 edit.vue handleSaveDraft",
+      "description": "data/edit.vue handleSaveDraft中router.replace在API成功后调用, 但如果刷新页面时机不当且replace失败, URL中仍无id参数。同时replace后未更新queryRef, 页面状态可能不一致。",
+      "suggestion": "将router.replace放在try块内, 或使用onBeforeRouteUpdate守卫。考虑用pinia store维护编辑态减少对URL参数依赖。"
+    },
+    {
+      "severity": "low",
+      "doc": "04-API接口与页面设计.md 5.1 CollectSheet.vue",
+      "description": "CollectSheet的onUnmounted中调用luckysheet.destroy(), 但如果Luckysheet尚未初始化完成(loading=true时组件被销毁), destroy调用可能报错。",
+      "suggestion": "onUnmounted中增加判断: if (typeof (window as any).luckysheet?.destroy === function) 再调用。或在loading时设置一个已初始化的标志。"
+    },
+    {
+      "severity": "low",
+      "doc": "全体设计文档",
+      "description": "设计文档未提及前端与第三方系统(JimuReport/JimuBI)的跨域认证机制。ReportFrame通过iframe嵌入JimuReport, 需要传递JWT Token到iframe URL中。设计文档未说明Token传递方式、续期策略和安全风险。",
+      "suggestion": "补充iframe跨域认证设计: (1) JWT Token拼接方式; (2) Token过期处理(iframe内跳转登录页时如何处理); (3) postMessage通信方案。"
+    }
+  ]
+}

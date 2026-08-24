@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.WorkReportSheetPermissionMapper">
+    <insert id="insert" parameterType="WorkReportSheetPermission">
+        INSERT INTO work_report_sheet_permission (sheet_id, perm_type, perm_id, granted_by, create_time)
+        VALUES (#{sheetId}, #{permType}, #{permId}, #{grantedBy}, now())
+    </insert>
+    <delete id="deleteBySheetAndTarget">
+        DELETE FROM work_report_sheet_permission
+        WHERE sheet_id = #{sheetId} AND perm_type = #{permType} AND perm_id = #{permId}
+    </delete>
+    <delete id="deleteBySheetId">
+        DELETE FROM work_report_sheet_permission WHERE sheet_id = #{sheetId}
+    </delete>
+    <select id="selectBySheetId" resultType="WorkReportSheetPermission">
+        SELECT * FROM work_report_sheet_permission WHERE sheet_id = #{sheetId}
+    </select>
+    <select id="selectByTarget" resultType="WorkReportSheetPermission">
+        SELECT * FROM work_report_sheet_permission WHERE perm_type = #{permType} AND perm_id = #{permId}
+    </select>
+</mapper>

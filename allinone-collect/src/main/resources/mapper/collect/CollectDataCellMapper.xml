@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.CollectDataCellMapper">
+
+    <insert id="batchUpsert" parameterType="CollectDataCell">
+        insert into collect_data_cell (cell_id, data_id, template_id, sheet_index, row_index, col_index, cell_text, cell_value, cell_numeric_value, cell_type, cell_format, is_formula, formula_expr, del_flag, create_by, create_time)
+        values
+        <foreach collection="list" item="cell" separator=",">
+            (#{cell.cellId}, #{cell.dataId}, #{cell.templateId}, #{cell.sheetIndex}, #{cell.rowIndex}, #{cell.colIndex}, #{cell.cellText}, #{cell.cellValue}, #{cell.cellNumericValue}, #{cell.cellType}, #{cell.cellFormat}, #{cell.isFormula}, #{cell.formulaExpr}, '0', #{cell.createBy}, #{cell.createTime})
+        </foreach>
+        on duplicate key update
+        cell_text = values(cell_text),
+        cell_value = values(cell_value),
+        cell_numeric_value = values(cell_numeric_value),
+        cell_type = values(cell_type),
+        cell_format = values(cell_format),
+        is_formula = values(is_formula),
+        formula_expr = values(formula_expr),
+        update_time = values(create_time)
+    </insert>
+
+    <select id="selectCollectDataCellByDataId" parameterType="Long" resultType="CollectDataCell">
+        select * from collect_data_cell where data_id = #{dataId} and del_flag = '0'
+    </select>
+
+    <update id="deleteCollectDataCellByDataId" parameterType="Long">
+        update collect_data_cell set del_flag = '2' where data_id = #{dataId}
+    </update>
+
+</mapper>
+

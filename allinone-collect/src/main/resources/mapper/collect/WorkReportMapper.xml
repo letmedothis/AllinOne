@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.WorkReportMapper">
+    
+    <resultMap type="WorkReport" id="WorkReportResult">
+        <result property="id"             column="id"              />
+        <result property="reportName"     column="report_name"     />
+        <result property="reportJianjie"  column="report_jianjie"  />
+        <result property="reportBeizhu"   column="report_beizhu"   />
+        <result property="createTime"     column="create_datetime" />
+        <result property="updateTime"     column="update_time"     />
+        <result property="userId"         column="user_id"         />
+        <result property="deptId"         column="dept_id"         />
+        <result property="delStatus"      column="del_status"      />
+    </resultMap>
+
+    <sql id="selectWorkReportVo">
+        select wr.id, wr.report_name, wr.report_jianjie, wr.report_beizhu,
+               wr.create_datetime, wr.update_time, wr.user_id, wr.dept_id, wr.del_status
+        from work_report wr
+    </sql>
+
+    <select id="selectWorkReportList" parameterType="WorkReport" resultMap="WorkReportResult">
+        <include refid="selectWorkReportVo"/>
+        <where> wr.del_status = 0
+            <if test="reportName != null  and reportName != ''"> and wr.report_name like concat('%', #{reportName}, '%')</if>
+            <if test="reportJianjie != null  and reportJianjie != ''"> and wr.report_jianjie = #{reportJianjie}</if>
+            <if test="reportBeizhu != null  and reportBeizhu != ''"> and wr.report_beizhu = #{reportBeizhu}</if>
+            <if test="createTime != null "> and wr.create_datetime = #{createTime}</if>
+            <if test="userId != null "> and wr.user_id = #{userId}</if>
+            <if test="deptId != null "> and wr.dept_id = #{deptId}</if>
+            ${params.dataScope}
+        </where>
+        order by wr.create_datetime desc
+    </select>
+    
+    <select id="selectWorkReportById" parameterType="String" resultMap="WorkReportResult">
+        <include refid="selectWorkReportVo"/>
+        where wr.id = #{id}
+    </select>
+
+    <insert id="insertWorkReport" parameterType="WorkReport">
+        insert into work_report
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="reportName != null">report_name,</if>
+            <if test="reportJianjie != null">report_jianjie,</if>
+            <if test="reportBeizhu != null">report_beizhu,</if>
+            <if test="createTime != null">create_datetime,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="delStatus != null">del_status,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="reportName != null">#{reportName},</if>
+            <if test="reportJianjie != null">#{reportJianjie},</if>
+            <if test="reportBeizhu != null">#{reportBeizhu},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="delStatus != null">#{delStatus},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWorkReport" parameterType="WorkReport">
+        update work_report
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="reportName != null">report_name = #{reportName},</if>
+            <if test="reportJianjie != null">report_jianjie = #{reportJianjie},</if>
+            <if test="reportBeizhu != null">report_beizhu = #{reportBeizhu},</if>
+            <if test="createTime != null">create_datetime = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="deleteWorkReportById" parameterType="String">
+        update work_report set del_status = 1 where id = #{id}
+    </update>
+
+    <update id="deleteWorkReportByIds" parameterType="String">
+        update work_report set del_status = 1  where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+</mapper>

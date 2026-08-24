@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.CollectFieldMappingMapper">
+
+    <resultMap type="CollectFieldMapping" id="CollectFieldMappingResult">
+        <id property="mappingId" column="mapping_id"/>
+        <result property="templateId" column="template_id"/>
+        <result property="cellRef" column="cell_ref"/>
+        <result property="rowIndex" column="row_index"/>
+        <result property="colIndex" column="col_index"/>
+        <result property="targetTable" column="target_table"/>
+        <result property="targetColumn" column="target_column"/>
+        <result property="dataType" column="data_type"/>
+        <result property="pkOrder" column="pk_order"/>
+        <result property="defaultValue" column="default_value"/>
+        <result property="transformType" column="transform_type"/>
+        <result property="transformScript" column="transform_script"/>
+        <result property="orderNum" column="order_num"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select mapping_id, template_id, cell_ref, row_index, col_index, target_table, target_column,
+               data_type, pk_order, default_value, transform_type, order_num, remark,
+               del_flag, create_by, create_time, update_by, update_time
+        from collect_field_mapping
+    </sql>
+
+    <select id="selectCollectFieldMappingList" parameterType="CollectFieldMapping" resultMap="CollectFieldMappingResult">
+        <include refid="selectVo"/>
+        where del_flag = '0'
+        <if test="templateId != null"> and template_id = #{templateId}</if>
+        <if test="targetTable != null and targetTable != ''"> and target_table = #{targetTable}</if>
+        order by order_num
+    </select>
+
+    <select id="selectCollectFieldMappingById" parameterType="Long" resultMap="CollectFieldMappingResult">
+        <include refid="selectVo"/> where mapping_id = #{mappingId}
+    </select>
+
+    <select id="selectCollectFieldMappingByTemplate" parameterType="Long" resultMap="CollectFieldMappingResult">
+        <include refid="selectVo"/> where template_id = #{templateId} and del_flag = '0' order by order_num
+    </select>
+
+    <insert id="insertCollectFieldMapping" parameterType="CollectFieldMapping">
+        insert into collect_field_mapping (mapping_id, template_id, cell_ref, row_index, col_index, target_table, target_column, data_type, pk_order, default_value, transform_type, order_num, remark, del_flag, create_by, create_time)
+        values (#{mappingId}, #{templateId}, #{cellRef}, #{rowIndex}, #{colIndex}, #{targetTable}, #{targetColumn}, #{dataType}, #{pkOrder}, #{defaultValue}, #{transformType}, #{orderNum}, #{remark}, '0', #{createBy}, #{createTime})
+    </insert>
+
+    <update id="updateCollectFieldMapping" parameterType="CollectFieldMapping">
+        update collect_field_mapping
+        <set>
+            <if test="cellRef != null">cell_ref = #{cellRef},</if>
+            <if test="rowIndex != null">row_index = #{rowIndex},</if>
+            <if test="colIndex != null">col_index = #{colIndex},</if>
+            <if test="targetTable != null">target_table = #{targetTable},</if>
+            <if test="targetColumn != null">target_column = #{targetColumn},</if>
+            <if test="dataType != null">data_type = #{dataType},</if>
+            <if test="defaultValue != null">default_value = #{defaultValue},</if>
+            <if test="transformType != null">transform_type = #{transformType},</if>
+            <if test="orderNum != null">order_num = #{orderNum},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = #{updateTime}
+        </set>
+        where mapping_id = #{mappingId}
+    </update>
+
+    <delete id="deleteCollectFieldMappingByIds" parameterType="Long">
+        update collect_field_mapping set del_flag = '2' where mapping_id in
+        <foreach item="mappingId" collection="array" open="(" separator="," close=")">#{mappingId}</foreach>
+    </delete>
+
+</mapper>

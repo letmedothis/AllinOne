@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.WorkReportSheetMapper">
+
+    <resultMap type="WorkReportSheet" id="WorkReportSheetResult">
+        <result property="id"           column="id"           />
+        <result property="reportId"     column="report_id"    />
+        <result property="sheetIndex"   column="sheet_index"  />
+        <result property="sheetName"    column="sheet_name"   />
+        <result property="sheetData"    column="sheet_data"   />
+        <result property="userId"       column="user_id"      />
+        <result property="deptId"       column="dept_id"      />
+        <result property="createTime"   column="create_time"  />
+        <result property="updateTime"   column="update_time"  />
+        <result property="delStatus"    column="del_status"   />
+    </resultMap>
+
+    <sql id="selectWorkReportSheetVo">
+        select wrs.id, wrs.report_id, wrs.sheet_index, wrs.sheet_name, wrs.sheet_data,
+               wrs.user_id, wrs.dept_id, wrs.create_time, wrs.update_time, wrs.del_status
+        from work_report_sheet wrs
+    </sql>
+
+    <select id="selectWorkReportSheetById" parameterType="String" resultMap="WorkReportSheetResult">
+        <include refid="selectWorkReportSheetVo"/>
+        where wrs.id = #{id}
+    </select>
+
+    <!--
+      D3: 双层权限查询
+        管理�? �?全部可见
+        非管理员 �?(@DataScope 条件�?OR) + (自己是创建�? + (被显式分�?
+    -->
+    <select id="selectAccessibleSheets" parameterType="WorkReportSheet" resultMap="WorkReportSheetResult">
+        <include refid="selectWorkReportSheetVo"/>
+        <where> wrs.del_status = 0
+            <if test="reportId != null and reportId != ''"> and wrs.report_id = #{reportId}</if>
+            and (
+                <!-- 管理员跳过所有权限检�?-->
+                #{params.isAdmin} = 1
+                <!-- @DataScope 条件（由服务层构建） -->
+                <if test="params.dataScopeCondition != null and params.dataScopeCondition != ''">
+                    or (${params.dataScopeCondition})
+                </if>
+                <!-- 自己是创建�?-->
+                or wrs.user_id = #{params.currentUserId}
+                <!-- 被显式分配了权限 -->
+                or exists (
+                    select 1 from work_report_sheet_permission p
+                    where p.sheet_id = wrs.id and (
+                        (p.perm_type = 'role' and p.perm_id in (${params.roleIdList}))
+                        or (p.perm_type = 'dept' and p.perm_id = #{params.currentDeptId})
+                        or (p.perm_type = 'user' and p.perm_id = #{params.currentUserId})
+                    )
+                )
+            )
+        </where>
+        order by wrs.sheet_index asc
+    </select>
+
+    <!-- 保留�?@DataScope 查询（用于内部管理） -->
+    <select id="selectWorkReportSheetList" parameterType="WorkReportSheet" resultMap="WorkReportSheetResult">
+        <include refid="selectWorkReportSheetVo"/>
+        <where> wrs.del_status = 0
+            <if test="reportId != null and reportId != ''"> and wrs.report_id = #{reportId}</if>
+            <if test="sheetIndex != null"> and wrs.sheet_index = #{sheetIndex}</if>
+            ${params.dataScope}
+        </where>
+        order by wrs.sheet_index asc
+    </select>
+
+    <insert id="insertWorkReportSheet" parameterType="WorkReportSheet">
+        insert into work_report_sheet
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="reportId != null">report_id,</if>
+            <if test="sheetIndex != null">sheet_index,</if>
+            <if test="sheetName != null">sheet_name,</if>
+            <if test="sheetData != null">sheet_data,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="delStatus != null">del_status,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="reportId != null">#{reportId},</if>
+            <if test="sheetIndex != null">#{sheetIndex},</if>
+            <if test="sheetName != null">#{sheetName},</if>
+            <if test="sheetData != null">#{sheetData},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="delStatus != null">#{delStatus},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWorkReportSheet" parameterType="WorkReportSheet">
+        update work_report_sheet
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="sheetIndex != null">sheet_index = #{sheetIndex},</if>
+            <if test="sheetName != null">sheet_name = #{sheetName},</if>
+            <if test="sheetData != null">sheet_data = #{sheetData},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="deleteWorkReportSheetById" parameterType="String">
+        update work_report_sheet set del_status = 1 where id = #{id}
+    </update>
+
+    <update id="deleteWorkReportSheetByIds" parameterType="String">
+        update work_report_sheet set del_status = 1 where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="deleteWorkReportSheetByReportId" parameterType="String">
+        update work_report_sheet set del_status = 1 where report_id = #{reportId}
+    </update>
+</mapper>
