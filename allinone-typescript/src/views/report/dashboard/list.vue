@@ -15,7 +15,7 @@
       <el-row :gutter="20" v-if="dashboardList.length > 0">
         <el-col
           v-for="item in dashboardList"
-          :key="item.id"
+          :key="item.reportId"
           :xl="6"
           :lg="8"
           :md="12"
@@ -29,30 +29,17 @@
           >
             <!-- 缩略图 -->
             <div class="dashboard-thumb" @click="handleView(item)">
-              <el-image
-                v-if="item.thumbnail"
-                :src="item.thumbnail"
-                fit="cover"
-                class="thumb-image"
-              >
-                <template #error>
-                  <div class="thumb-placeholder">
-                    <el-icon :size="48"><Monitor /></el-icon>
-                    <p>{{ item.name }}</p>
-                  </div>
-                </template>
-              </el-image>
-              <div v-else class="thumb-placeholder">
+              <div class="thumb-placeholder">
                 <el-icon :size="48"><Monitor /></el-icon>
-                <p>{{ item.name }}</p>
+                <p>{{ item.reportName }}</p>
               </div>
             </div>
 
             <!-- 卡片底部 -->
             <div class="dashboard-footer">
               <div class="dashboard-info">
-                <el-tooltip :content="item.description || item.name" placement="top">
-                  <span class="dashboard-name">{{ item.name }}</span>
+                <el-tooltip :content="item.remark || item.reportName" placement="top">
+                  <span class="dashboard-name">{{ item.reportName }}</span>
                 </el-tooltip>
                 <div class="dashboard-meta">
                   <el-tag
@@ -92,7 +79,7 @@
 <script setup lang="ts" name="ReportDashboard">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { listConfig, getConfig, delConfig } from '@/api/report/config'
+import { listConfig, delConfig } from '@/api/report/config'
 import type { ReportConfig, ReportConfigQueryParams } from '@/types/api/report/config'
 import { Monitor } from '@element-plus/icons-vue'
 
@@ -106,7 +93,7 @@ const total = ref<number>(0)
 const queryParams = reactive<ReportConfigQueryParams>({
   pageNum: 1,
   pageSize: 12,
-  type: '2'  // 只查询大屏类型
+  reportType: '1'  // 只查询大屏类型
 })
 
 /** 查询大屏列表 */
@@ -123,12 +110,12 @@ function getList() {
 
 /** 查看大屏 */
 function handleView(item: ReportConfig) {
-  router.push({ path: '/report/dashboard/view', query: { id: item.id } })
+  router.push({ path: '/report/dashboard/view', query: { id: item.reportId } })
 }
 
 /** 编辑大屏配置 */
 function handleEdit(item: ReportConfig) {
-  router.push({ path: '/report/config/edit', query: { id: item.id } })
+  router.push({ path: '/report/config/edit', query: { id: item.reportId } })
 }
 
 /** 新增大屏 */
@@ -138,8 +125,8 @@ function handleAdd() {
 
 /** 删除大屏 */
 function handleDelete(item: ReportConfig) {
-  proxy.$modal.confirm('是否确认删除大屏"' + item.name + '"？').then(() => {
-    return delConfig(item.id!)
+  proxy.$modal.confirm('是否确认删除大屏"' + item.reportName + '"？').then(() => {
+    return delConfig(item.reportId!)
   }).then(() => {
     proxy.$modal.msgSuccess('删除成功')
     getList()

@@ -9,6 +9,7 @@
                     "dev":  "vite",
                     "build:prod":  "vite build",
                     "build:stage":  "vite build --mode staging",
+                    "test:contracts":  "node --test tests/*.test.mjs",
                     "preview":  "vite preview"
                 },
     "repository":  {

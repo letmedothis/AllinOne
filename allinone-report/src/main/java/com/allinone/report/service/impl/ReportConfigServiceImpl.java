@@ -1,6 +1,7 @@
 package com.allinone.report.service.impl;
 
 import com.allinone.common.utils.DateUtils;
+import com.allinone.common.utils.uuid.IdUtils;
 import com.allinone.report.domain.ReportConfig;
 import com.allinone.report.mapper.ReportConfigMapper;
 import com.allinone.report.service.IReportConfigService;
@@ -26,6 +27,7 @@ public class ReportConfigServiceImpl implements IReportConfigService {
 
     @Override
     public int insertReportConfig(ReportConfig config) {
+        config.setReportId(IdUtils.nextLongId());
         config.setCreateTime(DateUtils.getNowDate());
         return reportConfigMapper.insertReportConfig(config);
     }

@@ -3,7 +3,6 @@ package com.allinone.collect.controller;
 import com.allinone.common.annotation.Log;
 import com.allinone.common.core.controller.BaseController;
 import com.allinone.common.core.domain.AjaxResult;
-import com.allinone.common.core.page.TableDataInfo;
 import com.allinone.common.enums.BusinessType;
 import com.allinone.collect.domain.CollectCategory;
 import com.allinone.collect.service.ICollectCategoryService;
@@ -21,10 +20,9 @@ public class CollectCategoryController extends BaseController {
 
     @PreAuthorize("@ss.hasPermi('collect:category:list')")
     @GetMapping("/list")
-    public TableDataInfo list(CollectCategory category) {
-        startPage();
+    public AjaxResult list(CollectCategory category) {
         List<CollectCategory> list = collectCategoryService.selectCollectCategoryList(category);
-        return getDataTable(list);
+        return success(list);
     }
 
     @PreAuthorize("@ss.hasPermi('collect:category:add')")

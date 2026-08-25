@@ -30,9 +30,9 @@
 <script setup lang="ts" name="ReportView">
 import { useRouter, useRoute } from 'vue-router'
 import { getConfig } from '@/api/report/config'
+import { getToken } from '@/utils/auth'
 import ReportFrame from '@/components/ReportFrame/index.vue'
 
-const { proxy } = getCurrentInstance()!
 const router = useRouter()
 const route = useRoute()
 
@@ -52,12 +52,11 @@ function loadReport() {
 
   getConfig(Number(id)).then(response => {
     const data = response.data
-    if (data && data.url && data.status === '0') {
-      src.value = data.url
-      reportName.value = data.name || ''
-      if (data.height) {
-        frameHeight.value = data.height + 'px'
-      }
+    if (data && data.jimuReportId && data.status === '0') {
+      const token = getToken()
+      const reportPath = `/jmreport/view/${encodeURIComponent(data.jimuReportId)}`
+      src.value = token ? `${reportPath}?token=${encodeURIComponent(token)}` : reportPath
+      reportName.value = data.reportName || ''
     }
     loading.value = false
   }).catch(() => {

@@ -44,9 +44,9 @@
 <script setup lang="ts" name="ReportDashboardView">
 import { useRouter, useRoute } from 'vue-router'
 import { getConfig } from '@/api/report/config'
+import { getToken } from '@/utils/auth'
 import ReportFrame from '@/components/ReportFrame/index.vue'
 
-const { proxy } = getCurrentInstance()!
 const router = useRouter()
 const route = useRoute()
 
@@ -79,7 +79,15 @@ function loadDashboard() {
       loading.value = false
       return
     }
-    src.value = data.url
+    if (!data.jmbiId) {
+      error.value = '大屏未关联JimuBI ID'
+      loading.value = false
+      return
+    }
+    const params = new URLSearchParams({ pageId: data.jmbiId })
+    const token = getToken()
+    if (token) params.set('token', token)
+    src.value = `/jimubi/view?${params.toString()}`
     loading.value = false
   }).catch((e: any) => {
     error.value = e.message || '加载大屏信息失败'
