@@ -151,13 +151,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询报表列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listReport(queryParams.value).then(response => {
+  try {
+    const response = await listReport(queryParams.value)
     reportList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

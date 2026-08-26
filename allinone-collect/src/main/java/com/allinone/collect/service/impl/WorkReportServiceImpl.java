@@ -96,14 +96,6 @@ public class WorkReportServiceImpl implements IWorkReportService
         return workReportMapper.deleteWorkReportById(id);
     }
 
-    private void requireAccessible(String id)
-    {
-        if (id == null || selectWorkReportById(id) == null)
-        {
-            throw new ServiceException("报表不存在或无权访问");
-        }
-    }
-
     /**
      * 属主校验：仅创建者本人或管理员可编辑/删除报表（与填报数据模块的属主模型一致）。
      * 其他用户如需协作，应通过 Sheet 显式授权（work_report_sheet_permission）访问具体 Sheet。

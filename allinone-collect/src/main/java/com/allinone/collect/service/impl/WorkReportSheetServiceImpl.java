@@ -16,6 +16,7 @@ import com.allinone.common.utils.StringUtils;
 import com.allinone.common.utils.uuid.IdUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.allinone.collect.mapper.WorkReportSheetMapper;
 import com.allinone.collect.domain.WorkReportSheet;
 import com.allinone.collect.service.IWorkReportSheetService;
@@ -117,8 +118,14 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
     public int insertWorkReportSheet(WorkReportSheet workReportSheet)
     {
         if (workReportSheet.getId() == null) workReportSheet.setId(IdUtils.fastUUID());
-        workReportSheet.setUserId(SecurityUtils.getUserId());
-        workReportSheet.setDeptId(SecurityUtils.getDeptId());
+        // 如果未设置userId和deptId，则使用当前用户（兼容旧调用）
+        // 否则使用传入的值（由WorkReportAccessService设置正确的属主）
+        if (workReportSheet.getUserId() == null) {
+            workReportSheet.setUserId(SecurityUtils.getUserId());
+        }
+        if (workReportSheet.getDeptId() == null) {
+            workReportSheet.setDeptId(SecurityUtils.getDeptId());
+        }
         workReportSheet.setDelStatus(0L);
         workReportSheet.setCreateTime(DateUtils.getNowDate());
         return workReportSheetMapper.insertWorkReportSheet(workReportSheet);
@@ -132,6 +139,7 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteWorkReportSheetByIds(String[] ids)
     {
         for (String id : ids) {
@@ -148,6 +156,7 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteWorkReportSheetByReportId(String reportId)
     {
         // 删除 Sheet 时级联清理权限

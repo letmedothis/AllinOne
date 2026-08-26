@@ -59,4 +59,12 @@ public interface SysUserRoleMapper
      * @return 结果
      */
     public int deleteUserRoleInfos(@Param("roleId") Long roleId, @Param("userIds") Long[] userIds);
+
+    /**
+     * 通过角色ID查询用户ID列表
+     * 
+     * @param roleId 角色ID
+     * @return 用户ID列表
+     */
+    public List<Long> selectUserIdsByRoleId(Long roleId);
 }

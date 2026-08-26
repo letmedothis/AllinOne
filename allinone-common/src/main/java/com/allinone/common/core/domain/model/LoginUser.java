@@ -67,6 +67,12 @@ public class LoginUser implements UserDetails
     private Set<String> permissions;
 
     /**
+     * 授权版本号
+     * 用于校验用户权限是否仍然有效
+     */
+    private Long authzVersion;
+
+    /**
      * 用户信息
      */
     private SysUser user;
@@ -256,6 +262,16 @@ public class LoginUser implements UserDetails
     public void setUser(SysUser user)
     {
         this.user = user;
+    }
+
+    public Long getAuthzVersion()
+    {
+        return authzVersion;
+    }
+
+    public void setAuthzVersion(Long authzVersion)
+    {
+        this.authzVersion = authzVersion;
     }
 
     @Override

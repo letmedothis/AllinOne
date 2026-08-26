@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import com.allinone.common.core.domain.model.LoginUser;
 import com.allinone.common.core.domain.entity.SysRole;
+import com.allinone.common.utils.StringUtils;
 
 /**
  * JimuReport 鉴权集成
@@ -23,11 +24,29 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private JimuTicketService jimuTicketService;
+
     /**
      * 从 HttpServletRequest 中提取 Token 令牌
+     * 支持从URL参数中获取ticket并验证
      */
     @Override
     public String getToken(HttpServletRequest request) {
+        // 首先检查是否是票据验证请求
+        String ticket = request.getParameter("ticket");
+        if (StringUtils.isNotEmpty(ticket)) {
+            // 验证并消费票据
+            JimuTicketService.TicketInfo ticketInfo = jimuTicketService.consumeTicket(ticket);
+            if (ticketInfo != null) {
+                // 票据有效，返回用户的token UUID
+                return ticketInfo.getTokenUuid();
+            }
+            // 票据无效，返回null
+            return null;
+        }
+        
+        // 否则使用原有的token获取逻辑
         return tokenService.getJimuReportToken(request);
     }
 
@@ -37,6 +56,13 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
     @Override
     public Boolean verifyToken(String token) {
         try {
+            if (StringUtils.isEmpty(token)) {
+                return false;
+            }
+            // 验证JWT令牌是否有效（包括过期时间）
+            if (!tokenService.validateToken(token)) {
+                return false;
+            }
             return tokenService.getLoginUserFromToken(token) != null;
         } catch (Exception e) {
             return false;

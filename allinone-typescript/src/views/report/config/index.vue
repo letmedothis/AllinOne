@@ -243,13 +243,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询报表列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listConfig(queryParams.value).then(response => {
+  try {
+    const response = await listConfig(queryParams.value)
     configList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 加载报表分类树 */

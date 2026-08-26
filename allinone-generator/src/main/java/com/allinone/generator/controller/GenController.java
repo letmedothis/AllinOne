@@ -132,8 +132,11 @@ public class GenController extends BaseController
     {
         try
         {
-            SqlUtil.filterKeyword(sql);
-            List<SQLStatement> sqlStatements = SQLUtils.parseStatements(sql, DbType.mysql);
+            // 使用AST白名单校验SQL
+            String validatedSql = com.allinone.generator.util.CreateTableSqlValidator.validate(sql);
+            
+            // 执行校验后的SQL
+            List<SQLStatement> sqlStatements = SQLUtils.parseStatements(validatedSql, DbType.mysql);
             List<String> tableNames = new ArrayList<>();
             for (SQLStatement sqlStatement : sqlStatements)
             {
@@ -151,6 +154,10 @@ public class GenController extends BaseController
             String operName = SecurityUtils.getUsername();
             genTableService.importGenTable(tableList, tplWebType, operName);
             return AjaxResult.success();
+        }
+        catch (UtilException e)
+        {
+            return AjaxResult.error(e.getMessage());
         }
         catch (Exception e)
         {

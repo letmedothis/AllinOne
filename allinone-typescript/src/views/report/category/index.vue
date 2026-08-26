@@ -168,12 +168,14 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询分类列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listCategory(queryParams.value).then(response => {
+  try {
+    const response = await listCategory(queryParams.value)
     categoryList.value = proxy.handleTree(response.data, 'categoryId')
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消 */

@@ -32,10 +32,10 @@ INSERT IGNORE INTO sys_menu VALUES
 -- 隐藏路由（供页面跳转使用，不在侧边栏显示）
 -- ------------------------------------------------------------
 INSERT IGNORE INTO sys_menu VALUES
-(2010, '填报数据编辑', 2000, 10, 'data/edit', 'collect/data/edit', '', 'CollectDataEdit', 1, 0, 'C', '1', '0', 'collect:data:edit', '#', 'admin', sysdate(), '', NULL, '填报数据编辑页(隐藏)'),
+(2010, '填报数据编辑', 2000, 10, 'data/edit', 'collect/data/edit', '', 'CollectDataEdit', 1, 0, 'C', '1', '0', 'collect:data:query,collect:data:edit', '#', 'admin', sysdate(), '', NULL, '填报数据编辑页(隐藏)'),
 (2011, '填报数据详情', 2000, 11, 'data/detail', 'collect/data/detail', '', 'CollectDataDetail', 1, 0, 'C', '1', '0', 'collect:data:query', '#', 'admin', sysdate(), '', NULL, '填报数据详情页(隐藏)'),
 (2012, '填报模板编辑', 2000, 12, 'template/edit', 'collect/template/edit', '', 'CollectTemplateEdit', 1, 0, 'C', '1', '0', 'collect:template:edit', '#', 'admin', sysdate(), '', NULL, '填报模板编辑页(隐藏)'),
-(2013, '报表编辑器', 2000, 13, 'report-editor/index/:id', 'collect/report/editor', '', 'WorkReportEditor', 1, 0, 'C', '1', '0', 'collect:report:edit', '#', 'admin', sysdate(), '', NULL, '报表编辑器(隐藏)'),
+(2013, '报表编辑器', 2000, 13, 'report-editor/index/:id', 'collect/report/editor', '', 'WorkReportEditor', 1, 0, 'C', '1', '0', 'collect:report:query,collect:report:edit', '#', 'admin', sysdate(), '', NULL, '报表编辑器(隐藏)'),
 (2014, '报表查看', 2001, 10, 'view', 'report/view/index', '', 'ReportView', 1, 0, 'C', '1', '0', 'report:config:query', '#', 'admin', sysdate(), '', NULL, '报表查看页(隐藏)'),
 (2015, '大屏查看', 2001, 11, 'dashboard', 'report/dashboard/index', '', 'ReportDashboard', 1, 0, 'C', '1', '0', 'report:config:query', '#', 'admin', sysdate(), '', NULL, '大屏查看页(隐藏)'),
 (2016, '报表配置独立编辑', 2001, 12, 'config/edit', 'report/config/edit', '', 'ReportConfigEdit', 1, 0, 'C', '1', '0', 'report:config:edit', '#', 'admin', sysdate(), '', NULL, '报表配置独立编辑页(隐藏)');

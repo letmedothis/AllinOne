@@ -210,13 +210,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询模板列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listTemplate(queryParams.value).then(response => {
+  try {
+    const response = await listTemplate(queryParams.value)
     templateList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 加载分类树 */

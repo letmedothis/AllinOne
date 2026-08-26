@@ -160,13 +160,15 @@ const data = reactive({
 const { queryParams } = toRefs(data)
 
 /** 查询填报数据列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listData(queryParams.value).then(response => {
+  try {
+    const response = await listData(queryParams.value)
     dataList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 搜索 */

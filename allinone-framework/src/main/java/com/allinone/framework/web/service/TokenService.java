@@ -24,6 +24,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import com.allinone.framework.security.AuthzVersionService;
 
 /**
  * token验证处理
@@ -70,6 +71,9 @@ public class TokenService
 
     @Autowired
     private RedisCache redisCache;
+
+    @Autowired
+    private AuthzVersionService authzVersionService;
 
     /**
      * 获取用户身份信息
@@ -133,6 +137,13 @@ public class TokenService
         String token = IdUtils.fastUUID();
         loginUser.setToken(token);
         setUserAgent(loginUser);
+        
+        // 初始化授权版本
+        if (loginUser.getUser() != null && loginUser.getUser().getUserId() != null) {
+            long authzVersion = authzVersionService.initVersion(loginUser.getUser().getUserId());
+            loginUser.setAuthzVersion(authzVersion);
+        }
+        
         refreshToken(loginUser);
 
         Map<String, Object> claims = new HashMap<>();
@@ -154,6 +165,16 @@ public class TokenService
         if (expireTime - currentTime <= MILLIS_MINUTE_TWENTY)
         {
             refreshToken(loginUser);
+        }
+        
+        // 校验授权版本是否匹配
+        if (loginUser.getUser() != null && loginUser.getUser().getUserId() != null) {
+            if (!authzVersionService.isVersionMatch(loginUser.getUser().getUserId(), loginUser.getAuthzVersion())) {
+                log.warn("用户[{}]授权版本不匹配，登录版本[{}]，当前版本[{}]，需要重新登录",
+                    loginUser.getUsername(), loginUser.getAuthzVersion(),
+                    authzVersionService.getVersion(loginUser.getUser().getUserId()));
+                throw new RuntimeException("权限已变更，请重新登录");
+            }
         }
     }
 
@@ -194,8 +215,13 @@ public class TokenService
      */
     private String createToken(Map<String, Object> claims)
     {
+        long currentTimeMillis = System.currentTimeMillis();
+        long expirationTimeMillis = currentTimeMillis + expireTime * MILLIS_MINUTE;
+        
         String token = Jwts.builder()
                 .setClaims(claims)
+                .setIssuedAt(new java.util.Date(currentTimeMillis))
+                .setExpiration(new java.util.Date(expirationTimeMillis))
                 .signWith(SignatureAlgorithm.HS512, secret).compact();
         return token;
     }
@@ -212,6 +238,32 @@ public class TokenService
                 .setSigningKey(secret)
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    /**
+     * 验证JWT令牌是否有效（包括过期时间）
+     * 
+     * @param token JWT令牌
+     * @return 是否有效
+     */
+    public boolean validateToken(String token)
+    {
+        try
+        {
+            Claims claims = parseToken(token);
+            // 检查是否过期
+            if (claims.getExpiration().before(new java.util.Date()))
+            {
+                log.warn("JWT令牌已过期");
+                return false;
+            }
+            return true;
+        }
+        catch (Exception e)
+        {
+            log.error("JWT令牌验证失败: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -329,38 +381,25 @@ public class TokenService
 
     /**
      * 角色权限变更后，刷新所有持有该角色的在线用户权限
+     * 使用授权版本机制，不再使用KEYS扫描
      *
      * @param roleId            变更的角色ID
      * @param permissionService 权限服务
+     * @param userRoleMapper    用户角色关联Mapper
      */
-    public void refreshPermissionByRoleId(Long roleId, SysPermissionService permissionService)
+    public void refreshPermissionByRoleId(Long roleId, SysPermissionService permissionService, 
+                                         com.allinone.system.mapper.SysUserRoleMapper userRoleMapper)
     {
-        // 扫描所有在线 token
-        String pattern = CacheConstants.LOGIN_TOKEN_KEY + "*";
-        Collection<String> keys = redisCache.keys(pattern);
-        if (keys == null || keys.isEmpty())
+        // 查询拥有该角色的所有用户ID
+        java.util.List<Long> userIds = userRoleMapper.selectUserIdsByRoleId(roleId);
+        if (userIds == null || userIds.isEmpty())
         {
             return;
         }
-        for (String key : keys)
-        {
-            LoginUser loginUser = redisCache.getCacheObject(key);
-            if (loginUser == null || loginUser.getUser() == null || loginUser.getUser().isAdmin())
-            {
-                // 管理员拥有所有权限，跳过
-                continue;
-            }
-            // 判断该用户是否拥有此角色
-            boolean hasRole = loginUser.getUser().getRoles() != null
-                    && loginUser.getUser().getRoles().stream().anyMatch(r -> roleId.equals(r.getRoleId()));
-            if (!hasRole)
-            {
-                continue;
-            }
-            // 刷新权限缓存
-            loginUser.setPermissions(permissionService.getMenuPermission(loginUser.getUser()));
-            refreshToken(loginUser);
-            log.info("角色[{}]权限变更，已刷新在线用户[{}]的权限缓存", roleId, loginUser.getUsername());
-        }
+        
+        // 批量递增这些用户的授权版本
+        authzVersionService.incrementVersion(userIds);
+        
+        log.info("角色[{}]权限变更，已递增[{}]个用户的授权版本", roleId, userIds.size());
     }
 }

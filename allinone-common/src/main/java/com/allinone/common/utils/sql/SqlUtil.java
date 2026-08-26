@@ -51,6 +51,7 @@ public class SqlUtil
 
     /**
      * SQL关键字检查
+     * 使用大小写不敏感的正则表达式匹配，保留原始分词边界
      */
     public static void filterKeyword(String value)
     {
@@ -58,13 +59,28 @@ public class SqlUtil
         {
             return;
         }
-        String normalizedValue = value.replaceAll("\\p{Z}|\\s", "");
+        // 使用正则表达式匹配关键字，保留原始分词边界
+        // 使用\b确保匹配完整的单词，避免误匹配
         String[] sqlKeywords = StringUtils.split(SQL_REGEX, "\\|");
         for (String sqlKeyword : sqlKeywords)
         {
-            if (StringUtils.indexOfIgnoreCase(normalizedValue, sqlKeyword) > -1)
+            // 跳过特殊字符
+            if (sqlKeyword.equals("+") || sqlKeyword.equals("/*") || sqlKeyword.equals("user()"))
             {
-                throw new UtilException("请求参数包含敏感关键词'" + sqlKeyword + "'，可能存在安全风险");
+                // 对于特殊字符，直接检查是否包含
+                if (StringUtils.indexOfIgnoreCase(value, sqlKeyword) > -1)
+                {
+                    throw new UtilException("请求参数包含敏感关键词'" + sqlKeyword + "'，可能存在安全风险");
+                }
+                continue;
+            }
+            
+            // 对于普通关键字，使用正则表达式匹配
+            // 添加可选的尾随空格或行尾
+            String pattern = "(?i)\\b" + sqlKeyword.trim() + "\\b";
+            if (java.util.regex.Pattern.compile(pattern).matcher(value).find())
+            {
+                throw new UtilException("请求参数包含敏感关键词'" + sqlKeyword.trim() + "'，可能存在安全风险");
             }
         }
     }

@@ -38,6 +38,7 @@ public class WorkReportController extends BaseController
     @Autowired private IWorkReportSheetService workReportSheetService;
     @Autowired private IWorkReportCellService workReportCellService;
     @Autowired private IWorkReportSheetPermissionService permissionService;
+    @Autowired private WorkReportAccessService workReportAccessService;
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int MAX_SHEETS_PER_REPORT = 100;
     private static final int MAX_CELLS_PER_REQUEST = 5000;
@@ -91,8 +92,8 @@ public class WorkReportController extends BaseController
     @PutMapping("/sheet/{reportId}")
     @Transactional(rollbackFor = Exception.class)
     public AjaxResult saveSheet(@PathVariable String reportId, @RequestBody Map<String, Object> body) {
-        WorkReport report = workReportService.selectWorkReportById(reportId);
-        if (report == null) return error("报表不存在");
+        // 使用访问服务校验编辑权限，只有属主或管理员可以编辑
+        WorkReport report = workReportAccessService.requireReportOwnerOrAdmin(reportId);
         Object data = body.get("data");
         if (data == null) return error("表格数据不能为空");
         if (!(data instanceof List<?> rawSheets)) return error("表格数据格式错误");
@@ -146,14 +147,13 @@ public class WorkReportController extends BaseController
                 workReportSheetService.updateWorkReportSheet(us);
             } else {
                 sheetDbId = IdUtils.fastUUID();
-                WorkReportSheet ns = new WorkReportSheet();
-                ns.setId(sheetDbId); ns.setReportId(reportId); ns.setSheetName(sheetName);
-                ns.setSheetIndex(sheetIndex.longValue());
+                // 使用访问服务创建Sheet，确保属主正确
+                WorkReportSheet ns = workReportAccessService.createSheetWithCorrectOwner(reportId, sheetName, sheetIndex.longValue());
+                ns.setId(sheetDbId);
                 try { ns.setSheetData(MAPPER.writeValueAsString(metaOnly)); } catch (Exception e) {
                     log.warn("Sheet元数据序列化失败 reportId={}", reportId, e);
                 }
-                ns.setUserId(SecurityUtils.getUserId()); ns.setDeptId(SecurityUtils.getDeptId());
-                ns.setDelStatus(0L); ns.setCreateTime(DateUtils.getNowDate());
+                ns.setCreateTime(DateUtils.getNowDate());
                 workReportSheetService.insertWorkReportSheet(ns);
             }
             Map<String, String> mapping = new HashMap<>();
@@ -211,9 +211,9 @@ public class WorkReportController extends BaseController
         if (cellList.size() > MAX_CELLS_PER_REQUEST) return error("单次最多保存5000个单元格");
         Set<String> sheetIds = cellList.stream().map(m -> (String) m.get("sheetDbId")).collect(Collectors.toSet());
         if (sheetIds.contains(null)) return error("缺少Sheet ID");
+        // 使用访问服务校验每个Sheet的编辑权限
         for (String sheetId : sheetIds) {
-            if (workReportSheetService.selectAccessibleSheetById(sheetId) == null)
-                return error("Sheet不存在或无权访问");
+            workReportAccessService.requireEditableSheet(sheetId);
         }
         List<WorkReportCell> cells = cellList.stream().map(m -> {
             WorkReportCell c = new WorkReportCell();
@@ -244,11 +244,8 @@ public class WorkReportController extends BaseController
     @Log(title = "权限", businessType = BusinessType.GRANT)
     @PostMapping("/permissions/{sheetDbId}")
     public AjaxResult grantPermission(@PathVariable String sheetDbId, @RequestBody Map<String, Object> body) {
-        WorkReportSheet sheet = workReportSheetService.selectWorkReportSheetById(sheetDbId);
-        if (sheet == null) return error("Sheet不存在");
-        Long currentUserId = SecurityUtils.getUserId();
-        if (!currentUserId.equals(sheet.getUserId()) && !SecurityUtils.isAdmin(currentUserId))
-            return error("只有创建者和管理员可以分配权限");
+        // 使用访问服务校验权限管理权限
+        workReportAccessService.requireSheetOwnerOrAdmin(sheetDbId);
         String permType = (String) body.get("permType");
         Number permIdNum = (Number) body.get("permId");
         if (permType == null || permIdNum == null) return error("缺少permType或permId");
@@ -265,11 +262,8 @@ public class WorkReportController extends BaseController
     @DeleteMapping("/permissions/{sheetDbId}")
     public AjaxResult revokePermission(@PathVariable String sheetDbId,
         @RequestParam String permType, @RequestParam Long permId) {
-        WorkReportSheet sheet = workReportSheetService.selectWorkReportSheetById(sheetDbId);
-        if (sheet == null) return error("Sheet不存在");
-        Long currentUserId = SecurityUtils.getUserId();
-        if (!currentUserId.equals(sheet.getUserId()) && !SecurityUtils.isAdmin(currentUserId))
-            return error("只有创建者和管理员可以撤销权限");
+        // 使用访问服务校验权限管理权限
+        workReportAccessService.requireSheetOwnerOrAdmin(sheetDbId);
         if (!Set.of("role", "dept", "user").contains(permType) || permId <= 0)
             return error("权限类型或目标ID无效");
         permissionService.revoke(sheetDbId, permType, permId);

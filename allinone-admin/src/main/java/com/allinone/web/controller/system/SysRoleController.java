@@ -28,6 +28,7 @@ import com.allinone.system.domain.SysUserRole;
 import com.allinone.system.service.ISysDeptService;
 import com.allinone.system.service.ISysRoleService;
 import com.allinone.system.service.ISysUserService;
+import com.allinone.system.mapper.SysUserRoleMapper;
 
 /**
  * 角色信息
@@ -52,6 +53,9 @@ public class SysRoleController extends BaseController
 
     @Autowired
     private ISysDeptService deptService;
+
+    @Autowired
+    private SysUserRoleMapper userRoleMapper;
 
     @PreAuthorize("@ss.hasPermi('system:role:list')")
     @GetMapping("/list")
@@ -127,7 +131,7 @@ public class SysRoleController extends BaseController
         if (roleService.updateRole(role) > 0)
         {
             // 刷新所有持有该角色的在线用户权限
-            tokenService.refreshPermissionByRoleId(role.getRoleId(), permissionService);
+            tokenService.refreshPermissionByRoleId(role.getRoleId(), permissionService, userRoleMapper);
             return success();
         }
         return error("修改角色'" + role.getRoleName() + "'失败，请联系管理员");
@@ -157,7 +161,13 @@ public class SysRoleController extends BaseController
         roleService.checkRoleAllowed(role);
         roleService.checkRoleDataScope(role.getRoleId());
         role.setUpdateBy(getUsername());
-        return toAjax(roleService.updateRoleStatus(role));
+        if (roleService.updateRoleStatus(role) > 0)
+        {
+            // 刷新所有持有该角色的在线用户权限
+            tokenService.refreshPermissionByRoleId(role.getRoleId(), permissionService, userRoleMapper);
+            return success();
+        }
+        return error("修改角色状态失败");
     }
 
     /**
@@ -168,6 +178,11 @@ public class SysRoleController extends BaseController
     @DeleteMapping("/{roleIds}")
     public AjaxResult remove(@PathVariable Long[] roleIds)
     {
+        // 在删除角色前，先递增所有拥有这些角色的用户的授权版本
+        for (Long roleId : roleIds)
+        {
+            tokenService.refreshPermissionByRoleId(roleId, permissionService, userRoleMapper);
+        }
         return toAjax(roleService.deleteRoleByIds(roleIds));
     }
 
