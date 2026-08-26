@@ -37,7 +37,18 @@ public class TokenService
 
     private static final String JIMUREPORT_PATH = "/jmreport";
 
+    private static final String JIMUBI_PATH = "/jimubi";
+
+    private static final String DRAG_PATH = "/drag";
+
     private static final String ADMIN_TOKEN_COOKIE = "Admin-Token";
+
+    /**
+     * iframe 内嵌的第三方引擎路径集合。这些路径由浏览器直接导航（无法附加自定义请求头），
+     * 因此允许从 URL 参数与同源 Cookie 读取令牌，且已纳入 Security 匿名白名单，
+     * 最终鉴权交由 JimuReportTokenService 内部完成。
+     */
+    private static final String[] EMBEDDED_ENGINE_PATHS = { JIMUREPORT_PATH, JIMUBI_PATH, DRAG_PATH };
 
     // 令牌自定义标识
     @Value("${token.header}")
@@ -244,23 +255,28 @@ public class TokenService
     }
 
     /**
-     * 为 JimuReport 拦截器解析令牌。浏览器直接访问或 iframe 加载报表时无法附加
-     * Authorization 请求头，因此只在该集成边界允许读取同源 Admin-Token Cookie。
-     * 其他业务接口仍只接受请求头令牌，避免把 Cookie 认证扩散到整个无 CSRF 会话。
+     * 为 JimuReport/JimuBI 拦截器解析令牌。浏览器直接访问或 iframe 加载报表/大屏时无法附加
+     * Authorization 请求头，因此只在该集成边界允许读取 URL 参数 token 与同源 Admin-Token Cookie。
+     * 其他业务接口仍只接受请求头令牌，避免把 URL/Cookie 认证扩散到整个无 CSRF 会话。
      */
     public String getJimuReportToken(HttpServletRequest request)
     {
         return getToken(request, true);
     }
 
-    private String getToken(HttpServletRequest request, boolean allowAdminTokenCookie)
+    private String getToken(HttpServletRequest request, boolean allowEmbeddedToken)
     {
         String token = request.getHeader(header);
         if (StringUtils.isEmpty(token))
         {
             token = request.getHeader("X-Access-Token");
         }
-        if (StringUtils.isEmpty(token) && allowAdminTokenCookie)
+        if (StringUtils.isEmpty(token) && allowEmbeddedToken)
+        {
+            // iframe 导航时由前端把令牌拼在 URL query 上（如 /jmreport/view/xx?token=xxx）
+            token = request.getParameter("token");
+        }
+        if (StringUtils.isEmpty(token) && allowEmbeddedToken)
         {
             token = getCookieValue(request, ADMIN_TOKEN_COOKIE);
         }
@@ -279,7 +295,14 @@ public class TokenService
         {
             requestUri = requestUri.substring(contextPath.length());
         }
-        return JIMUREPORT_PATH.equals(requestUri) || requestUri.startsWith(JIMUREPORT_PATH + "/");
+        for (String enginePath : EMBEDDED_ENGINE_PATHS)
+        {
+            if (enginePath.equals(requestUri) || requestUri.startsWith(enginePath + "/"))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String getCookieValue(HttpServletRequest request, String cookieName)

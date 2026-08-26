@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.allinone.collect.mapper.CollectTemplateMapper">
 
@@ -84,6 +84,20 @@
         update collect_template set del_flag = '2' where template_id in
         <foreach item="templateId" collection="array" open="(" separator="," close=")">#{templateId}</foreach>
     </update>
+
+    <select id="countSubmittedDataByTemplateIds" parameterType="Long" resultType="int">
+        select count(1) from collect_data
+        where template_id in
+        <foreach item="templateId" collection="array" open="(" separator="," close=")">#{templateId}</foreach>
+        and del_flag = '0' and biz_status != 'draft'
+    </select>
+
+    <select id="countFieldMappingByTemplateIds" parameterType="Long" resultType="int">
+        select count(1) from collect_field_mapping
+        where template_id in
+        <foreach item="templateId" collection="array" open="(" separator="," close=")">#{templateId}</foreach>
+        and del_flag = '0'
+    </select>
 
 </mapper>
 

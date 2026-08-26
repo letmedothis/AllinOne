@@ -1,4 +1,4 @@
-﻿# AllinOne SQL 执行顺序
+# AllinOne SQL 执行顺序
 
 > 所有SQL文件位于 `sql/` 目录，必须按以下顺序执行，不可跳过或乱序。
 
@@ -13,6 +13,7 @@
 | 3 | `allinone_biz.sql` | AllinOne 业务表 (collect_*, report_*) | 1 |
 | 4 | `jimureport.mysql5.7.create.sql` | JimuReport 积木报表表 | 1 |
 | 5 | `allinone_biz_update.sql` | 报表管理系统增量 (work_report*) | 1, 3 |
+| 6 | `allinone_menu.sql` | AllinOne 业务菜单与权限种子数据 (sys_menu) | 1 |
 
 ---
 
@@ -52,6 +53,16 @@
 | `work_report_cell` | 单元格数据表 | 大规模数据优化 |
 | `work_report_sheet_permission` | 显式权限分配表 | 双层权限模型 |
 
+### 6. allinone_menu.sql — 业务菜单与权限种子
+| 内容 | 说明 |
+|------|------|
+| `业务管理` / `报表中心` 目录及子菜单 | collect/report/work_report 各功能页面菜单 |
+| 按钮权限（`collect:*` / `report:*`） | 与后端 `@PreAuthorize` 权限字符串一一对应 |
+| 隐藏路由 | 编辑/详情/查看/大屏等跳转页路由 |
+
+> 依赖 `sys_menu` 表（步骤 1）。使用 `INSERT IGNORE` 幂等插入，可重复执行。
+> 不预置 `sys_role_menu` 关联：超级管理员自动可见全部菜单，普通角色需在「角色管理 → 分配菜单权限」中勾选。
+
 ---
 
 ## 快速执行 (MySQL)
@@ -63,6 +74,7 @@ mysql -u root -p allinone < sql/quartz.sql
 mysql -u root -p allinone < sql/allinone_biz.sql
 mysql -u root -p allinone < sql/jimureport.mysql5.7.create.sql
 mysql -u root -p allinone < sql/allinone_biz_update.sql
+mysql -u root -p allinone < sql/allinone_menu.sql
 ```
 
 ---
@@ -92,9 +104,10 @@ collect_template ───────┘ (现有数据填报体系，独立于 
 ## 升级场景
 
 ### 已有 allinone_biz.sql 环境的增量升级
-仅需执行第 5 步：
+仅需执行第 5、6 步：
 ```bash
 mysql -u root -p allinone < sql/allinone_biz_update.sql
+mysql -u root -p allinone < sql/allinone_menu.sql
 ```
 
 ### 验证表是否创建成功

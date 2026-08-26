@@ -22,9 +22,4 @@ public class CollectDataCellServiceImpl implements ICollectDataCellService {
     public List<CollectDataCell> selectCollectDataCellByDataId(Long dataId) {
         return collectDataCellMapper.selectCollectDataCellByDataId(dataId);
     }
-
-    @Override
-    public int deleteCollectDataCellByDataId(Long dataId) {
-        return collectDataCellMapper.deleteCollectDataCellByDataId(dataId);
-    }
 }

@@ -18,4 +18,8 @@
     <select id="selectByTarget" resultType="WorkReportSheetPermission">
         SELECT * FROM work_report_sheet_permission WHERE perm_type = #{permType} AND perm_id = #{permId}
     </select>
+    <select id="exists" resultType="int">
+        SELECT COUNT(1) FROM work_report_sheet_permission
+        WHERE sheet_id = #{sheetId} AND perm_type = #{permType} AND perm_id = #{permId}
+    </select>
 </mapper>

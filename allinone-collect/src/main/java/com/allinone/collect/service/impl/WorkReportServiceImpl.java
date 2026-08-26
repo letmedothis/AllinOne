@@ -65,7 +65,7 @@ public class WorkReportServiceImpl implements IWorkReportService
     @Override
     public int updateWorkReport(WorkReport workReport)
     {
-        requireAccessible(workReport.getId());
+        requireOwner(workReport.getId());
         workReport.setUserId(null);
         workReport.setDeptId(null);
         workReport.setDelStatus(null);
@@ -79,7 +79,7 @@ public class WorkReportServiceImpl implements IWorkReportService
     public int deleteWorkReportByIds(String[] ids)
     {
         for (String id : ids) {
-            requireAccessible(id);
+            requireOwner(id);
             workReportCellService.deleteCellsByReportId(id);
             workReportSheetService.deleteWorkReportSheetByReportId(id);
         }
@@ -90,7 +90,7 @@ public class WorkReportServiceImpl implements IWorkReportService
     @Transactional(rollbackFor = Exception.class)
     public int deleteWorkReportById(String id)
     {
-        requireAccessible(id);
+        requireOwner(id);
         workReportCellService.deleteCellsByReportId(id);
         workReportSheetService.deleteWorkReportSheetByReportId(id);
         return workReportMapper.deleteWorkReportById(id);
@@ -102,5 +102,27 @@ public class WorkReportServiceImpl implements IWorkReportService
         {
             throw new ServiceException("报表不存在或无权访问");
         }
+    }
+
+    /**
+     * 属主校验：仅创建者本人或管理员可编辑/删除报表（与填报数据模块的属主模型一致）。
+     * 其他用户如需协作，应通过 Sheet 显式授权（work_report_sheet_permission）访问具体 Sheet。
+     */
+    private void requireOwner(String id)
+    {
+        WorkReport report = selectWorkReportById(id);
+        if (report == null)
+        {
+            throw new ServiceException("报表不存在或无权访问");
+        }
+        if (!currentUserIsAdmin() && !java.util.Objects.equals(report.getUserId(), SecurityUtils.getUserId()))
+        {
+            throw new ServiceException("只能编辑或删除自己创建的报表");
+        }
+    }
+
+    private boolean currentUserIsAdmin()
+    {
+        return SecurityUtils.getLoginUser().getUser().isAdmin();
     }
 }

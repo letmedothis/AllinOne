@@ -32,6 +32,8 @@ export * from "./tool/gen";
 export * from "./collect/template";
 export * from "./collect/data";
 export * from "./collect/category";
+export * from "./collect/report";
 
 // report 模块
 export * from "./report/config";
+export * from "./report/category";

@@ -19,7 +19,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="报表编码" prop="reportCode">
-              <el-input v-model="form.reportCode" placeholder="请输入报表编码（唯一标识）" maxlength="64" />
+              <el-input v-model="form.reportCode" placeholder="唯一编码，用于URL访问" maxlength="64" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -27,11 +27,41 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="报表类型" prop="reportType">
-              <el-radio-group v-model="form.reportType" @change="handleReportTypeChange">
-                <el-radio value="0">报表</el-radio>
-                <el-radio value="1">大屏</el-radio>
-                <el-radio value="2">仪表盘</el-radio>
+              <el-radio-group v-model="form.reportType">
+                <el-radio
+                  v-for="dict in report_config_type"
+                  :key="dict.value"
+                  :value="dict.value"
+                >{{ dict.label }}</el-radio>
               </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="所属分类" prop="categoryId">
+              <el-tree-select
+                v-model="form.categoryId"
+                :data="categoryOptions"
+                :props="{ value: 'categoryId', label: 'categoryName', children: 'children' }"
+                placeholder="选择报表分类"
+                check-strictly
+                clearable
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item v-if="form.reportType === '0'" label="JimuReport ID" prop="jimuReportId">
+          <el-input v-model="form.jimuReportId" placeholder="请输入 JimuReport 报表ID" maxlength="64" />
+        </el-form-item>
+        <el-form-item v-else label="JimuBI ID" prop="jmbiId">
+          <el-input v-model="form.jmbiId" placeholder="请输入 JimuBI 大屏/仪表盘ID" maxlength="64" />
+        </el-form-item>
+
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="显示排序" prop="orderNum">
+              <el-input-number v-model="form.orderNum" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -47,24 +77,6 @@
           </el-col>
         </el-row>
 
-        <el-form-item v-if="form.reportType === '0'" label="JimuReport ID" prop="jimuReportId">
-          <el-input v-model="form.jimuReportId" placeholder="请输入 JimuReport 报表ID" maxlength="64" />
-        </el-form-item>
-        <el-form-item v-else label="JimuBI ID" prop="jmbiId">
-          <el-input v-model="form.jmbiId" placeholder="请输入 JimuBI 大屏/仪表盘ID" maxlength="64" />
-        </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="图标" prop="icon">
-              <el-input v-model="form.icon" placeholder="请输入图标名称" maxlength="100" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="显示顺序" prop="orderNum">
-              <el-input-number v-model="form.orderNum" :min="0" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
@@ -76,24 +88,30 @@
 <script setup lang="ts" name="ReportConfigEdit">
 import { useRouter, useRoute } from 'vue-router'
 import { getConfig, addConfig, updateConfig } from '@/api/report/config'
+import { listCategory } from '@/api/report/category'
 import type { ReportConfig } from '@/types/api/report/config'
+import type { ReportCategory } from '@/types/api/report/category'
 
 const { proxy } = getCurrentInstance()!
 const router = useRouter()
 const route = useRoute()
 const { sys_normal_disable } = useDict('sys_normal_disable')
+const { report_config_type } = useDict('report_config_type')
 
 const saving = ref<boolean>(false)
 const isEdit = computed(() => !!route.query.id)
+const categoryOptions = ref<ReportCategory[]>([])
 
 const pageTitle = computed(() => isEdit.value ? '编辑报表配置' : '新增报表配置')
 
 const form = ref<ReportConfig>({
+  reportId: undefined,
   reportName: undefined,
   reportCode: undefined,
   reportType: '0',
   jimuReportId: undefined,
   jmbiId: undefined,
+  categoryId: undefined,
   icon: undefined,
   orderNum: 0,
   status: '0',
@@ -106,9 +124,7 @@ const rules = reactive({
     { required: true, message: '报表编码不能为空', trigger: 'blur' },
     { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码必须以字母开头，仅允许字母数字下划线', trigger: 'blur' }
   ],
-  reportType: [{ required: true, message: '报表类型不能为空', trigger: 'change' }],
-  jimuReportId: [{ required: true, message: 'JimuReport ID不能为空', trigger: 'blur' }],
-  jmbiId: [{ required: true, message: 'JimuBI ID不能为空', trigger: 'blur' }]
+  reportType: [{ required: true, message: '报表类型不能为空', trigger: 'change' }]
 })
 
 /** 加载报表配置 */
@@ -123,12 +139,11 @@ function loadConfig() {
   })
 }
 
-function handleReportTypeChange(reportType: string | number | boolean) {
-  if (String(reportType) === '0') {
-    form.value.jmbiId = undefined
-  } else {
-    form.value.jimuReportId = undefined
-  }
+/** 加载报表分类树 */
+function loadCategoryTree() {
+  listCategory().then(response => {
+    categoryOptions.value = proxy.handleTree(response.data, 'categoryId')
+  })
 }
 
 /** 保存 */
@@ -158,5 +173,6 @@ function handleBack() {
 
 onMounted(() => {
   loadConfig()
+  loadCategoryTree()
 })
 </script>

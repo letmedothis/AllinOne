@@ -47,6 +47,7 @@ import { getConfig } from '@/api/report/config'
 import { getToken } from '@/utils/auth'
 import ReportFrame from '@/components/ReportFrame/index.vue'
 
+const { proxy } = getCurrentInstance()!
 const router = useRouter()
 const route = useRoute()
 
@@ -57,6 +58,16 @@ const src = ref<string>('')
 const showToolbar = ref<boolean>(true)
 const isFullscreen = ref<boolean>(false)
 let hideToolbarTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * 拼接 iframe 地址：后端返回引擎访问路径，此处附加当前登录令牌（URL 参数）。
+ * 后端 TokenService 对 /jimubi 等内嵌引擎路径会读取 token 参数完成鉴权。
+ */
+function buildSrc(url: string): string {
+  const token = getToken()
+  if (!token) return url
+  return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token)
+}
 
 /** 加载大屏 */
 function loadDashboard() {
@@ -79,15 +90,12 @@ function loadDashboard() {
       loading.value = false
       return
     }
-    if (!data.jmbiId) {
-      error.value = '大屏未关联JimuBI ID'
+    if (!data.url) {
+      error.value = '该大屏未配置引擎ID，无法加载'
       loading.value = false
       return
     }
-    const params = new URLSearchParams({ pageId: data.jmbiId })
-    const token = getToken()
-    if (token) params.set('token', token)
-    src.value = `/jimubi/view?${params.toString()}`
+    src.value = buildSrc(data.url)
     loading.value = false
   }).catch((e: any) => {
     error.value = e.message || '加载大屏信息失败'
@@ -147,7 +155,7 @@ function handleBack() {
   if (isFullscreen.value) {
     document.exitFullscreen()
   }
-  router.push({ path: '/report/dashboard' })
+  router.push({ path: '/report/config' })
 }
 
 /** 监听全屏变化 */

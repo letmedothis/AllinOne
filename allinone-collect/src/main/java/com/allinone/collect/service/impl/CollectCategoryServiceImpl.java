@@ -3,6 +3,7 @@ package com.allinone.collect.service.impl;
 import com.allinone.common.utils.DateUtils;
 import com.allinone.common.utils.SecurityUtils;
 import com.allinone.common.utils.uuid.IdUtils;
+import com.allinone.common.exception.ServiceException;
 import com.allinone.collect.domain.CollectCategory;
 import com.allinone.collect.mapper.CollectCategoryMapper;
 import com.allinone.collect.service.ICollectCategoryService;
@@ -43,6 +44,10 @@ public class CollectCategoryServiceImpl implements ICollectCategoryService {
 
     @Override
     public int deleteCollectCategoryByIds(Long[] categoryIds) {
+        // 删除保护：分类下仍存在填报模板时不允许删除，避免模板失去分类归属
+        if (collectCategoryMapper.countTemplateByCategoryIds(categoryIds) > 0) {
+            throw new ServiceException("所选分类下存在填报模板，无法删除");
+        }
         return collectCategoryMapper.deleteCollectCategoryByIds(categoryIds);
     }
 }

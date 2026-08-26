@@ -21,6 +21,12 @@ public class ReportConfig extends BaseEntity {
     private Integer orderNum;
     private String status;
 
+    /** 分类名称（列表展示用，联表查询） */
+    private String categoryName;
+
+    /** 访问URL（非表字段，服务层按类型计算：报表 /jmreport/view/{id}，大屏/仪表盘 /jimubi/view?pageId={id}） */
+    private String url;
+
     public Long getReportId() { return reportId; }
     public void setReportId(Long reportId) { this.reportId = reportId; }
     public String getReportName() { return reportName; }
@@ -41,6 +47,10 @@ public class ReportConfig extends BaseEntity {
     public void setOrderNum(Integer orderNum) { this.orderNum = orderNum; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
+    public String getUrl() { return url; }
+    public void setUrl(String url) { this.url = url; }
 
     @Override
     public String toString() { return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)

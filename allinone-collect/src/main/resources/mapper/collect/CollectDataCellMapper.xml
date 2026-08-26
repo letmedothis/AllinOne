@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.allinone.collect.mapper.CollectDataCellMapper">
 
@@ -16,16 +16,14 @@
         cell_format = values(cell_format),
         is_formula = values(is_formula),
         formula_expr = values(formula_expr),
+        -- 重置删除标志：避免软删除后的同一坐标重新 upsert 时仍然查不出来
+        del_flag = '0',
         update_time = values(create_time)
     </insert>
 
     <select id="selectCollectDataCellByDataId" parameterType="Long" resultType="CollectDataCell">
         select * from collect_data_cell where data_id = #{dataId} and del_flag = '0'
     </select>
-
-    <update id="deleteCollectDataCellByDataId" parameterType="Long">
-        update collect_data_cell set del_flag = '2' where data_id = #{dataId}
-    </update>
 
 </mapper>
 

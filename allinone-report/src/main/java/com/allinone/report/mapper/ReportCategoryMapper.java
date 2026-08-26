@@ -9,5 +9,6 @@ public interface ReportCategoryMapper {
     int insertReportCategory(ReportCategory category);
     int updateReportCategory(ReportCategory category);
     int deleteReportCategoryById(Long categoryId);
+    int countReportConfigByCategoryId(Long categoryId);
 }
 

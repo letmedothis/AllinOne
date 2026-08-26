@@ -12,5 +12,7 @@ public interface CollectTemplateMapper {
     int updateCollectTemplateStatus(CollectTemplate template);
     int deleteCollectTemplateById(Long templateId);
     int deleteCollectTemplateByIds(Long[] templateIds);
+    int countSubmittedDataByTemplateIds(Long[] templateIds);
+    int countFieldMappingByTemplateIds(Long[] templateIds);
 }
 

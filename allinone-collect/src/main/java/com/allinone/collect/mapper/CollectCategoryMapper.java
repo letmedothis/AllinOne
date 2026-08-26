@@ -11,5 +11,6 @@ public interface CollectCategoryMapper {
     int updateCollectCategory(CollectCategory category);
     int deleteCollectCategoryById(Long categoryId);
     int deleteCollectCategoryByIds(Long[] categoryIds);
+    int countTemplateByCategoryIds(Long[] categoryIds);
 }
 

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.allinone.report.mapper.ReportConfigMapper">
 
@@ -10,6 +10,7 @@
         <result property="jimuReportId" column="jimu_report_id"/>
         <result property="jmbiId" column="jmbi_id"/>
         <result property="categoryId" column="category_id"/>
+        <result property="categoryName" column="category_name"/>
         <result property="icon" column="icon"/>
         <result property="orderNum" column="order_num"/>
         <result property="status" column="status"/>
@@ -22,21 +23,23 @@
     </resultMap>
 
     <sql id="selectReportConfigVo">
-        select report_id, report_name, report_code, report_type, jimu_report_id, jmbi_id, category_id, icon, order_num, status, remark, del_flag, create_by, create_time, update_by, update_time
-        from report_config
+        select rc.report_id, rc.report_name, rc.report_code, rc.report_type, rc.jimu_report_id, rc.jmbi_id, rc.category_id,
+               rcat.category_name, rc.icon, rc.order_num, rc.status, rc.remark, rc.del_flag, rc.create_by, rc.create_time, rc.update_by, rc.update_time
+        from report_config rc
+        left join report_category rcat on rcat.category_id = rc.category_id and rcat.del_flag = '0'
     </sql>
 
     <select id="selectReportConfigList" parameterType="ReportConfig" resultMap="ReportConfigResult">
         <include refid="selectReportConfigVo"/>
-        where del_flag = '0'
-        <if test="reportName != null and reportName != ''"> and report_name like concat('%', #{reportName}, '%')</if>
-        <if test="reportType != null and reportType != ''"> and report_type = #{reportType}</if>
-        <if test="categoryId != null"> and category_id = #{categoryId}</if>
-        order by order_num
+        where rc.del_flag = '0'
+        <if test="reportName != null and reportName != ''"> and rc.report_name like concat('%', #{reportName}, '%')</if>
+        <if test="reportType != null and reportType != ''"> and rc.report_type = #{reportType}</if>
+        <if test="categoryId != null"> and rc.category_id = #{categoryId}</if>
+        order by rc.order_num
     </select>
 
     <select id="selectReportConfigById" parameterType="Long" resultMap="ReportConfigResult">
-        <include refid="selectReportConfigVo"/> where report_id = #{reportId}
+        <include refid="selectReportConfigVo"/> where rc.report_id = #{reportId}
     </select>
 
     <insert id="insertReportConfig" parameterType="ReportConfig">

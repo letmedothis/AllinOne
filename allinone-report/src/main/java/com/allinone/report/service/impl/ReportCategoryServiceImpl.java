@@ -1,6 +1,9 @@
 package com.allinone.report.service.impl;
 
 import com.allinone.common.utils.DateUtils;
+import com.allinone.common.utils.SecurityUtils;
+import com.allinone.common.utils.uuid.IdUtils;
+import com.allinone.common.exception.ServiceException;
 import com.allinone.report.domain.ReportCategory;
 import com.allinone.report.mapper.ReportCategoryMapper;
 import com.allinone.report.service.IReportCategoryService;
@@ -26,12 +29,15 @@ public class ReportCategoryServiceImpl implements IReportCategoryService {
 
     @Override
     public int insertReportCategory(ReportCategory category) {
+        category.setCategoryId(IdUtils.nextLongId());
+        category.setCreateBy(SecurityUtils.getUsername());
         category.setCreateTime(DateUtils.getNowDate());
         return reportCategoryMapper.insertReportCategory(category);
     }
 
     @Override
     public int updateReportCategory(ReportCategory category) {
+        category.setUpdateBy(SecurityUtils.getUsername());
         category.setUpdateTime(DateUtils.getNowDate());
         return reportCategoryMapper.updateReportCategory(category);
     }
@@ -40,6 +46,9 @@ public class ReportCategoryServiceImpl implements IReportCategoryService {
     public int deleteReportCategoryByIds(Long[] categoryIds) {
         int count = 0;
         for (Long id : categoryIds) {
+            if (reportCategoryMapper.countReportConfigByCategoryId(id) > 0) {
+                throw new ServiceException("该分类下存在报表配置，无法删除");
+            }
             count += reportCategoryMapper.deleteReportCategoryById(id);
         }
         return count;

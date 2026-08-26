@@ -11,4 +11,5 @@ public interface WorkReportSheetPermissionMapper
     int deleteBySheetId(@Param("sheetId") String sheetId);
     List<WorkReportSheetPermission> selectBySheetId(@Param("sheetId") String sheetId);
     List<WorkReportSheetPermission> selectByTarget(@Param("permType") String permType, @Param("permId") Long permId);
+    int exists(@Param("sheetId") String sheetId, @Param("permType") String permType, @Param("permId") Long permId);
 }

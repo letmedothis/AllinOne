@@ -16,7 +16,6 @@ public class WorkReport extends BaseEntity
     private Long userId;
     private Long deptId;
     private Long delStatus;
-    private String sheetData;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -32,6 +31,4 @@ public class WorkReport extends BaseEntity
     public void setDeptId(Long deptId) { this.deptId = deptId; }
     public Long getDelStatus() { return delStatus; }
     public void setDelStatus(Long delStatus) { this.delStatus = delStatus; }
-    public String getSheetData() { return sheetData; }
-    public void setSheetData(String sheetData) { this.sheetData = sheetData; }
 }

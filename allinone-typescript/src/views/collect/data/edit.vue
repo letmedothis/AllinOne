@@ -212,7 +212,7 @@ async function handleSaveDraft() {
       const sheetData = sheetRef.value.getData()
       form.value.formData = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
     }
-    form.value.bizStatus = 'draft'
+    // 注意：不要在前端设置 bizStatus —— 后端 insert 强制 'draft'、update 忽略该字段
 
     if (form.value.dataId) {
       const response = await updateData(form.value)

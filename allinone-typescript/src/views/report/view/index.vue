@@ -33,6 +33,7 @@ import { getConfig } from '@/api/report/config'
 import { getToken } from '@/utils/auth'
 import ReportFrame from '@/components/ReportFrame/index.vue'
 
+const { proxy } = getCurrentInstance()!
 const router = useRouter()
 const route = useRoute()
 
@@ -41,6 +42,16 @@ const loading = ref<boolean>(true)
 const src = ref<string>('')
 const reportName = ref<string>('')
 const frameHeight = ref<string>('calc(100vh - 280px)')
+
+/**
+ * 拼接 iframe 地址：后端返回引擎访问路径，此处附加当前登录令牌（URL 参数）。
+ * 后端 TokenService 对 /jmreport 等内嵌引擎路径会读取 token 参数完成鉴权。
+ */
+function buildSrc(url: string): string {
+  const token = getToken()
+  if (!token) return url
+  return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token)
+}
 
 /** 加载报表配置 */
 function loadReport() {
@@ -52,10 +63,8 @@ function loadReport() {
 
   getConfig(Number(id)).then(response => {
     const data = response.data
-    if (data && data.jimuReportId && data.status === '0') {
-      const token = getToken()
-      const reportPath = `/jmreport/view/${encodeURIComponent(data.jimuReportId)}`
-      src.value = token ? `${reportPath}?token=${encodeURIComponent(token)}` : reportPath
+    if (data && data.url && data.status === '0') {
+      src.value = buildSrc(data.url)
       reportName.value = data.reportName || ''
     }
     loading.value = false

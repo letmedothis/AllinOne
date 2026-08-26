@@ -15,6 +15,10 @@ public class WorkReportSheetPermissionServiceImpl implements IWorkReportSheetPer
 
     @Override
     public void grant(WorkReportSheetPermission p) {
+        // 幂等：同一 sheet/类型/目标 已存在授权时跳过，配合表唯一约束防止重复授权
+        if (permissionMapper.exists(p.getSheetId(), p.getPermType(), p.getPermId()) > 0) {
+            return;
+        }
         p.setCreateTime(new java.util.Date());
         permissionMapper.insert(p);
     }

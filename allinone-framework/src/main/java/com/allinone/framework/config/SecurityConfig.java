@@ -104,6 +104,9 @@ public class SecurityConfig
                     // 静态资源，可匿名访问
                     .requestMatchers(HttpMethod.GET, "/", "/*.html", "/**.html", "/**.css", "/**.js", "/profile/**").permitAll()
                     .requestMatchers("/swagger-ui.html", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                    // JimuReport / JimuBI 报表与大屏：iframe 内嵌导航无法携带自定义请求头，
+                    // 由 JimuReportTokenService 内部完成 token 校验（URL参数/请求头/Cookie），此处放行
+                    .requestMatchers("/jmreport/**", "/jimubi/**", "/drag/**").permitAll()
                     // 除上面外的所有请求全部需要鉴权认证
                     .anyRequest().authenticated();
             })

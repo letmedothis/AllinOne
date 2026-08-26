@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- AllinOne 业务增量更新 — 报表管理系统 (work_report*)
 -- 版本: v2.0.0
 -- 日期: 2026-07-23
@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS `work_report` (
   `user_id` bigint(20) DEFAULT NULL COMMENT '用户ID',
   `dept_id` bigint(20) DEFAULT NULL COMMENT '部门ID',
   `del_status` bigint(20) DEFAULT 0 COMMENT '逻辑删除状态 0未删除 1已删除',
-  `sheet_data` longtext NULL COMMENT 'Luckysheet表格数据(JSON)',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报表管理';
 
@@ -73,6 +72,7 @@ CREATE TABLE IF NOT EXISTS `work_report_sheet_permission` (
   `granted_by` bigint(20) DEFAULT NULL COMMENT '分配人',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sheet_perm` (`sheet_id`,`perm_type`,`perm_id`),
   KEY `idx_sheet` (`sheet_id`),
   KEY `idx_target` (`perm_type`,`perm_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sheet 显式权限分配';
@@ -102,3 +102,32 @@ DEALLOCATE PREPARE add_sheet_index_stmt;
 ALTER TABLE `collect_field_mapping`
   DROP INDEX `uk_cfm_rc`,
   ADD UNIQUE KEY `uk_cfm_rc` (`template_id`, `sheet_index`, `row_index`, `col_index`);
+
+-- -----------------------------------------------------------
+-- Phase 7: 权限分配表增加唯一约束（防止重复授权）
+-- 仅对已经执行过旧版本文件的数据库执行一次。
+-- -----------------------------------------------------------
+SET @add_perm_uk_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'work_report_sheet_permission' AND INDEX_NAME = 'uk_sheet_perm') = 0,
+  'ALTER TABLE `work_report_sheet_permission` ADD UNIQUE KEY `uk_sheet_perm` (`sheet_id`, `perm_type`, `perm_id`)',
+  'SELECT 1'
+);
+PREPARE add_perm_uk_stmt FROM @add_perm_uk_sql;
+EXECUTE add_perm_uk_stmt;
+DEALLOCATE PREPARE add_perm_uk_stmt;
+
+-- -----------------------------------------------------------
+-- Phase 8: 清理 work_report 表遗留死字段 sheet_data（重构后从未读写）
+-- 仅对已经执行过旧版本文件的数据库执行一次。
+-- 注意：work_report_sheet.sheet_data 仍在正常使用，不能删除。
+-- -----------------------------------------------------------
+SET @drop_wr_sheet_data_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'work_report' AND COLUMN_NAME = 'sheet_data') > 0,
+  'ALTER TABLE `work_report` DROP COLUMN `sheet_data`',
+  'SELECT 1'
+);
+PREPARE drop_wr_sheet_data_stmt FROM @drop_wr_sheet_data_sql;
+EXECUTE drop_wr_sheet_data_stmt;
+DEALLOCATE PREPARE drop_wr_sheet_data_stmt;

@@ -8,7 +8,7 @@
 
     <el-alert
       v-if="!isCreator"
-      title="只有创建者和管理员可以修改权�?
+      title="只有创建者和管理员可以修改权限"
       type="info"
       :closable="false"
       show-icon

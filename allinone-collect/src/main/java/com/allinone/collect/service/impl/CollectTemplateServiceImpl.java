@@ -72,7 +72,15 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteCollectTemplateByIds(Long[] templateIds) {
+        // 删除保护：已被非草稿填报数据或字段映射引用的模板不允许删除，避免产生孤儿数据
+        if (collectTemplateMapper.countSubmittedDataByTemplateIds(templateIds) > 0) {
+            throw new ServiceException("所选模板下存在已提交的填报数据，无法删除");
+        }
+        if (collectTemplateMapper.countFieldMappingByTemplateIds(templateIds) > 0) {
+            throw new ServiceException("所选模板下存在字段映射配置，无法删除");
+        }
         return collectTemplateMapper.deleteCollectTemplateByIds(templateIds);
     }
 

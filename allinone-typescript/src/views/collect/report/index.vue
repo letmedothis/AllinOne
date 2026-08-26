@@ -118,7 +118,6 @@
 <script setup lang="ts" name="Report">
 import type { WorkReport, ReportQueryParams } from "@/types/api/collect/report"
 import { listReport, getReport, delReport, addReport, updateReport } from "@/api/collect/report"
-import ReportViewDrawer from "./view"
 
 const { proxy } = getCurrentInstance()
 

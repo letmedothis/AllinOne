@@ -77,7 +77,6 @@
 </template>
 
 <script setup lang="ts" name="ReportDashboard">
-import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { listConfig, delConfig } from '@/api/report/config'
 import type { ReportConfig, ReportConfigQueryParams } from '@/types/api/report/config'
@@ -110,7 +109,7 @@ function getList() {
 
 /** 查看大屏 */
 function handleView(item: ReportConfig) {
-  router.push({ path: '/report/dashboard/view', query: { id: item.reportId } })
+  router.push({ path: '/report/dashboard', query: { id: item.reportId } })
 }
 
 /** 编辑大屏配置 */
