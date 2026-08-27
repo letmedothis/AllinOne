@@ -149,6 +149,7 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteWorkReportSheetById(String id)
     {
         permissionService.revokeBySheet(id);

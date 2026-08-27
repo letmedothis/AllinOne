@@ -37,4 +37,9 @@ public class WorkReportSheetPermissionServiceImpl implements IWorkReportSheetPer
     public List<WorkReportSheetPermission> listBySheet(String sheetId) {
         return permissionMapper.selectBySheetId(sheetId);
     }
+
+    @Override
+    public int exists(String sheetId, String permType, Long permId) {
+        return permissionMapper.exists(sheetId, permType, permId);
+    }
 }

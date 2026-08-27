@@ -2,6 +2,26 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.allinone.collect.mapper.CollectDataCellMapper">
 
+    <resultMap type="CollectDataCell" id="CollectDataCellResult">
+        <id     property="cellId"           column="cell_id"/>
+        <result property="dataId"           column="data_id"/>
+        <result property="templateId"       column="template_id"/>
+        <result property="sheetIndex"       column="sheet_index"/>
+        <result property="rowIndex"         column="row_index"/>
+        <result property="colIndex"         column="col_index"/>
+        <result property="cellText"         column="cell_text"/>
+        <result property="cellValue"        column="cell_value"/>
+        <result property="cellNumericValue" column="cell_numeric_value"/>
+        <result property="cellType"         column="cell_type"/>
+        <result property="cellFormat"       column="cell_format"/>
+        <result property="isFormula"        column="is_formula"/>
+        <result property="formulaExpr"      column="formula_expr"/>
+        <result property="createBy"         column="create_by"/>
+        <result property="createTime"       column="create_time"/>
+        <result property="updateBy"         column="update_by"/>
+        <result property="updateTime"       column="update_time"/>
+    </resultMap>
+
     <insert id="batchUpsert" parameterType="CollectDataCell">
         insert into collect_data_cell (cell_id, data_id, template_id, sheet_index, row_index, col_index, cell_text, cell_value, cell_numeric_value, cell_type, cell_format, is_formula, formula_expr, del_flag, create_by, create_time)
         values
@@ -18,12 +38,14 @@
         formula_expr = values(formula_expr),
         -- 重置删除标志：避免软删除后的同一坐标重新 upsert 时仍然查不出来
         del_flag = '0',
-        update_time = values(create_time)
+        update_time = now()
     </insert>
 
-    <select id="selectCollectDataCellByDataId" parameterType="Long" resultType="CollectDataCell">
-        select * from collect_data_cell where data_id = #{dataId} and del_flag = '0'
+    <select id="selectCollectDataCellByDataId" parameterType="Long" resultMap="CollectDataCellResult">
+        select cell_id, data_id, template_id, sheet_index, row_index, col_index, cell_text, cell_value,
+               cell_numeric_value, cell_type, cell_format, is_formula, formula_expr,
+               create_by, create_time, update_by, update_time
+        from collect_data_cell where data_id = #{dataId} and del_flag = '0'
     </select>
 
 </mapper>
-

@@ -9,7 +9,5 @@ public interface CollectFieldMappingMapper {
     List<CollectFieldMapping> selectCollectFieldMappingByTemplate(Long templateId);
     int insertCollectFieldMapping(CollectFieldMapping mapping);
     int updateCollectFieldMapping(CollectFieldMapping mapping);
-    int batchUpsert(List<CollectFieldMapping> mappings);
     int deleteCollectFieldMappingByIds(Long[] mappingIds);
-    int deleteCollectFieldMappingByTemplate(Long templateId);
 }

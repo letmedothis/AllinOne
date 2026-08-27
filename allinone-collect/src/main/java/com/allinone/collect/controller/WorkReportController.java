@@ -253,7 +253,7 @@ public class WorkReportController extends BaseController
             return error("权限类型或目标ID无效");
         WorkReportSheetPermission p = new WorkReportSheetPermission();
         p.setSheetId(sheetDbId); p.setPermType(permType);
-        p.setPermId(permIdNum.longValue()); p.setGrantedBy(currentUserId);
+        p.setPermId(permIdNum.longValue()); p.setGrantedBy(SecurityUtils.getUserId());
         permissionService.grant(p);
         return success("权限分配成功");
     }

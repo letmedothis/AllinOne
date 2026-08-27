@@ -9,4 +9,5 @@ public interface IWorkReportSheetPermissionService
     void revoke(String sheetId, String permType, Long permId);
     void revokeBySheet(String sheetId);
     List<WorkReportSheetPermission> listBySheet(String sheetId);
+    int exists(String sheetId, String permType, Long permId);
 }

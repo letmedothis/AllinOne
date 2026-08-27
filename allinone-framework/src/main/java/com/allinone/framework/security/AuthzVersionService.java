@@ -1,7 +1,6 @@
 package com.allinone.framework.security;
 
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +21,6 @@ public class AuthzVersionService {
     private static final Logger log = LoggerFactory.getLogger(AuthzVersionService.class);
 
     private static final String AUTHZ_VERSION_KEY = CacheConstants.LOGIN_TOKEN_KEY + "authz_version:";
-    
-    private static final long VERSION_EXPIRE_HOURS = 24;
 
     @Autowired
     private RedisCache redisCache;
@@ -46,7 +43,9 @@ public class AuthzVersionService {
         String key = AUTHZ_VERSION_KEY + userId;
         Long currentVersion = redisCache.getCacheObject(key);
         long newVersion = (currentVersion != null ? currentVersion : 0L) + 1;
-        redisCache.setCacheObject(key, newVersion, VERSION_EXPIRE_HOURS, TimeUnit.HOURS);
+        // 版本 key 不设 TTL：会话可无限滑动续期，若版本先于会话过期，
+        // getVersion()=0 与会话内快照恒不匹配，会导致在线用户被误判为"权限已变更"强制踢线
+        redisCache.setCacheObject(key, newVersion);
         log.info("用户[{}]授权版本递增至[{}]", userId, newVersion);
     }
 

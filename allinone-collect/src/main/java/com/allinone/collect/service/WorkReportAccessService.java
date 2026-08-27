@@ -2,14 +2,12 @@ package com.allinone.collect.service;
 
 import com.allinone.collect.domain.WorkReport;
 import com.allinone.collect.domain.WorkReportSheet;
-import com.allinone.collect.domain.WorkReportSheetPermission;
+import com.allinone.common.core.domain.entity.SysRole;
+import com.allinone.common.core.domain.entity.SysUser;
 import com.allinone.common.exception.ServiceException;
 import com.allinone.common.utils.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Set;
 
 /**
  * 报表/Sheet 统一访问控制服务
@@ -128,35 +126,29 @@ public class WorkReportAccessService {
      */
     private boolean hasExplicitSheetPermission(String sheetId, Long userId) {
         // 检查用户直接授权
-        WorkReportSheetPermission userPerm = new WorkReportSheetPermission();
-        userPerm.setSheetId(sheetId);
-        userPerm.setPermType("user");
-        userPerm.setPermId(userId);
-        if (permissionService.exists(userPerm) > 0) {
+        if (permissionService.exists(sheetId, "user", userId) > 0) {
             return true;
         }
-        
+
         // 检查用户所属部门的授权
         Long deptId = SecurityUtils.getDeptId();
-        if (deptId != null) {
-            WorkReportSheetPermission deptPerm = new WorkReportSheetPermission();
-            deptPerm.setSheetId(sheetId);
-            deptPerm.setPermType("dept");
-            deptPerm.setPermId(deptId);
-            if (permissionService.exists(deptPerm) > 0) {
-                return true;
-            }
+        if (deptId != null && permissionService.exists(sheetId, "dept", deptId) > 0) {
+            return true;
         }
-        
+
         // 检查用户所属角色的授权
-        Set<String> roleKeys = SecurityUtils.getLoginUser().getRoles();
-        if (roleKeys != null) {
-            for (String roleKey : roleKeys) {
-                // 这里需要根据角色key查询角色ID，简化处理
-                // 实际应该通过角色服务查询
+        SysUser currentUser = SecurityUtils.getLoginUser().getUser();
+        if (currentUser != null && currentUser.getRoles() != null) {
+            for (SysRole role : currentUser.getRoles()) {
+                if (role == null || role.getRoleId() == null) {
+                    continue;
+                }
+                if (permissionService.exists(sheetId, "role", role.getRoleId()) > 0) {
+                    return true;
+                }
             }
         }
-        
+
         return false;
     }
 

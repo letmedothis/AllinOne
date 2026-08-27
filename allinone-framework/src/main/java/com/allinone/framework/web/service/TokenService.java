@@ -154,11 +154,11 @@ public class TokenService
 
     /**
      * 验证令牌有效期，相差不足20分钟，自动刷新缓存
-     * 
+     *
      * @param loginUser 登录信息
-     * @return 令牌
+     * @return 会话是否仍然有效；授权版本不匹配时会话已被删除，返回 false
      */
-    public void verifyToken(LoginUser loginUser)
+    public boolean verifyToken(LoginUser loginUser)
     {
         long expireTime = loginUser.getExpireTime();
         long currentTime = System.currentTimeMillis();
@@ -166,16 +166,24 @@ public class TokenService
         {
             refreshToken(loginUser);
         }
-        
-        // 校验授权版本是否匹配
-        if (loginUser.getUser() != null && loginUser.getUser().getUserId() != null) {
-            if (!authzVersionService.isVersionMatch(loginUser.getUser().getUserId(), loginUser.getAuthzVersion())) {
+
+        // 校验授权版本是否匹配；升级前遗留的旧会话未记录版本，跳过校验
+        Long loginVersion = loginUser.getAuthzVersion();
+        if (loginVersion != null && loginUser.getUser() != null && loginUser.getUser().getUserId() != null)
+        {
+            if (!authzVersionService.isVersionMatch(loginUser.getUser().getUserId(), loginVersion))
+            {
                 log.warn("用户[{}]授权版本不匹配，登录版本[{}]，当前版本[{}]，需要重新登录",
-                    loginUser.getUsername(), loginUser.getAuthzVersion(),
+                    loginUser.getUsername(), loginVersion,
                     authzVersionService.getVersion(loginUser.getUser().getUserId()));
-                throw new RuntimeException("权限已变更，请重新登录");
+                // 删除会话，让请求以未认证状态继续走过滤器链，
+                // 由认证入口点统一返回 401；在过滤器层抛异常会绕过
+                // ExceptionTranslationFilter 变成裸 500，前端无法走重新登录流程
+                redisCache.deleteObject(getTokenKey(loginUser.getToken()));
+                return false;
             }
         }
+        return true;
     }
 
     /**
@@ -215,13 +223,12 @@ public class TokenService
      */
     private String createToken(Map<String, Object> claims)
     {
-        long currentTimeMillis = System.currentTimeMillis();
-        long expirationTimeMillis = currentTimeMillis + expireTime * MILLIS_MINUTE;
-        
+        // 不给 JWT 设置过期时间：会话有效期统一由 Redis 中 LoginUser 的 TTL（滑动续期）控制，
+        // JWT 仅作为定位会话的钥匙；若设置固定 exp，refreshToken 只续 Redis TTL 不重签 JWT，
+        // 活跃用户会在 30 分钟后被强制登出
         String token = Jwts.builder()
                 .setClaims(claims)
-                .setIssuedAt(new java.util.Date(currentTimeMillis))
-                .setExpiration(new java.util.Date(expirationTimeMillis))
+                .setIssuedAt(new java.util.Date())
                 .signWith(SignatureAlgorithm.HS512, secret).compact();
         return token;
     }
@@ -251,8 +258,9 @@ public class TokenService
         try
         {
             Claims claims = parseToken(token);
-            // 检查是否过期
-            if (claims.getExpiration().before(new java.util.Date()))
+            // 旧版本签发的令牌可能携带 exp；当前签发的令牌不含 exp，有效期由 Redis 会话控制
+            java.util.Date expiration = claims.getExpiration();
+            if (expiration != null && expiration.before(new java.util.Date()))
             {
                 log.warn("JWT令牌已过期");
                 return false;
