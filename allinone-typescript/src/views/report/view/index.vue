@@ -30,6 +30,7 @@
 <script setup lang="ts" name="ReportView">
 import { useRouter, useRoute } from 'vue-router'
 import { getConfig } from '@/api/report/config'
+import { requestJimuTicket } from '@/api/report/ticket'
 import { getToken } from '@/utils/auth'
 import ReportFrame from '@/components/ReportFrame/index.vue'
 
@@ -44,10 +45,20 @@ const reportName = ref<string>('')
 const frameHeight = ref<string>('calc(100vh - 280px)')
 
 /**
- * 拼接 iframe 地址：后端返回引擎访问路径，此处附加当前登录令牌（URL 参数）。
- * 后端 TokenService 对 /jmreport 等内嵌引擎路径会读取 token 参数完成鉴权。
+ * 拼接 iframe 地址：后端返回引擎访问路径，此处先向服务端换取一次性票据（ticket）拼到 URL。
+ * JimuReportTokenService 会消费 ticket 换出登录令牌完成鉴权，避免把长期 JWT 暴露在 URL 中；
+ * 票据换取失败时降级为旧的 token 参数方式。
  */
-function buildSrc(url: string): string {
+async function buildSrc(url: string): Promise<string> {
+  try {
+    const response = await requestJimuTicket()
+    const ticket = response.data
+    if (ticket) {
+      return url + (url.includes('?') ? '&' : '?') + 'ticket=' + encodeURIComponent(ticket)
+    }
+  } catch (e) {
+    console.warn('获取JimuReport票据失败，降级为token方式', e)
+  }
   const token = getToken()
   if (!token) return url
   return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token)
@@ -61,14 +72,14 @@ function loadReport() {
     return
   }
 
-  getConfig(Number(id)).then(response => {
+  getConfig(Number(id)).then(async response => {
     const data = response.data
     if (data && data.url && data.status === '0') {
-      src.value = buildSrc(data.url)
       reportName.value = data.reportName || ''
+      src.value = await buildSrc(data.url)
     }
-    loading.value = false
   }).catch(() => {
+  }).finally(() => {
     loading.value = false
   })
 }

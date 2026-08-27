@@ -83,42 +83,46 @@ function scheduleVisibleCellLoad(position: { scrollLeft?: number; scrollTop?: nu
 
 async function initEditor() {
   initLoading.value = true
-  reportId.value = route.params.id as string
-  const res = await getReport(reportId.value)
-  reportName.value = res.data.reportName
-  canManage.value = Number(userStore.id) === Number(res.data.userId)
+  try {
+    reportId.value = route.params.id as string
+    const res = await getReport(reportId.value)
+    reportName.value = res.data.reportName
+    canManage.value = Number(userStore.id) === Number(res.data.userId)
 
-  const sheetRes = await getSheet(reportId.value)
-  const data = sheetRes.data && sheetRes.data.length > 0 ? sheetRes.data : []
-  initialSheetIds.clear()
-  for (const sheet of data) {
-    if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
-  }
-
-  luckysheet.create({
-    container: 'luckysheet',
-    data,
-    title: reportName.value,
-    lang: 'zh',
-    allowUpdate: false,
-    showtoolbar: true,
-    showinfobar: false,
-    showsheetbar: true,
-    loadRowNum: 100,
-    loadCellNum: 30,
-    pageSize: 200,
-    hook: {
-      workbookCreated: async () => {
-        const file = luckysheet.getluckysheetfile()
-        for (const sheet of file) {
-          if (!sheet._sheetDbId) continue
-          await loadVisibleCellsAndSnapshot(sheet._sheetDbId, 0, CELL_PAGE_ROWS - 1, 0, CELL_PAGE_COLS - 1)
-        }
-        initLoading.value = false
-      },
-      scroll: (position: { scrollLeft?: number; scrollTop?: number }) => scheduleVisibleCellLoad(position)
+    const sheetRes = await getSheet(reportId.value)
+    const data = sheetRes.data && sheetRes.data.length > 0 ? sheetRes.data : []
+    initialSheetIds.clear()
+    for (const sheet of data) {
+      if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
     }
-  })
+
+    luckysheet.create({
+      container: 'luckysheet',
+      data,
+      title: reportName.value,
+      lang: 'zh',
+      allowUpdate: false,
+      showtoolbar: true,
+      showinfobar: false,
+      showsheetbar: true,
+      loadRowNum: 100,
+      loadCellNum: 30,
+      pageSize: 200,
+      hook: {
+        workbookCreated: async () => {
+          const file = luckysheet.getluckysheetfile()
+          for (const sheet of file) {
+            if (!sheet._sheetDbId) continue
+            await loadVisibleCellsAndSnapshot(sheet._sheetDbId, 0, CELL_PAGE_ROWS - 1, 0, CELL_PAGE_COLS - 1)
+          }
+          initLoading.value = false
+        },
+        scroll: (position: { scrollLeft?: number; scrollTop?: number }) => scheduleVisibleCellLoad(position)
+      }
+    })
+  } finally {
+    initLoading.value = false
+  }
 }
 
 async function loadVisibleCellsAndSnapshot(

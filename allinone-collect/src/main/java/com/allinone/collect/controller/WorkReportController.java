@@ -120,7 +120,14 @@ public class WorkReportController extends BaseController
             return error("待删除Sheet列表格式错误");
         }
         Set<String> referencedSheetIds = new HashSet<>();
+        // 预解析全部 Sheet 的顺序号与名称：必须在写入循环前完成校验，
+        // 否则中途 return error 会绕过 @Transactional 回滚造成部分提交
+        List<Integer> sheetOrderList = new ArrayList<>();
         for (Map<String, Object> sheetObj : sheetList) {
+            Integer sheetIndex = asInt(sheetObj.get("order"), asInt(sheetObj.get("index"), 0));
+            if (sheetIndex == null) return error("Sheet顺序(order/index)格式错误");
+            sheetOrderList.add(sheetIndex);
+            if (isNonString(sheetObj.get("name"))) return error("Sheet数据格式错误");
             Object rawSheetDbId = sheetObj.get("_sheetDbId");
             if (rawSheetDbId == null) continue;
             if (!(rawSheetDbId instanceof String sheetDbId) || sheetDbId.isBlank()) {
@@ -130,11 +137,11 @@ public class WorkReportController extends BaseController
             if (deletedSheetIds.contains(sheetDbId)) return error("同一Sheet不能同时保存和删除");
         }
         List<Map<String, String>> idMappings = new ArrayList<>();
-        for (Map<String, Object> sheetObj : sheetList) {
-            String sheetName = (String) sheetObj.get("name");
-            Integer sheetIndex = sheetObj.get("order") != null ? Integer.parseInt(sheetObj.get("order").toString())
-                : (sheetObj.get("index") != null ? Integer.parseInt(sheetObj.get("index").toString()) : 0);
-            String sheetDbId = (String) sheetObj.get("_sheetDbId");
+        for (int i = 0; i < sheetList.size(); i++) {
+            Map<String, Object> sheetObj = sheetList.get(i);
+            String sheetName = asString(sheetObj.get("name"));
+            Integer sheetIndex = sheetOrderList.get(i);
+            String sheetDbId = asString(sheetObj.get("_sheetDbId"));
             String clientSheetId = String.valueOf(sheetObj.getOrDefault("index", sheetIndex));
             Map<String, Object> metaOnly = extractMeta(sheetObj, sheetName);
             if (sheetDbId != null && existingMap.containsKey(sheetDbId)) {
@@ -198,7 +205,6 @@ public class WorkReportController extends BaseController
         if (requestedCells > MAX_RANGE_CELLS) return error("单次最多加载10000个单元格");
         return success(workReportCellService.selectCellsByRange(sheetDbId, startRow, endRow, startCol, endCol));
     }
-    @SuppressWarnings("unchecked")
     @PreAuthorize("@ss.hasPermi('collect:report:edit')")
     @Log(title = "报表单元格", businessType = BusinessType.UPDATE)
     @PutMapping("/cells")
@@ -206,25 +212,38 @@ public class WorkReportController extends BaseController
     public AjaxResult saveCells(@RequestBody Map<String, Object> body) {
         Object raw = body.get("cells");
         if (raw == null) return success("无变更");
-        List<Map<String, Object>> cellList = (List<Map<String, Object>>) raw;
-        if (cellList.isEmpty()) return success("无变更");
-        if (cellList.size() > MAX_CELLS_PER_REQUEST) return error("单次最多保存5000个单元格");
-        Set<String> sheetIds = cellList.stream().map(m -> (String) m.get("sheetDbId")).collect(Collectors.toSet());
-        if (sheetIds.contains(null)) return error("缺少Sheet ID");
+        if (!(raw instanceof List<?> rawCells)) return error("单元格数据格式错误");
+        if (rawCells.isEmpty()) return success("无变更");
+        if (rawCells.size() > MAX_CELLS_PER_REQUEST) return error("单次最多保存5000个单元格");
+        List<WorkReportCell> cells = new ArrayList<>(rawCells.size());
+        Set<String> sheetIds = new HashSet<>();
+        for (Object cellObj : rawCells) {
+            if (!(cellObj instanceof Map<?, ?> cell)) return error("单元格数据格式错误");
+            Object rawSheetDbId = cell.get("sheetDbId");
+            if (rawSheetDbId == null) return error("缺少Sheet ID");
+            String sheetDbId = asString(rawSheetDbId);
+            if (sheetDbId == null || sheetDbId.isBlank()) return error("单元格数据格式错误");
+            Integer rowIndex = asInt(cell.get("rowIndex"), 0);
+            Integer colIndex = asInt(cell.get("colIndex"), 0);
+            if (rowIndex == null || colIndex == null) return error("单元格数据格式错误");
+            if (isNonString(cell.get("cellValue")) || isNonString(cell.get("cellFormula"))
+                || isNonString(cell.get("cellType"))) {
+                return error("单元格数据格式错误");
+            }
+            WorkReportCell c = new WorkReportCell();
+            c.setSheetId(sheetDbId);
+            c.setRowIndex(rowIndex);
+            c.setColIndex(colIndex);
+            c.setCellValue(asString(cell.get("cellValue")));
+            c.setCellFormula(asString(cell.get("cellFormula")));
+            c.setCellType(asString(cell.get("cellType")));
+            cells.add(c);
+            sheetIds.add(sheetDbId);
+        }
         // 使用访问服务校验每个Sheet的编辑权限
         for (String sheetId : sheetIds) {
             workReportAccessService.requireEditableSheet(sheetId);
         }
-        List<WorkReportCell> cells = cellList.stream().map(m -> {
-            WorkReportCell c = new WorkReportCell();
-            c.setSheetId((String) m.get("sheetDbId"));
-            c.setRowIndex(m.get("rowIndex") != null ? ((Number) m.get("rowIndex")).intValue() : 0);
-            c.setColIndex(m.get("colIndex") != null ? ((Number) m.get("colIndex")).intValue() : 0);
-            c.setCellValue((String) m.get("cellValue"));
-            c.setCellFormula((String) m.get("cellFormula"));
-            c.setCellType((String) m.get("cellType"));
-            return c;
-        }).collect(Collectors.toList());
         if (cells.stream().anyMatch(c -> c.getRowIndex() < 0 || c.getColIndex() < 0))
             return error("单元格坐标不能为负数");
         for (int from = 0; from < cells.size(); from += CELL_BATCH_SIZE) {
@@ -271,6 +290,33 @@ public class WorkReportController extends BaseController
     }
 
     // ==================== 内部工具 ====================
+    /** 仅接受 String 类型（null 亦返回 null），避免对客户端报文直接强转抛 ClassCastException */
+    private static String asString(Object value) {
+        return value instanceof String s ? s : null;
+    }
+
+    /**
+     * 宽松整数解析：null 返回默认值，兼容 Number 与数字字符串（如 "3"），
+     * 无法解析返回 null 表示报文非法
+     */
+    private static Integer asInt(Object value, int defaultValue) {
+        if (value == null) return defaultValue;
+        if (value instanceof Number number) return number.intValue();
+        if (value instanceof String str) {
+            try {
+                return Integer.parseInt(str.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** 报文合法性检查：字段存在但不是字符串 */
+    private static boolean isNonString(Object value) {
+        return value != null && !(value instanceof String);
+    }
+
     private Map<String, Object> extractMeta(Map<String, Object> src, String name) {
         Map<String, Object> m = new HashMap<>();
         m.put("name", name);

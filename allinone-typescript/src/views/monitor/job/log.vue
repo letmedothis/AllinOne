@@ -171,13 +171,15 @@ const data = reactive({
 const { queryParams, form } = toRefs(data)
 
 /** 查询调度日志列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listJobLog(proxy.addDateRange(queryParams.value, dateRange.value)).then(response => {
+  try {
+    const response = await listJobLog(proxy.addDateRange(queryParams.value, dateRange.value))
     jobLogList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 // 返回按钮

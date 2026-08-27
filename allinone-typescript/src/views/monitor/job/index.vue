@@ -280,13 +280,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询定时任务列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listJob(queryParams.value).then(response => {
+  try {
+    const response = await listJob(queryParams.value)
     jobList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

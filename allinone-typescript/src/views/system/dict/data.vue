@@ -246,13 +246,15 @@ function getTypeList() {
 }
 
 /** 查询字典数据列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listData(queryParams.value).then(response => {
+  try {
+    const response = await listData(queryParams.value)
     dataList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

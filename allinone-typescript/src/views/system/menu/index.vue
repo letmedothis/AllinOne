@@ -341,13 +341,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询菜单列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listMenu(queryParams.value).then(response => {
+  try {
+    const response = await listMenu(queryParams.value)
     menuList.value = proxy.handleTree(response.data, "menuId")
     recordOriginalOrders(menuList.value)
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 查询菜单下拉树结构 */

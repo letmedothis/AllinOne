@@ -19,7 +19,8 @@ INSERT IGNORE INTO sys_menu VALUES
 (2002, '填报分类', 2000, 1, 'category', 'collect/category/index', '', 'CollectCategory', 1, 0, 'C', '0', '0', 'collect:category:list', 'list', 'admin', sysdate(), '', NULL, '填报分类菜单'),
 (2003, '填报模板', 2000, 2, 'template', 'collect/template/index', '', 'CollectTemplate', 1, 0, 'C', '0', '0', 'collect:template:list', 'form', 'admin', sysdate(), '', NULL, '填报模板菜单'),
 (2004, '填报数据', 2000, 3, 'data', 'collect/data/index', '', 'CollectData', 1, 0, 'C', '0', '0', 'collect:data:list', 'clipboard', 'admin', sysdate(), '', NULL, '填报数据菜单'),
-(2005, '报表管理', 2000, 4, 'report', 'collect/report/index', '', 'WorkReport', 1, 0, 'C', '0', '0', 'collect:report:list', 'chart', 'admin', sysdate(), '', NULL, '报表管理菜单');
+(2005, '报表管理', 2000, 4, 'report', 'collect/report/index', '', 'WorkReport', 1, 0, 'C', '0', '0', 'collect:report:list', 'chart', 'admin', sysdate(), '', NULL, '报表管理菜单'),
+(2050, '字段映射', 2000, 5, 'mapping', 'collect/mapping/index', '', 'CollectFieldMapping', 1, 0, 'C', '0', '0', '', 'excel', 'admin', sysdate(), '', NULL, '字段映射菜单（Tier 3 数据回写配置）');
 
 -- ------------------------------------------------------------
 -- 报表中心子菜单
@@ -76,12 +77,17 @@ INSERT IGNORE INTO sys_menu VALUES
 (2034, '报表新增', 2005, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2035, '报表修改', 2005, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2036, '报表删除', 2005, 5, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:remove', '#', 'admin', sysdate(), '', NULL, ''),
-(2037, '报表导出', 2005, 6, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:export', '#', 'admin', sysdate(), '', NULL, ''),
-(2045, '映射列表', 2005, 7, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:list', '#', 'admin', sysdate(), '', NULL, ''),
-(2046, '映射查询', 2005, 8, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:query', '#', 'admin', sysdate(), '', NULL, ''),
-(2047, '映射新增', 2005, 9, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:add', '#', 'admin', sysdate(), '', NULL, ''),
-(2048, '映射修改', 2005, 10, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:edit', '#', 'admin', sysdate(), '', NULL, ''),
-(2049, '映射删除', 2005, 11, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:remove', '#', 'admin', sysdate(), '', NULL, '');
+(2037, '报表导出', 2005, 6, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:export', '#', 'admin', sysdate(), '', NULL, '');
+
+-- ------------------------------------------------------------
+-- 字段映射按钮权限
+-- ------------------------------------------------------------
+INSERT IGNORE INTO sys_menu VALUES
+(2045, '映射列表', 2050, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:list', '#', 'admin', sysdate(), '', NULL, ''),
+(2046, '映射查询', 2050, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2047, '映射新增', 2050, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2048, '映射修改', 2050, 5, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:edit', '#', 'admin', sysdate(), '', NULL, ''),
+(2049, '映射删除', 2050, 6, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:remove', '#', 'admin', sysdate(), '', NULL, '');
 
 -- ------------------------------------------------------------
 -- 报表配置按钮权限

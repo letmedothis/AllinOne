@@ -75,13 +75,15 @@ const queryParams = ref<OnlineQueryParams>({
 })
 
 /** 查询登录日志列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  initData(queryParams.value).then(response => {
+  try {
+    const response = await initData(queryParams.value)
     onlineList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 搜索按钮操作 */

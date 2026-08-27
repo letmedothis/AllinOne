@@ -116,13 +116,15 @@ const queryParams = reactive<AuthUserQueryParams>({
 })
 
 /** 查询授权用户列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  allocatedUserList(queryParams).then(response => {
+  try {
+    const response = await allocatedUserList(queryParams)
     userList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 返回按钮 */

@@ -220,13 +220,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询字典类型列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listType(proxy.addDateRange(queryParams.value, dateRange.value)).then(response => {
+  try {
+    const response = await listType(proxy.addDateRange(queryParams.value, dateRange.value))
     typeList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

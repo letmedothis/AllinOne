@@ -197,13 +197,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询公告列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listNotice(queryParams.value).then(response => {
+  try {
+    const response = await listNotice(queryParams.value)
     noticeList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

@@ -189,13 +189,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询部门列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listDept(queryParams.value).then(response => {
+  try {
+    const response = await listDept(queryParams.value)
     deptList.value = proxy.handleTree(response.data, "deptId")
     recordOriginalOrders(deptList.value)
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

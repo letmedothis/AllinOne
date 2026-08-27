@@ -39,8 +39,9 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
             // 验证并消费票据
             JimuTicketService.TicketInfo ticketInfo = jimuTicketService.consumeTicket(ticket);
             if (ticketInfo != null) {
-                // 票据有效，返回用户的token UUID
-                return ticketInfo.getTokenUuid();
+                // 票据有效，返回票据中绑定的原始JWT令牌，
+                // 使后续 verifyToken/getUsername/getUserInfo 走既有 JWT 校验逻辑
+                return ticketInfo.getToken();
             }
             // 票据无效，返回null
             return null;

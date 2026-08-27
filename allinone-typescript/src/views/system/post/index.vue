@@ -180,13 +180,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询岗位列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listPost(queryParams.value).then(response => {
+  try {
+    const response = await listPost(queryParams.value)
     postList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 取消按钮 */

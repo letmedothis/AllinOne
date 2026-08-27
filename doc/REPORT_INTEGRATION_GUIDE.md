@@ -88,6 +88,7 @@ allinone-collect/src/main/resources/mapper/collect/
 | POST | `/collect/report` | collect:report:add | 新增报表 |
 | PUT | `/collect/report` | collect:report:edit | 修改报表 |
 | DELETE | `/collect/report/{ids}` | collect:report:remove | 删除报表 |
+| POST | `/collect/report/export` | collect:report:export | 导出报表数据（Excel） |
 | GET | `/collect/report/sheet/{reportId}` | collect:report:query | 获取Sheet元数据 |
 | PUT | `/collect/report/sheet/{reportId}` | collect:report:edit | 保存Sheet数据 |
 | GET | `/collect/report/cells` | collect:report:query | 范围内加载单元格 |
@@ -169,5 +170,5 @@ allinone-typescript/src/
 | 表名沿用 `work_report*` 不改为 `collect_report*` | 与 JimuReport(report_config) 和 CollectData 各自语义独立 |
 | Controller 放在 allinone-collect | 遵循 AllinOne 现有惯例 (CollectDataController 同模块) |
 | 新增 `work_report_cell` 独立表 | 与 `collect_data_cell` 键结构不同，避免两种访问模式冲突 |
-| Jackson 替代 fastjson2 | AllinOne 未引入 fastjson2 依赖 |
+| Jackson 序列化报表 JSON | 项目其他位置（如 Redis 缓存、LoginUser）确实使用 fastjson2（allinone-common 已引入），但报表链路选择 Jackson，避免 fastjson2 的 `WriteClassName` 等特性改变 JSON 结构、破坏前端契约 |
 | 传统 getter/setter 替代 Lombok | AllinOne 未使用 Lombok |

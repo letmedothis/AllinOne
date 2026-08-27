@@ -74,7 +74,18 @@ public class SqlUtil
                 }
                 continue;
             }
-            
+
+            // 空白关键字（如首项垂直制表符 \u000B）trim 后为空串，若进入正则会编译成 \b\b
+            // 匹配任意含字母数字的字符串导致全拒绝；改为直接包含性判断，保留其拦截控制字符的本意
+            if (sqlKeyword.isBlank())
+            {
+                if (!sqlKeyword.isEmpty() && StringUtils.contains(value, sqlKeyword))
+                {
+                    throw new UtilException("请求参数包含敏感关键词'" + sqlKeyword + "'，可能存在安全风险");
+                }
+                continue;
+            }
+
             // 对于普通关键字，使用正则表达式匹配
             // 添加可选的尾随空格或行尾
             String pattern = "(?i)\\b" + sqlKeyword.trim() + "\\b";

@@ -112,17 +112,21 @@
 
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| GET | `/report/config/list` | 分页查询报表配置列表 
-| collect:mapping:list | 查询字段映射列表 | 字段映射 |
-| collect:mapping:query | 查询字段映射详情 | 字段映射 |
-| collect:mapping:add | 新增字段映射 | 字段映射 |
-| collect:mapping:edit | 修改字段映射 | 字段映射 |
-| collect:mapping:remove | 删除字段映射 | 字段映射 |
-| report:config:list |
+| GET | `/report/config/list` | 分页查询报表配置列表 | report:config:list |
 | GET | `/report/config/{id}` | 获取报表配置详情 | report:config:query |
 | POST | `/report/config` | 新增报表配置 | report:config:add |
 | PUT | `/report/config` | 修改报表配置 | report:config:edit |
 | DELETE | `/report/config/{id}` | 删除报表配置 | report:config:remove |
+
+### 2.5 字段映射接口（/collect/mapping）
+
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | `/collect/mapping/list` | 查询字段映射列表（支持 templateId/targetTable 过滤） | collect:mapping:list |
+| GET | `/collect/mapping/{mappingId}` | 获取字段映射详情 | collect:mapping:query |
+| POST | `/collect/mapping` | 新增字段映射 | collect:mapping:add |
+| PUT | `/collect/mapping` | 修改字段映射 | collect:mapping:edit |
+| DELETE | `/collect/mapping/{mappingIds}` | 删除字段映射 | collect:mapping:remove |
 
 ---
 

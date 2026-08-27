@@ -23,9 +23,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         from work_report_sheet wrs
     </sql>
 
+    <!-- 软删（del_status=1）的 Sheet 视为不存在：该方法仅被编辑权/属主管校验使用，不能放行已删除的 Sheet -->
     <select id="selectWorkReportSheetById" parameterType="String" resultMap="WorkReportSheetResult">
         <include refid="selectWorkReportSheetVo"/>
-        where wrs.id = #{id}
+        where wrs.id = #{id} and wrs.del_status = 0
     </select>
 
     <!--

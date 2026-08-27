@@ -154,13 +154,15 @@ const queryParams = ref<LogininforQueryParams>({
 })
 
 /** 查询登录日志列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  list(proxy.addDateRange(queryParams.value, dateRange.value)).then(response => {
+  try {
+    const response = await list(proxy.addDateRange(queryParams.value, dateRange.value))
     logininforList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 搜索按钮操作 */

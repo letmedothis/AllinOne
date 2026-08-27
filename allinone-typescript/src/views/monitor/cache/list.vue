@@ -180,12 +180,14 @@ const nowCacheName = ref<string>("")
 const tableHeight = ref<number>(window.innerHeight - 200)
 
 /** 查询缓存名称列表 */
-function getCacheNames(): void {
+async function getCacheNames(): Promise<void> {
   loading.value = true
-  listCacheName().then(response => {
+  try {
+    const response = await listCacheName()
     cacheNames.value = response.data!
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 刷新缓存名称列表 */
@@ -203,17 +205,19 @@ function handleClearCacheName(row: SysCache): void {
 }
 
 /** 查询缓存键名列表 */
-function getCacheKeys(row?: SysCache): void {
+async function getCacheKeys(row?: SysCache): Promise<void> {
   const cacheName = row !== undefined ? row.cacheName : nowCacheName.value
   if (cacheName === "") {
     return
   }
   subLoading.value = true
-  listCacheKey(cacheName).then(response => {
+  try {
+    const response = await listCacheKey(cacheName)
     cacheKeys.value = response.data!
-    subLoading.value = false
     nowCacheName.value = cacheName
-  })
+  } finally {
+    subLoading.value = false
+  }
 }
 
 /** 刷新缓存键名列表 */

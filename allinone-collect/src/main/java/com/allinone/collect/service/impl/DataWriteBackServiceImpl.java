@@ -88,7 +88,9 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
         Set<String> tableAllowlist = Arrays.stream(allowedTables.split(","))
                 .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
         if (!tableAllowlist.contains(tableName)) {
-            throw new ServiceException("目标表未加入回写白名单: " + tableName);
+            throw new ServiceException("回写目标表 " + tableName + " 未加入白名单，"
+                    + "请在配置 allinone.collect.write-back.allowed-tables"
+                    + "（环境变量 COLLECT_WRITE_BACK_ALLOWED_TABLES，逗号分隔）中添加该表");
         }
 
         List<CollectFieldMapping> pkFields = fields.stream()

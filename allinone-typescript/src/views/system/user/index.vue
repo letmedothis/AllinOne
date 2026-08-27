@@ -246,13 +246,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询用户列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listUser(proxy.addDateRange(queryParams.value, dateRange.value)).then(res => {
-    loading.value = false
+  try {
+    const res = await listUser(proxy.addDateRange(queryParams.value, dateRange.value))
     userList.value = res.rows
     total.value = res.total
-  })
+  } finally {
+    loading.value = false
+  }
 }
 
 /** 查询部门下拉树结构 */

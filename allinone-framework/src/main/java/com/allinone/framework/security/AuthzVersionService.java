@@ -39,12 +39,15 @@ public class AuthzVersionService {
      * 递增用户的授权版本
      * 当角色、菜单、用户角色、dataScope、角色状态等发生变化时调用
      */
-    public void incrementVersion(Long userId) {
+    public synchronized void incrementVersion(Long userId) {
         String key = AUTHZ_VERSION_KEY + userId;
         Long currentVersion = redisCache.getCacheObject(key);
         long newVersion = (currentVersion != null ? currentVersion : 0L) + 1;
         // 版本 key 不设 TTL：会话可无限滑动续期，若版本先于会话过期，
         // getVersion()=0 与会话内快照恒不匹配，会导致在线用户被误判为"权限已变更"强制踢线
+        // 注意：RedisTemplate 值序列化为 FastJson2 且开启 WriteClassName，
+        // Long 会被写成 "1L" 形式，与 Redis INCR 要求的纯数字不兼容，无法用原子递增替代 get+set；
+        // synchronized 仅保证单实例内的原子性，多实例部署时并发递增可能丢失
         redisCache.setCacheObject(key, newVersion);
         log.info("用户[{}]授权版本递增至[{}]", userId, newVersion);
     }

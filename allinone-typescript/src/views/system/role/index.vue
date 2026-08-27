@@ -301,13 +301,15 @@ const data = reactive({
 const { queryParams, form, rules } = toRefs(data)
 
 /** 查询角色列表 */
-function getList() {
+async function getList() {
   loading.value = true
-  listRole(proxy.addDateRange(queryParams.value, dateRange.value)).then(response => {
+  try {
+    const response = await listRole(proxy.addDateRange(queryParams.value, dateRange.value))
     roleList.value = response.rows
     total.value = response.total
+  } finally {
     loading.value = false
-  })
+  }
 }
 
 /** 搜索按钮操作 */
