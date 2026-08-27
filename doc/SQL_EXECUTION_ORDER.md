@@ -67,9 +67,29 @@
 
 ## 快速执行 (MySQL)
 
+> **重要：第 1 步必须用 `SOURCE` 方式在交互式会话中执行。** `ry_20260417.sql` 需要会话变量
+> `@bootstrap_password_bcrypt` 来设置 admin 账号的初始密码（BCrypt 哈希）。用 `mysql < file`
+> 的非交互式导入无法设置该变量，admin 会写入无效占位密码并保持**停用状态**，导致部署后无人能登录。
+> 详见 [sql/README.md](../sql/README.md)。
+
+```sql
+-- 登录后按顺序执行（哈希请自行生成，勿提交到仓库）
+mysql -u root -p allinone
+```
+
+```sql
+SET @bootstrap_password_bcrypt = '<LOCAL_BCRYPT_HASH>';
+SOURCE sql/ry_20260417.sql;
+SOURCE sql/quartz.sql;
+SOURCE sql/allinone_biz.sql;
+SOURCE sql/jimureport.mysql5.7.create.sql;
+SOURCE sql/allinone_biz_update.sql;
+SOURCE sql/allinone_menu.sql;
+```
+
+第 2~6 步无会话变量要求，也可以用非交互方式执行：
+
 ```bash
-# 按顺序执行全部
-mysql -u root -p allinone < sql/ry_20260417.sql
 mysql -u root -p allinone < sql/quartz.sql
 mysql -u root -p allinone < sql/allinone_biz.sql
 mysql -u root -p allinone < sql/jimureport.mysql5.7.create.sql

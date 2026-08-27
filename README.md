@@ -183,17 +183,32 @@ allinone
 ### 后端启动
 
 ```bash
-# 1. 导入数据库
-mysql -uroot -p < sql/ry_20260417.sql
+# 1. 创建数据库并按顺序导入 SQL（必须用 SOURCE 方式，详见 doc/SQL_EXECUTION_ORDER.md）
+mysql -uroot -p
+mysql> create database allinone default charset utf8mb4;
+mysql> use allinone;
+mysql> SET @bootstrap_password_bcrypt = '<你的admin密码BCrypt哈希>';  -- 见下方"管理员账号"说明
+mysql> SOURCE sql/ry_20260417.sql;
+mysql> SOURCE sql/quartz.sql;
+mysql> SOURCE sql/allinone_biz.sql;
+mysql> SOURCE sql/jimureport.mysql5.7.create.sql;
+mysql> SOURCE sql/allinone_biz_update.sql;   -- work_report 系列表，缺它报表功能不可用
+mysql> SOURCE sql/allinone_menu.sql;         -- 业务菜单，缺它前端无业务入口
 
-# 2. 修改配置（数据库连接、Redis）
-vim allinone-admin/src/main/resources/application-druid.yml
+# 2. 设置必需的环境变量（配置文件中无默认值，缺失会启动失败）
+export DB_PASSWORD='<MySQL密码>'
+export JWT_SECRET='<JWT签名密钥>'
+export DRUID_LOGIN_PASSWORD='<Druid监控台密码>'
 
 # 3. 启动后端
 mvn clean install -DskipTests
 cd allinone-admin
 mvn spring-boot:run
 ```
+
+> **管理员账号：** 本仓库的 SQL 脚本已脱敏，**不存在默认密码**。`admin` 账号的密码由导入
+> `ry_20260417.sql` 时的会话变量 `@bootstrap_password_bcrypt` 决定（BCrypt 哈希，需自行生成）；
+> 未设置该变量时 admin 处于停用状态，无法登录。详见 [sql/README.md](sql/README.md)。
 
 ### 前端启动
 
@@ -212,7 +227,7 @@ npm run dev
 > ```
 > 构建完成后，Vite dev server 会自动感知 `dist/` 变化。
 
-访问地址：`http://localhost:80`（默认账号 admin/admin123）
+访问地址：`http://localhost:80`（登录账号为你在导入 SQL 时通过 `@bootstrap_password_bcrypt` 设定的 admin 密码）
 
 ---
 
@@ -254,10 +269,10 @@ npm run dev
 ### 单体部署
 
 ```bash
-# 后端打包
+# 后端打包（无 production profile，生产配置通过启动参数激活）
 cd allinone-admin
-mvn clean package -P production
-nohup java -jar allinone-admin.jar &
+mvn clean package -DskipTests
+nohup java -jar allinone-admin.jar --spring.profiles.active=druid,prod &
 
 # 前端构建
 cd allinone-typescript
@@ -305,9 +320,12 @@ server {
 |:----:|------|------|------|
 | 1 | sql/ry_20260417.sql | RuoYi 官方 | 若依系统表（用户/角色/菜单等，默认无公开通用密码） |
 | 2 | sql/quartz.sql | Quartz | 定时任务表 |
-| 3 | sql/jimureport.mysql5.7.create.sql | 本项目 | JimuReport + JimuBI 全部表（48 张，含已脱敏示例数据） |
-| 4 | sql/allinone_biz.sql | 本项目 | AllinOne 业务表（collect_*/report_*） |
+| 3 | sql/allinone_biz.sql | 本项目 | AllinOne 业务表（collect_*/report_*） |
+| 4 | sql/jimureport.mysql5.7.create.sql | 本项目 | JimuReport + JimuBI 全部表（48 张，含已脱敏示例数据） |
+| 5 | sql/allinone_biz_update.sql | 本项目 | work_report / work_report_sheet / work_report_cell / work_report_sheet_permission 增量表（**必须执行**，否则报表管理功能全部 500） |
+| 6 | sql/allinone_menu.sql | 本项目 | 业务菜单与按钮权限（**必须执行**，否则前端无业务菜单入口） |
 
+> 完整执行顺序与逐条说明见 [doc/SQL_EXECUTION_ORDER.md](doc/SQL_EXECUTION_ORDER.md)。
 > 导入前必须先阅读 [SQL 公开与初始化说明](sql/README.md)。公开脚本已清除数据源口令和分享令牌，内置管理员也不再携带通用默认密码。
 
 ## 📄 开源协议
