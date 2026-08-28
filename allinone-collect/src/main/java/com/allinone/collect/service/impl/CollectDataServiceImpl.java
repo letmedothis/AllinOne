@@ -94,6 +94,9 @@ public class CollectDataServiceImpl implements ICollectDataService {
 
         // Tier 2: 解析表单 JSON 写入 collect_data_cell（供 JimuReport SQL 查询）
         List<CollectDataCell> cells = parseLuckysheetJson(data.getFormData());
+        // collect_data_cell 是 form_data 的完整查询快照，不是只追加变更的日志。
+        // 先清理旧快照，确保前端已删除或清空的单元格不会在报表查询中残留。
+        collectDataCellMapper.deleteCollectDataCellByDataId(dataId);
         if (!cells.isEmpty()) {
             for (CollectDataCell cell : cells) {
                 cell.setCellId(IdUtils.nextLongId());
@@ -124,6 +127,7 @@ public class CollectDataServiceImpl implements ICollectDataService {
     }
 
     @Override
+    @Transactional
     public int deleteCollectDataByIds(Long[] dataIds) {
         for (Long dataId : dataIds) {
             CollectData data = collectDataMapper.selectCollectDataById(dataId);
@@ -133,6 +137,9 @@ public class CollectDataServiceImpl implements ICollectDataService {
         int rows = collectDataMapper.deleteCollectDataByIds(dataIds);
         if (rows != dataIds.length) {
             throw new ServiceException("部分填报数据状态已变化，请刷新后重试");
+        }
+        for (Long dataId : dataIds) {
+            collectDataCellMapper.deleteCollectDataCellByDataId(dataId);
         }
         return rows;
     }

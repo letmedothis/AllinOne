@@ -29,6 +29,7 @@ import com.allinone.common.core.domain.AjaxResult;
 import com.allinone.common.core.page.TableDataInfo;
 import com.allinone.common.core.text.Convert;
 import com.allinone.common.enums.BusinessType;
+import com.allinone.common.exception.UtilException;
 import com.allinone.common.utils.SecurityUtils;
 import com.allinone.common.utils.sql.SqlUtil;
 import com.allinone.generator.config.GenConfig;

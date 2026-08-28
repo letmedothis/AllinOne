@@ -213,19 +213,26 @@ mvn spring-boot:run
 ### 前端启动
 
 ```bash
-cd allinone-typescript
-npm install
+cd allinone-luckysheet
+npm ci
+npm run build
+cd ../allinone-typescript
+npm ci
 npm run dev
 ```
 
-> **关于 Luckysheet：** `allinone-luckysheet/dist/` 已预置 UMD 构建产物，首次启动无需构建。
-> 如需修改 Luckysheet 源码（`allinone-luckysheet/src/`），需要重新打包：
+> **关于 Luckysheet：** 主前端通过本地 `file:` 依赖引用 Luckysheet，首次启动前必须先构建：
 > ```bash
 > cd allinone-luckysheet
-> npm install
+> npm ci
 > npm run build    # 将 src/ 编译输出到 dist/
+> cd ../allinone-typescript
+> npm ci
+> npm run dev
 > ```
-> 构建完成后，Vite dev server 会自动感知 `dist/` 变化。
+> 生产构建可在项目根目录直接执行 `./scripts/build-frontend.sh`；该脚本会按锁文件安装依赖，先构建 Luckysheet，再构建主前端。
+
+前端生产依赖安全审计可执行 `./scripts/audit-frontend.sh`，高危或严重漏洞会返回非零退出码，可直接作为 CI 发布门禁。执行 `./scripts/audit-frontend.sh --all` 可额外检查完整构建工具链；旧工具链问题单独治理，不阻塞生产依赖门禁。依赖升级应逐项回归，禁止使用 `npm audit fix --force` 批量跨主版本修复。
 
 访问地址：`http://localhost:80`（登录账号为你在导入 SQL 时通过 `@bootstrap_password_bcrypt` 设定的 admin 密码）
 

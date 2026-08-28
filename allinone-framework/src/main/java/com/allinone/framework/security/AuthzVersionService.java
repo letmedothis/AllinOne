@@ -1,13 +1,15 @@
 package com.allinone.framework.security;
 
 import java.util.Collection;
+import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import com.allinone.common.constant.CacheConstants;
 import com.allinone.common.core.domain.model.LoginUser;
-import com.allinone.common.core.redis.RedisCache;
 
 /**
  * 授权版本服务
@@ -22,8 +24,17 @@ public class AuthzVersionService {
 
     private static final String AUTHZ_VERSION_KEY = CacheConstants.LOGIN_TOKEN_KEY + "authz_version:";
 
+    /** 兼容旧 FastJson2 Long 值（如 1L/"1L"）并在 Redis 内原子递增。 */
+    private static final DefaultRedisScript<Long> INCREMENT_SCRIPT = new DefaultRedisScript<>(
+        "local value = redis.call('GET', KEYS[1]); "
+            + "if not value then value = '0' end; "
+            + "value = string.gsub(value, '[^0-9%-]', ''); "
+            + "local next = (tonumber(value) or 0) + 1; "
+            + "redis.call('SET', KEYS[1], tostring(next)); return next;",
+        Long.class);
+
     @Autowired
-    private RedisCache redisCache;
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 获取用户的授权版本
@@ -31,24 +42,24 @@ public class AuthzVersionService {
      */
     public long getVersion(Long userId) {
         String key = AUTHZ_VERSION_KEY + userId;
-        Long version = redisCache.getCacheObject(key);
-        return version != null ? version : 0L;
+        String version = stringRedisTemplate.opsForValue().get(key);
+        if (version == null) {
+            return 0L;
+        }
+        String normalized = version.replaceAll("[^0-9-]", "");
+        return normalized.isEmpty() ? 0L : Long.parseLong(normalized);
     }
 
     /**
      * 递增用户的授权版本
      * 当角色、菜单、用户角色、dataScope、角色状态等发生变化时调用
      */
-    public synchronized void incrementVersion(Long userId) {
+    public void incrementVersion(Long userId) {
         String key = AUTHZ_VERSION_KEY + userId;
-        Long currentVersion = redisCache.getCacheObject(key);
-        long newVersion = (currentVersion != null ? currentVersion : 0L) + 1;
-        // 版本 key 不设 TTL：会话可无限滑动续期，若版本先于会话过期，
-        // getVersion()=0 与会话内快照恒不匹配，会导致在线用户被误判为"权限已变更"强制踢线
-        // 注意：RedisTemplate 值序列化为 FastJson2 且开启 WriteClassName，
-        // Long 会被写成 "1L" 形式，与 Redis INCR 要求的纯数字不兼容，无法用原子递增替代 get+set；
-        // synchronized 仅保证单实例内的原子性，多实例部署时并发递增可能丢失
-        redisCache.setCacheObject(key, newVersion);
+        Long newVersion = stringRedisTemplate.execute(INCREMENT_SCRIPT, Collections.singletonList(key));
+        if (newVersion == null) {
+            throw new IllegalStateException("授权版本递增失败");
+        }
         log.info("用户[{}]授权版本递增至[{}]", userId, newVersion);
     }
 
@@ -71,7 +82,7 @@ public class AuthzVersionService {
      */
     public void removeVersion(Long userId) {
         String key = AUTHZ_VERSION_KEY + userId;
-        redisCache.deleteObject(key);
+        stringRedisTemplate.delete(key);
     }
 
     /**

@@ -13,15 +13,15 @@ class DataWriteBackServiceImplTest {
         String workbook = "[{\"celldata\":[{\"r\":1,\"c\":2,\"v\":\"first\"}]},"
             + "{\"celldata\":[{\"r\":1,\"c\":2,\"v\":{\"v\":9,\"m\":\"9\"}}]}]";
 
-        Map<String, String> values = new TestableDataWriteBackService().parse(workbook);
+        Map<String, DataWriteBackServiceImpl.CellValue> values = new TestableDataWriteBackService().parse(workbook);
 
-        assertThat(values)
-            .containsEntry("0,1,2", "first")
-            .containsEntry("1,1,2", "9");
+        assertThat(values.get("0,1,2").rawValue()).isEqualTo("first");
+        assertThat(values.get("1,1,2").rawValue()).isEqualTo(9);
+        assertThat(values.get("1,1,2").displayValue()).isEqualTo("9");
     }
 
     private static final class TestableDataWriteBackService extends DataWriteBackServiceImpl {
-        Map<String, String> parse(String formData) {
+        Map<String, CellValue> parse(String formData) {
             return parseFormDataToCellMap(formData);
         }
     }

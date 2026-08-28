@@ -29,7 +29,7 @@ public class JimuTicketService {
     /**
      * 票据有效期（秒）
      */
-    private static final long TICKET_EXPIRE_SECONDS = 60;
+    private static final int TICKET_EXPIRE_SECONDS = 60;
 
     @Autowired
     private RedisCache redisCache;
@@ -72,10 +72,8 @@ public class JimuTicketService {
         String ticketKey = TICKET_KEY_PREFIX + ticket;
 
         // 原子获取并删除票据
-        TicketInfo ticketInfo = redisCache.getCacheObject(ticketKey);
+        TicketInfo ticketInfo = redisCache.getAndDeleteCacheObject(ticketKey);
         if (ticketInfo != null) {
-            // 删除票据，确保一次性使用
-            redisCache.deleteObject(ticketKey);
             log.info("消费JimuReport票据: userId={}", ticketInfo.getUserId());
         } else {
             log.warn("JimuReport票据无效或已过期: {}", ticket);

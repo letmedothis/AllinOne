@@ -13,6 +13,8 @@ import java.util.List;
 @Service
 public class CollectFieldMappingServiceImpl implements ICollectFieldMappingService {
 
+    private static final WriteBackValueConverter VALUE_CONVERTER = new WriteBackValueConverter();
+
     @Autowired
     private CollectFieldMappingMapper collectFieldMappingMapper;
 
@@ -35,6 +37,7 @@ public class CollectFieldMappingServiceImpl implements ICollectFieldMappingServi
     public int insertCollectFieldMapping(CollectFieldMapping mapping) {
         mapping.setMappingId(IdUtils.nextLongId());
         if (mapping.getSheetIndex() == null) mapping.setSheetIndex(0);
+        mapping.setDataType(VALUE_CONVERTER.normalizeType(mapping.getDataType()));
         mapping.setCreateBy(SecurityUtils.getUsername());
         mapping.setCreateTime(DateUtils.getNowDate());
         return collectFieldMappingMapper.insertCollectFieldMapping(mapping);
@@ -42,6 +45,7 @@ public class CollectFieldMappingServiceImpl implements ICollectFieldMappingServi
 
     @Override
     public int updateCollectFieldMapping(CollectFieldMapping mapping) {
+        mapping.setDataType(VALUE_CONVERTER.normalizeType(mapping.getDataType()));
         mapping.setUpdateBy(SecurityUtils.getUsername());
         mapping.setUpdateTime(DateUtils.getNowDate());
         return collectFieldMappingMapper.updateCollectFieldMapping(mapping);

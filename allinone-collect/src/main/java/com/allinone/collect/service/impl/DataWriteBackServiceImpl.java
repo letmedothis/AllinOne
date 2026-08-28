@@ -29,6 +29,7 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
 
     private static final Logger log = LoggerFactory.getLogger(DataWriteBackServiceImpl.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final WriteBackValueConverter VALUE_CONVERTER = new WriteBackValueConverter();
 
     /** 表名校验正则：仅允许字母、数字、下划线 */
     private static final Pattern TABLE_NAME_PATTERN = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
@@ -71,7 +72,7 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
                 .collect(Collectors.groupingBy(CollectFieldMapping::getTargetTable));
 
         // 解析 form_data JSON 获取单元格值映射：(row,col) → cellValue
-        Map<String, String> cellValueMap = parseFormDataToCellMap(data.getFormData());
+        Map<String, CellValue> cellValueMap = parseFormDataToCellMap(data.getFormData());
 
         for (Map.Entry<String, List<CollectFieldMapping>> entry : tableGroups.entrySet()) {
             String tableName = entry.getKey();
@@ -81,7 +82,7 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
     }
 
     private void executeWriteBack(String tableName, List<CollectFieldMapping> fields,
-                                  Map<String, String> cellValueMap) {
+                                  Map<String, CellValue> cellValueMap) {
         if (tableName == null || !TABLE_NAME_PATTERN.matcher(tableName).matches()) {
             throw new ServiceException("非法的回写表名");
         }
@@ -119,7 +120,10 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
             }
             allCols.add(col);
             String key = cellKey(f.getSheetIndex(), f.getRowIndex(), f.getColIndex());
-            String val = cellValueMap.getOrDefault(key, f.getDefaultValue());
+            Object val = convertValue(f, cellValueMap.get(key));
+            if (f.getPkOrder() != null && f.getPkOrder() > 0 && val == null) {
+                throw new ServiceException("回写主键不能为空: " + f.getTargetColumn());
+            }
             allVals.add("?");
             params.add(val);
         }
@@ -135,7 +139,7 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
             if (f.getPkOrder() == null || f.getPkOrder() == 0) {
                 updates.add(f.getTargetColumn() + " = ?");
                 String key = cellKey(f.getSheetIndex(), f.getRowIndex(), f.getColIndex());
-                String val = cellValueMap.getOrDefault(key, f.getDefaultValue());
+                Object val = convertValue(f, cellValueMap.get(key));
                 params.add(val);
             }
         }
@@ -150,8 +154,8 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
      * JSON 格式: [{ "r":0, "c":0, "v":{ "v":"值", "m":"显示文本" } }, ...]
      */
     @SuppressWarnings("unchecked")
-    protected Map<String, String> parseFormDataToCellMap(String formData) {
-        Map<String, String> map = new HashMap<>();
+    protected Map<String, CellValue> parseFormDataToCellMap(String formData) {
+        Map<String, CellValue> map = new HashMap<>();
         if (formData == null || formData.isEmpty()) return map;
 
         try {
@@ -172,18 +176,37 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
         return map;
     }
 
-    private void appendCellValues(Map<String, String> values, List<Map<String, Object>> cells, int sheetIndex) {
+    private void appendCellValues(Map<String, CellValue> values, List<Map<String, Object>> cells, int sheetIndex) {
         for (Map<String, Object> cell : cells) {
             if (!(cell.get("r") instanceof Number row) || !(cell.get("c") instanceof Number column)) continue;
             Object value = cell.get("v");
+            Object rawValue = value;
+            String displayValue = null;
             if (value instanceof Map<?, ?> valueMap) {
-                Object displayValue = valueMap.get("m");
-                Object rawValue = valueMap.get("v");
-                value = displayValue != null ? displayValue : rawValue;
+                Object display = valueMap.get("m");
+                rawValue = valueMap.get("v");
+                displayValue = display == null ? null : display.toString();
             }
-            values.put(cellKey(sheetIndex, row.intValue(), column.intValue()), value == null ? "" : value.toString());
+            values.put(cellKey(sheetIndex, row.intValue(), column.intValue()),
+                    new CellValue(rawValue, displayValue));
         }
     }
+
+    private Object convertValue(CollectFieldMapping field, CellValue cellValue) {
+        Object rawValue = cellValue == null ? field.getDefaultValue() : cellValue.rawValue();
+        String displayValue = cellValue == null ? null : cellValue.displayValue();
+        try {
+            return VALUE_CONVERTER.convert(rawValue, displayValue, field.getDataType());
+        } catch (ServiceException ex) {
+            String location = "sheet=" + (field.getSheetIndex() == null ? 0 : field.getSheetIndex())
+                    + ", row=" + field.getRowIndex() + ", col=" + field.getColIndex();
+            throw new ServiceException("单元格[" + location + "]回写到 "
+                    + field.getTargetTable() + "." + field.getTargetColumn() + " 失败: " + ex.getMessage())
+                    .setDetailMessage(ex.getDetailMessage());
+        }
+    }
+
+    protected record CellValue(Object rawValue, String displayValue) { }
 
     private String cellKey(Integer sheetIndex, Integer rowIndex, Integer colIndex) {
         int normalizedSheetIndex = sheetIndex == null ? 0 : sheetIndex;

@@ -76,7 +76,22 @@ class CollectDataServiceImplTest {
         doThrow(new IllegalStateException("database unavailable")).when(cellMapper).batchUpsert(any());
 
         assertThatThrownBy(() -> service.submitData(1L)).isInstanceOf(IllegalStateException.class);
+        verify(cellMapper).deleteCollectDataCellByDataId(1L);
         verify(dataMapper, never()).updateCollectDataStatus(any());
+    }
+
+    @Test
+    void submitReplacesExistingCellsWithAnEmptySnapshot() {
+        CollectData data = draftOwnedByAlice();
+        data.setFormData("[]");
+        when(dataMapper.selectCollectDataById(1L)).thenReturn(data);
+        when(dataMapper.updateCollectDataStatus(data)).thenReturn(1);
+
+        service.submitData(1L);
+
+        verify(cellMapper).deleteCollectDataCellByDataId(1L);
+        verify(cellMapper, never()).batchUpsert(any());
+        verify(dataMapper).updateCollectDataStatus(data);
     }
 
     @Test
@@ -109,6 +124,17 @@ class CollectDataServiceImplTest {
 
         assertThat(update.getBizStatus()).isNull();
         verify(dataMapper).updateCollectData(update);
+    }
+
+    @Test
+    void deletingDraftAlsoDeletesItsCellSnapshot() {
+        CollectData data = draftOwnedByAlice();
+        when(dataMapper.selectCollectDataById(1L)).thenReturn(data);
+        when(dataMapper.deleteCollectDataByIds(any())).thenReturn(1);
+
+        service.deleteCollectDataByIds(new Long[] {1L});
+
+        verify(cellMapper).deleteCollectDataCellByDataId(1L);
     }
 
     private CollectData draftOwnedByAlice() {

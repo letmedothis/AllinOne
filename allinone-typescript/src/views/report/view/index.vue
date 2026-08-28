@@ -31,7 +31,6 @@
 import { useRouter, useRoute } from 'vue-router'
 import { getConfig } from '@/api/report/config'
 import { requestJimuTicket } from '@/api/report/ticket'
-import { getToken } from '@/utils/auth'
 import ReportFrame from '@/components/ReportFrame/index.vue'
 
 const { proxy } = getCurrentInstance()!
@@ -46,8 +45,7 @@ const frameHeight = ref<string>('calc(100vh - 280px)')
 
 /**
  * 拼接 iframe 地址：后端返回引擎访问路径，此处先向服务端换取一次性票据（ticket）拼到 URL。
- * JimuReportTokenService 会消费 ticket 换出登录令牌完成鉴权，避免把长期 JWT 暴露在 URL 中；
- * 票据换取失败时降级为旧的 token 参数方式。
+ * JimuReportTokenService 会消费 ticket 换出登录令牌完成鉴权，长期 JWT 绝不进入 URL。
  */
 async function buildSrc(url: string): Promise<string> {
   try {
@@ -57,11 +55,9 @@ async function buildSrc(url: string): Promise<string> {
       return url + (url.includes('?') ? '&' : '?') + 'ticket=' + encodeURIComponent(ticket)
     }
   } catch (e) {
-    console.warn('获取JimuReport票据失败，降级为token方式', e)
+    console.error('获取JimuReport票据失败', e)
   }
-  const token = getToken()
-  if (!token) return url
-  return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token)
+  throw new Error('无法获取报表访问票据，请稍后重试')
 }
 
 /** 加载报表配置 */
@@ -78,7 +74,8 @@ function loadReport() {
       reportName.value = data.reportName || ''
       src.value = await buildSrc(data.url)
     }
-  }).catch(() => {
+  }).catch((e: any) => {
+    proxy.$modal.msgError(e.message || '加载报表失败')
   }).finally(() => {
     loading.value = false
   })

@@ -109,6 +109,15 @@ public class RedisCache
     }
 
     /**
+     * 原子获取并删除缓存对象，用于一次性令牌等不可重复消费的数据。
+     */
+    public <T> T getAndDeleteCacheObject(final String key)
+    {
+        ValueOperations<String, T> operation = redisTemplate.opsForValue();
+        return operation.getAndDelete(key);
+    }
+
+    /**
      * 删除单个对象
      *
      * @param key

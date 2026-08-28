@@ -27,7 +27,7 @@ export interface CollectFieldMapping extends BaseEntity {
   /** 目标列名 */
   targetColumn?: string
   /** 数据类型 */
-  dataType?: string
+  dataType?: 'string' | 'integer' | 'decimal' | 'date' | 'datetime' | 'boolean' | string
   /** 主键顺序（0非主键） */
   pkOrder?: number
   /** 默认值 */

@@ -142,7 +142,9 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="数据类型" prop="dataType">
-              <el-input v-model="form.dataType" placeholder="如 varchar、number" maxlength="50" />
+              <el-select v-model="form.dataType" placeholder="请选择数据类型" style="width: 100%">
+                <el-option v-for="item in dataTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -240,6 +242,15 @@ const transformTypes: Record<string, { label: string; tag: 'info' | 'primary' | 
   '3': { label: 'Bean', tag: 'success' }
 }
 
+const dataTypeOptions = [
+  { label: '文本', value: 'string' },
+  { label: '整数', value: 'integer' },
+  { label: '小数/金额', value: 'decimal' },
+  { label: '日期', value: 'date' },
+  { label: '日期时间', value: 'datetime' },
+  { label: '布尔值', value: 'boolean' }
+]
+
 const data = reactive({
   form: {} as CollectFieldMapping,
   queryParams: {
@@ -252,6 +263,7 @@ const data = reactive({
     templateId: [{ required: true, message: '所属模板不能为空', trigger: 'change' }],
     targetTable: [{ required: true, message: '目标表名不能为空', trigger: 'blur' }],
     targetColumn: [{ required: true, message: '目标列名不能为空', trigger: 'blur' }],
+    dataType: [{ required: true, message: '数据类型不能为空', trigger: 'change' }],
     rowIndex: [{ required: true, message: '行号不能为空', trigger: 'blur' }],
     colIndex: [{ required: true, message: '列号不能为空', trigger: 'blur' }]
   }
@@ -311,7 +323,7 @@ function reset() {
     colIndex: undefined,
     targetTable: undefined,
     targetColumn: undefined,
-    dataType: undefined,
+    dataType: 'string',
     pkOrder: 0,
     defaultValue: undefined,
     transformType: '0',

@@ -78,17 +78,18 @@ CREATE TABLE IF NOT EXISTS `work_report_sheet_permission` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sheet 显式权限分配';
 
 -- -----------------------------------------------------------
--- Phase 5: 修正多 Sheet 单元格唯一键
--- 仅对已经执行过旧版 allinone_biz.sql 的数据库执行一次。
+-- Phase 5: 先为旧版业务表补齐多 Sheet 字段
 -- -----------------------------------------------------------
-ALTER TABLE `collect_data_cell`
-  DROP INDEX `uk_cdc_data_rc`,
-  ADD UNIQUE KEY `uk_cdc_data_rc` (`data_id`, `sheet_index`, `row_index`, `col_index`);
+SET @add_cell_sheet_index_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_data_cell' AND COLUMN_NAME = 'sheet_index') = 0,
+  'ALTER TABLE `collect_data_cell` ADD COLUMN `sheet_index` int(4) NOT NULL DEFAULT 0 COMMENT ''Sheet序号（0-based）'' AFTER `template_id`',
+  'SELECT 1'
+);
+PREPARE add_cell_sheet_index_stmt FROM @add_cell_sheet_index_sql;
+EXECUTE add_cell_sheet_index_stmt;
+DEALLOCATE PREPARE add_cell_sheet_index_stmt;
 
--- -----------------------------------------------------------
--- Phase 6: 字段映射支持多 Sheet
--- 仅对尚未增加 sheet_index 的数据库执行一次。
--- -----------------------------------------------------------
 SET @add_sheet_index_sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_field_mapping' AND COLUMN_NAME = 'sheet_index') = 0,
@@ -99,9 +100,29 @@ PREPARE add_sheet_index_stmt FROM @add_sheet_index_sql;
 EXECUTE add_sheet_index_stmt;
 DEALLOCATE PREPARE add_sheet_index_stmt;
 
-ALTER TABLE `collect_field_mapping`
-  DROP INDEX `uk_cfm_rc`,
-  ADD UNIQUE KEY `uk_cfm_rc` (`template_id`, `sheet_index`, `row_index`, `col_index`);
+-- -----------------------------------------------------------
+-- Phase 6: 在字段已存在后重建多 Sheet 唯一键。
+-- 兼容索引存在/不存在两种历史库，可重复执行。
+-- -----------------------------------------------------------
+SET @rebuild_cell_uk_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_data_cell' AND INDEX_NAME = 'uk_cdc_data_rc') > 0,
+  'ALTER TABLE `collect_data_cell` DROP INDEX `uk_cdc_data_rc`, ADD UNIQUE KEY `uk_cdc_data_rc` (`data_id`, `sheet_index`, `row_index`, `col_index`)',
+  'ALTER TABLE `collect_data_cell` ADD UNIQUE KEY `uk_cdc_data_rc` (`data_id`, `sheet_index`, `row_index`, `col_index`)'
+);
+PREPARE rebuild_cell_uk_stmt FROM @rebuild_cell_uk_sql;
+EXECUTE rebuild_cell_uk_stmt;
+DEALLOCATE PREPARE rebuild_cell_uk_stmt;
+
+SET @rebuild_mapping_uk_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_field_mapping' AND INDEX_NAME = 'uk_cfm_rc') > 0,
+  'ALTER TABLE `collect_field_mapping` DROP INDEX `uk_cfm_rc`, ADD UNIQUE KEY `uk_cfm_rc` (`template_id`, `sheet_index`, `row_index`, `col_index`)',
+  'ALTER TABLE `collect_field_mapping` ADD UNIQUE KEY `uk_cfm_rc` (`template_id`, `sheet_index`, `row_index`, `col_index`)'
+);
+PREPARE rebuild_mapping_uk_stmt FROM @rebuild_mapping_uk_sql;
+EXECUTE rebuild_mapping_uk_stmt;
+DEALLOCATE PREPARE rebuild_mapping_uk_stmt;
 
 -- -----------------------------------------------------------
 -- Phase 7: 权限分配表增加唯一约束（防止重复授权）
