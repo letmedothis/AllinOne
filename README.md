@@ -5,7 +5,7 @@
 <h4 align="center">基于 Spring Boot 3 + Vue 3 + TypeScript 的一体化报表解决方案</h4>
 <p align="center">
 	<a href="https://gitee.com/y_project/RuoYi-Vue"><img src="https://img.shields.io/badge/RuoYi-v3.9.2-brightgreen.svg"></a>
-	<a href="https://github.com/jeecgboot/jimureport"><img src="https://img.shields.io/badge/JimuReport-v2.1.3-blue.svg"></a>
+	<a href="https://github.com/jeecgboot/jimureport"><img src="https://img.shields.io/badge/JimuReport-v2.5.0-blue.svg"></a>
 	<a href="https://github.com/mengshukeji/Luckysheet"><img src="https://img.shields.io/badge/Luckysheet-2.1.13-orange.svg"></a>
 	<a href="https://github.com/yangzongzhuan/RuoYi-Vue/blob/master/LICENSE"><img src="https://img.shields.io/github/license/mashape/apistatus.svg"></a>
 </p>
@@ -175,7 +175,7 @@ allinone
 
 - JDK ≥ 17
 - MySQL ≥ 5.7
-- Maven ≥ 3.0
+- Maven ≥ 3.6.3
 - Node.js ≥ 18
 - Redis ≥ 3.0
 - npm ≥ 10
@@ -275,7 +275,7 @@ Vue 3 和 Element Plus 的通用用法以官方文档为准；未集成的 Warm-
 ### 单体部署
 
 ```bash
-# 后端打包（无 production profile，生产配置通过启动参数激活）
+# 后端打包（生产配置通过 druid,prod profile 激活）
 cd allinone-admin
 mvn clean package -DskipTests
 nohup java -jar allinone-admin.jar --spring.profiles.active=druid,prod &

@@ -53,9 +53,9 @@ springdoc:
   swagger-ui:
     enabled: ${SWAGGER_ENABLED:false}
 
-# 生产环境建议开启 JimuReport 设计器（按需）
+# 生产环境默认关闭 JimuReport 设计器，公网部署前应保持关闭；需要时显式设置 JIMUREPORT_UI_ENABLE=true 开启
 jimureport:
-  ui-enable: ${JIMUREPORT_UI_ENABLE:true}
+  ui-enable: ${JIMUREPORT_UI_ENABLE:false}
 
 # 防盗链（如需限制报表域名访问可开启）
 referer:

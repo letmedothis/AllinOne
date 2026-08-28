@@ -151,7 +151,10 @@ public class CollectDataServiceImpl implements ICollectDataService {
         try {
             List<Map<String, Object>> root = MAPPER.readValue(formData, List.class);
             if (root.isEmpty()) return result;
-            if (root.get(0).containsKey("celldata")) {
+            // 平铺单元格列表的首个元素含 r/c；工作簿（多 sheet）首元素为 sheet 对象。
+            // 以此判定，避免首个工作表缺失 celldata 时把全部 sheet 塌缩进 sheet 0。
+            boolean flatCellList = root.get(0).containsKey("r") || root.get(0).containsKey("c");
+            if (!flatCellList) {
                 for (int sheetIndex = 0; sheetIndex < root.size(); sheetIndex++) {
                     Object rawCells = root.get(sheetIndex).get("celldata");
                     if (rawCells instanceof List) {

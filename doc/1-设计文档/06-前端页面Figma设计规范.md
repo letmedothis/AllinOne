@@ -229,7 +229,7 @@ Page: Collect Template List
 ```
 
 **关键设计要点：**
-- iframe src 构造方式: `/jmreport/view/{jimuReportId}?token={jwt}`
+- iframe src 构造方式: `/jmreport/view/{jimuReportId}?ticket={ticket}`
 - 顶部操作栏: 返回、全屏切换、刷新
 - iframe 高度自适应内容
 - 需要用户已登录且有对应权限

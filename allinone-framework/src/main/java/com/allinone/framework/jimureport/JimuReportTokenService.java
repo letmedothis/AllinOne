@@ -90,8 +90,14 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
     @Override
     public String[] getPermissions(String token) {
         LoginUser loginUser = tokenService.getLoginUserFromToken(token);
-        Set<String> permissions = loginUser == null ? null : loginUser.getPermissions();
-        return permissions == null ? new String[0] : permissions.toArray(new String[0]);
+        if (loginUser == null || loginUser.getPermissions() == null) return new String[0];
+        Set<String> permissions = new java.util.HashSet<>(loginUser.getPermissions());
+        // 超级管理员(拥有 *:*:* 或 *) 视为拥有 JimuReport/JimuBI 全部权限，
+        // 解决引擎精确匹配 @RequiresPermissions 导致管理员设计器操作返回 403 的问题
+        if (permissions.contains("*") || permissions.contains("*:*:*")) {
+            permissions.add("*");
+        }
+        return permissions.toArray(new String[0]);
     }
 
     /**
@@ -103,9 +109,18 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
         Map<String, Object> info = new HashMap<>();
         LoginUser loginUser = tokenService.getLoginUserFromToken(token);
         if (loginUser == null || loginUser.getUser() == null) return info;
-        info.put("username", loginUser.getUsername());
+        String username = loginUser.getUsername();
+        Object deptId = loginUser.getDeptId();
+        java.util.Date now = new java.util.Date();
+        info.put("sysUserCode", username);
+        info.put("sysUserName", username);
+        info.put("sysOrgCode", deptId);
+        info.put("sysDate", new java.text.SimpleDateFormat("yyyy-MM-dd").format(now));
+        info.put("sysDateTime", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now));
+        // 兼容保留既有键
+        info.put("username", username);
         info.put("user_id", loginUser.getUserId());
-        info.put("dept_id", loginUser.getDeptId());
+        info.put("dept_id", deptId);
         info.put("roles", getRoles(token));
         return info;
     }

@@ -89,6 +89,7 @@ import { getPermissions, grantPermission, revokePermission } from '@/api/collect
 import { listRole } from '@/api/system/role'
 import { listDept } from '@/api/system/dept'
 import { listUser } from '@/api/system/user'
+import { ElMessage } from 'element-plus'
 
 interface PermItem { id: number; sheetId: string; permType: string; permId: number; permName: string }
 

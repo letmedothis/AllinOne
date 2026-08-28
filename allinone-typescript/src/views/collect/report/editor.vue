@@ -19,6 +19,10 @@ import { getReport, saveSheet, getSheet, loadCells, saveCells } from '@/api/coll
 import useUserStore from '@/store/modules/user'
 import SheetPermissionDialog from './SheetPermissionDialog.vue'
 
+import 'luckysheet/dist/plugins/css/pluginsCss.css'
+import 'luckysheet/dist/plugins/plugins.css'
+import 'luckysheet/dist/css/luckysheet.css'
+
 const route = useRoute()
 const { proxy } = getCurrentInstance()
 
@@ -39,6 +43,13 @@ const initialSheetIds = new Set<string>()
 let scrollLoadTimer: number | undefined
 
 function makeCellKey(r: number, c: number): string { return `${r},${c}` }
+
+function loadLuckysheet(): Promise<void> {
+  return (async () => {
+    await import('luckysheet/dist/plugins/js/plugin.js')
+    await import('luckysheet')
+  })()
+}
 
 function getSerializedSheets(): any[] {
   const sheets = luckysheet.getAllSheets?.()
@@ -86,6 +97,10 @@ async function initEditor() {
   try {
     reportId.value = route.params.id as string
     const res = await getReport(reportId.value)
+    if (!res.data) {
+      proxy?.$modal.msgError('未获取到报表数据')
+      return
+    }
     reportName.value = res.data.reportName
     canManage.value = Number(userStore.id) === Number(res.data.userId)
 
@@ -94,6 +109,10 @@ async function initEditor() {
     initialSheetIds.clear()
     for (const sheet of data) {
       if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
+    }
+
+    if (typeof (window as any).luckysheet === 'undefined') {
+      await loadLuckysheet()
     }
 
     luckysheet.create({

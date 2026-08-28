@@ -54,7 +54,7 @@ public class JimuTicketService {
         // 存储到Redis，设置过期时间
         redisCache.setCacheObject(ticketKey, ticketInfo, TICKET_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
-        log.info("生成JimuReport票据: userId={}, ticket={}", userId, ticket);
+        log.info("生成JimuReport票据: userId={}", userId);
         return ticket;
     }
 
@@ -76,7 +76,7 @@ public class JimuTicketService {
         if (ticketInfo != null) {
             log.info("消费JimuReport票据: userId={}", ticketInfo.getUserId());
         } else {
-            log.warn("JimuReport票据无效或已过期: {}", ticket);
+            log.warn("JimuReport票据无效或已过期");
         }
 
         return ticketInfo;
