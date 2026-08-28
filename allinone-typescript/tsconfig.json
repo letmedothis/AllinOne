@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "lib": ["esnext", "dom"],
     "baseUrl": "./",
     "paths": {
@@ -31,6 +31,8 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.vue",
+    "src/shims-vue.d.ts",
+    "src/types/**/*.d.ts",
     "vite/**/*.ts",
     "auto-imports.d.ts",
     "vite.config.ts"

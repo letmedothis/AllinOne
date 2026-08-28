@@ -153,7 +153,7 @@ const filterText = ref<string>('')
 const filteredEmpty = ref<boolean>(false)
 
 /** 过滤条件变化时，调用树过滤 */
-watch(filterText, (val) => {
+watch(filterText, (val: string) => {
   treeRef.value?.filter(val)
 })
 

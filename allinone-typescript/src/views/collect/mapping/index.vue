@@ -292,7 +292,7 @@ function loadTemplateOptions() {
 
 /** 模板名称 */
 function templateName(templateId?: number) {
-  const template = templateOptions.value.find(item => item.templateId === templateId)
+  const template = templateOptions.value.find((item: { templateId: number; templateName: string }) => item.templateId === templateId)
   return template?.templateName ?? templateId
 }
 

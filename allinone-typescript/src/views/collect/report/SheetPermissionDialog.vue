@@ -128,7 +128,7 @@ async function loadRoles() {
   try {
     const res = await listRole({ pageNum: 1, pageSize: 999 })
     roleList.value = res.rows || []
-    roleList.value.forEach(r => roleMap.set(r.roleId, r.roleName))
+    roleList.value.forEach((r: { roleId: number; roleName: string }) => roleMap.set(r.roleId, r.roleName))
   } catch { /* ignore */ }
 }
 
@@ -137,10 +137,10 @@ async function loadDepts() {
     const res = await listDept()
     const items: any[] = res.data || []
     const flat: any[] = []
-    function walk(arr: any[]) { arr.forEach(n => { flat.push(n); if (n.children) walk(n.children) }) }
+    function walk(arr: any[]) { arr.forEach((n: any) => { flat.push(n); if (n.children) walk(n.children) }) }
     walk(items)
     deptFlat.value = flat
-    flat.forEach(d => deptMap.set(d.deptId, d.deptName))
+    flat.forEach((d: { deptId: number; deptName: string }) => deptMap.set(d.deptId, d.deptName))
   } catch { /* ignore */ }
 }
 
@@ -150,7 +150,7 @@ async function searchUser(query: string) {
   try {
     const res = await listUser({ pageNum: 1, pageSize: 50, userName: query })
     userList.value = res.rows || []
-    userList.value.forEach(u => userMap.set(u.userId, u.nickName))
+    userList.value.forEach((u: { userId: number; nickName: string }) => userMap.set(u.userId, u.nickName))
   } catch { /* ignore */ }
   userSearching.value = false
 }
@@ -179,9 +179,9 @@ async function handleGrant() {
   adding.value = true
   try {
     await grantPermission(sheetDbId.value, addForm.permType, addForm.permId)
-    if (addForm.permType === 'role') { const r = roleList.value.find(x => x.roleId === addForm.permId); if (r) roleMap.set(r.roleId, r.roleName) }
-    if (addForm.permType === 'dept') { const d = deptFlat.value.find(x => x.deptId === addForm.permId); if (d) deptMap.set(d.deptId, d.deptName) }
-    if (addForm.permType === 'user') { const u = userList.value.find(x => x.userId === addForm.permId); if (u) userMap.set(u.userId, u.nickName) }
+    if (addForm.permType === 'role') { const r = roleList.value.find((x: { roleId: number }) => x.roleId === addForm.permId); if (r) roleMap.set(r.roleId, r.roleName) }
+    if (addForm.permType === 'dept') { const d = deptFlat.value.find((x: { deptId: number }) => x.deptId === addForm.permId); if (d) deptMap.set(d.deptId, d.deptName) }
+    if (addForm.permType === 'user') { const u = userList.value.find((x: { userId: number }) => x.userId === addForm.permId); if (u) userMap.set(u.userId, u.nickName) }
     addForm.permId = null
     await loadPermissions()
   } catch (e: any) { ElMessage.error(e?.msg || '添加失败') }

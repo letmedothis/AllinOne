@@ -121,7 +121,7 @@ const selectedTemplateId = ref<number | undefined>(undefined)
 
 /** 当前选中的模板信息 */
 const selectedTemplate = computed(() => {
-  return publishedTemplates.value.find(t => t.templateId === selectedTemplateId.value)
+  return publishedTemplates.value.find((t: CollectTemplate) => t.templateId === selectedTemplateId.value)
 })
 
 /** 模板信息（编辑时） */
@@ -180,7 +180,7 @@ function loadData() {
     // 加载模板信息
     if (data.templateId) {
       listTemplate({ pageNum: 1, pageSize: 100 }).then(res => {
-        const tmpl = res.rows.find(t => t.templateId === data.templateId)
+        const tmpl = (res.rows as CollectTemplate[]).find((t: CollectTemplate) => t.templateId === data.templateId)
         if (tmpl) {
           templateInfo.value = tmpl
         }
