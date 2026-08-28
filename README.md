@@ -240,16 +240,15 @@ npm run dev
 
 ## 🧭 开发指南
 
-本项目已预置以下开发参考文件，位于 `.claude/skills/` 目录下：
+本项目在 `.agents/skills/` 中提供以下通用 Agent Skill。它们采用 `<skill-name>/SKILL.md` 标准结构，可供支持 Agent Skills 规范的编码代理发现和加载：
 
-| Skill 文件 | 内容 | 适用场景 |
-|-----------|------|---------|
-| 📘 [ruoyi-vue.md](.claude/skills/ruoyi-vue.md) | 若依后端规范、代码生成器、权限控制 | 新增业务模块、CRUD 开发 |
-| 📗 [vue3.md](.claude/skills/vue3.md) | Vue 3 + TypeScript + Pinia + Router | 前端组件开发、状态管理 |
-| 📕 [element-plus.md](.claude/skills/element-plus.md) | Element Plus 70+ 组件用法 | 页面 UI 开发 |
-| 📙 [jimureport.md](.claude/skills/jimureport.md) | 积木报表 & 大屏集成开发 | 报表设计、大屏配置 |
-| 📒 [luckysheet.md](.claude/skills/luckysheet.md) | Luckysheet 在线表格集成 | 在线填报、数据采集 |
-| 🔄 [warm-flow.md](.claude/skills/warm-flow.md) | Warm-Flow 工作流引擎 | 审批流程、任务流转 |
+| Skill | 项目特有内容 | 适用场景 |
+|-------|-------------|---------|
+| [ruoyi-module-development](.agents/skills/ruoyi-module-development/SKILL.md) | 模块边界、权限、MyBatis、事务和验证约定 | 新增业务模块、CRUD、菜单权限 |
+| [jimureport-integration](.agents/skills/jimureport-integration/SKILL.md) | JimuReport/JimuBI 2.5.0、一次性票据和嵌入链路 | 报表、大屏、鉴权和引擎配置 |
+| [luckysheet-development](.agents/skills/luckysheet-development/SKILL.md) | 本地构建、工作簿快照、多 Sheet 和类型回写 | 在线填报、数据采集、Luckysheet 修改 |
+
+Vue 3 和 Element Plus 的通用用法以官方文档为准；未集成的 Warm-Flow 不作为当前项目开发能力说明。
 
 ### 常见开发场景
 
