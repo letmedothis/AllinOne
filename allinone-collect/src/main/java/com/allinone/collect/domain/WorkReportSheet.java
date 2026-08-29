@@ -15,6 +15,8 @@ public class WorkReportSheet extends BaseEntity
     private Long userId;
     private Long deptId;
     private Long delStatus;
+    /** 乐观锁版本号：单元格保存时按客户端持有版本 CAS 递增，防止多用户并发互相覆盖 */
+    private Long version;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -32,4 +34,6 @@ public class WorkReportSheet extends BaseEntity
     public void setDeptId(Long deptId) { this.deptId = deptId; }
     public Long getDelStatus() { return delStatus; }
     public void setDelStatus(Long delStatus) { this.delStatus = delStatus; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 }

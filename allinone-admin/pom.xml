@@ -68,18 +68,16 @@
             <version>${allinone.version}</version>
         </dependency>
 
-        <!-- JimuReport 积木报表（Spring Boot 3.x 版本） -->
+        <!-- JimuReport 积木报表（Spring Boot 3.x 版本），版本由根 pom dependencyManagement 统一管理 -->
         <dependency>
             <groupId>org.jeecgframework.jimureport</groupId>
             <artifactId>jimureport-spring-boot3-starter</artifactId>
-            <version>2.5.0</version>
         </dependency>
 
         <!-- JimuBI 大屏（可选，如需大屏/仪表盘功能） -->
         <dependency>
             <groupId>org.jeecgframework.jimureport</groupId>
             <artifactId>jimubi-spring-boot3-starter</artifactId>
-            <version>2.5.0</version>
         </dependency>
 
     </dependencies>

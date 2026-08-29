@@ -38,6 +38,7 @@
         <validation-api.version>3.1.0</validation-api.version>
         <mysql.version>9.2.0</mysql.version>
         <redis.version>3.5.14</redis.version>
+        <jimureport.version>2.5.0</jimureport.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -293,6 +294,18 @@
                 <groupId>com.allinone</groupId>
                 <artifactId>allinone-common</artifactId>
                 <version>${allinone.version}</version>
+            </dependency>
+
+            <!-- JimuReport 积木报表 / JimuBI 大屏：版本统一在此收口，模块内不再声明版本号 -->
+            <dependency>
+                <groupId>org.jeecgframework.jimureport</groupId>
+                <artifactId>jimureport-spring-boot3-starter</artifactId>
+                <version>${jimureport.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jeecgframework.jimureport</groupId>
+                <artifactId>jimubi-spring-boot3-starter</artifactId>
+                <version>${jimureport.version}</version>
             </dependency>
 
         </dependencies>

@@ -1,6 +1,7 @@
 package com.allinone.collect.service;
 
 import com.allinone.collect.domain.WorkReportSheet;
+import java.util.Date;
 import java.util.List;
 
 public interface IWorkReportSheetService
@@ -14,4 +15,6 @@ public interface IWorkReportSheetService
     int deleteWorkReportSheetById(String id);
     int deleteWorkReportSheetByIds(String[] ids);
     int deleteWorkReportSheetByReportId(String reportId);
+    /** 乐观锁：仅当当前版本等于期望版本时递增并刷新更新时间，返回 0 表示已被他人修改 */
+    int compareAndIncrementVersion(String id, Long expectedVersion, Date updateTime);
 }

@@ -49,6 +49,8 @@ const MAX_CELLS_PER_REQUEST = 5000
 const loadedRanges = new Map<string, Set<string>>()
 const cellSnapshots = new Map<string, Map<string, string>>()
 const initialSheetIds = new Set<string>()
+/** 各 Sheet 的乐观锁版本号（来自 getSheet/saveSheet/saveCells 响应），保存单元格时回传做冲突检测 */
+const sheetVersions = ref<Record<string, number>>({})
 let scrollLoadTimer: number | undefined
 
 function makeCellKey(r: number, c: number): string { return `${r},${c}` }
@@ -110,8 +112,12 @@ async function initEditor() {
     const sheetRes = await getSheet(reportId.value)
     const data = sheetRes.data && sheetRes.data.length > 0 ? sheetRes.data : []
     initialSheetIds.clear()
+    sheetVersions.value = {}
     for (const sheet of data) {
-      if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
+      if (sheet._sheetDbId) {
+        initialSheetIds.add(String(sheet._sheetDbId))
+        sheetVersions.value[String(sheet._sheetDbId)] = Number(sheet.version ?? 0)
+      }
     }
 
     if (typeof (window as any).luckysheet?.create !== 'function') {
@@ -253,12 +259,18 @@ async function handleSave() {
     for (const mapping of saveResponse.data || []) {
       const sheet = file.find((item: any) => String(item.index) === mapping.clientSheetId)
       if (sheet) sheet._sheetDbId = mapping.sheetDbId
+      // 新建的 Sheet 尚无版本号，初始化为 0（建表默认值），后续保存单元格时正常 CAS
+      if (!(mapping.sheetDbId in sheetVersions.value)) sheetVersions.value[mapping.sheetDbId] = 0
     }
 
     const dirty = collectDirtyCells()
     for (let from = 0; from < dirty.length; from += MAX_CELLS_PER_REQUEST) {
       const batch = dirty.slice(from, from + MAX_CELLS_PER_REQUEST)
-      await saveCells(batch)
+      const saveCellsRes = await saveCells({ cells: batch, sheetVersions: { ...sheetVersions.value } })
+      // 用服务端返回的最新版本号更新本地，保证下一批及后续保存的 CAS 基准正确
+      for (const [sheetDbId, version] of Object.entries(saveCellsRes.data || {})) {
+        sheetVersions.value[sheetDbId] = Number(version)
+      }
       for (const cell of batch) {
         const snapMap = cellSnapshots.get(cell.sheetDbId) || new Map<string, string>()
         cellSnapshots.set(cell.sheetDbId, snapMap)

@@ -15,11 +15,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="createTime"   column="create_time"  />
         <result property="updateTime"   column="update_time"  />
         <result property="delStatus"    column="del_status"   />
+        <result property="version"      column="version"      />
     </resultMap>
 
     <sql id="selectWorkReportSheetVo">
         select wrs.id, wrs.report_id, wrs.sheet_index, wrs.sheet_name, wrs.sheet_data,
-               wrs.user_id, wrs.dept_id, wrs.create_time, wrs.update_time, wrs.del_status
+               wrs.user_id, wrs.dept_id, wrs.create_time, wrs.update_time, wrs.del_status, wrs.version
         from work_report_sheet wrs
     </sql>
 
@@ -127,5 +128,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <update id="deleteWorkReportSheetByReportId" parameterType="String">
         update work_report_sheet set del_status = 1 where report_id = #{reportId}
+    </update>
+
+    <!-- 单元格保存的乐观锁：仅当客户端持有版本与当前一致时递增；影响行数为 0 表示已被他人修改 -->
+    <update id="compareAndIncrementVersion">
+        update work_report_sheet
+        set version = version + 1, update_time = #{updateTime}
+        where id = #{id} and version = #{expectedVersion} and del_status = 0
     </update>
 </mapper>

@@ -155,13 +155,14 @@ class CollectDataServiceImplTest {
         CollectData single = submittedRecord(1L, "TPL_A");
         CollectData multi = submittedRecord(2L, "TPL_B");
         when(dataMapper.selectCollectDataList(query)).thenReturn(new ArrayList<>(Arrays.asList(single, multi)));
-        // 快照故意乱序返回，验证按 data_id 分组与按坐标重建网格
+        // 快照故意乱序返回，验证按坐标重建网格
         when(cellMapper.countCollectDataCellByDataIds(Arrays.asList(1L, 2L))).thenReturn(Arrays.asList(
             cellCount(1L, 3), cellCount(2L, 2)));
-        when(cellMapper.selectCollectDataCellByDataIds(Arrays.asList(1L, 2L))).thenReturn(Arrays.asList(
+        when(cellMapper.selectCollectDataCellByDataId(1L)).thenReturn(Arrays.asList(
             cell(1L, 0, 1, 1, "张三"),
             cell(1L, 0, 1, 0, "姓名"),
-            cell(1L, 0, 2, 1, "42"),
+            cell(1L, 0, 2, 1, "42")));
+        when(cellMapper.selectCollectDataCellByDataId(2L)).thenReturn(Arrays.asList(
             cell(2L, 0, 0, 0, "甲"),
             cell(2L, 1, 0, 0, "乙")));
 
@@ -205,7 +206,7 @@ class CollectDataServiceImplTest {
         assertThatThrownBy(() -> service.exportWorkbook(query))
             .isInstanceOf(ServiceException.class)
             .hasMessageContaining("导出数据过多");
-        verify(cellMapper, never()).selectCollectDataCellByDataIds(any());
+        verify(cellMapper, never()).selectCollectDataCellByDataId(any());
     }
 
     @Test
@@ -255,7 +256,7 @@ class CollectDataServiceImplTest {
         CollectData record = submittedRecord(1L, "A/B\\C:D*E?F[G]H_0123456789012345678901");
         when(dataMapper.selectCollectDataList(query)).thenReturn(new ArrayList<>(List.of(record)));
         when(cellMapper.countCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of(cellCount(1L, 1)));
-        when(cellMapper.selectCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of(cell(1L, 0, 0, 0, "v")));
+        when(cellMapper.selectCollectDataCellByDataId(1L)).thenReturn(List.of(cell(1L, 0, 0, 0, "v")));
 
         XSSFWorkbook wb = exportAndReopen(service.exportWorkbook(query));
 

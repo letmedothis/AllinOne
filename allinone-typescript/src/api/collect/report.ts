@@ -38,8 +38,9 @@ export function loadCells(sheetDbId: string, startRow: number, endRow: number, s
   return request({ url: '/collect/report/cells', method: 'get', params: { sheetDbId, startRow, endRow, startCol, endCol } })
 }
 
-export function saveCells(cells: any[]): Promise<AjaxResult> {
-  return request({ url: '/collect/report/cells', method: 'put', data: { cells } })
+/** 保存单元格（可携带各 Sheet 的期望版本号，后端 CAS 递增；返回各 Sheet 最新版本号） */
+export function saveCells(data: { cells: any[]; sheetVersions?: Record<string, number> }): Promise<AjaxResult<Record<string, number>>> {
+  return request({ url: '/collect/report/cells', method: 'put', data })
 }
 
 export function getPermissions(sheetDbId: string): Promise<AjaxResult<any[]>> {

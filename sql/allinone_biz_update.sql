@@ -152,3 +152,17 @@ SET @drop_wr_sheet_data_sql = IF(
 PREPARE drop_wr_sheet_data_stmt FROM @drop_wr_sheet_data_sql;
 EXECUTE drop_wr_sheet_data_stmt;
 DEALLOCATE PREPARE drop_wr_sheet_data_stmt;
+
+-- -----------------------------------------------------------
+-- Phase 9: work_report_sheet 增加乐观锁版本号（多用户并发编辑防覆盖）
+-- 单元格保存时按客户端持有版本 CAS 递增；幂等，已存在 version 列时跳过。
+-- -----------------------------------------------------------
+SET @add_sheet_version_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'work_report_sheet' AND COLUMN_NAME = 'version') = 0,
+  'ALTER TABLE `work_report_sheet` ADD COLUMN `version` bigint(20) NOT NULL DEFAULT 0 COMMENT ''乐观锁版本号'' AFTER `del_status`',
+  'SELECT 1'
+);
+PREPARE add_sheet_version_stmt FROM @add_sheet_version_sql;
+EXECUTE add_sheet_version_stmt;
+DEALLOCATE PREPARE add_sheet_version_stmt;

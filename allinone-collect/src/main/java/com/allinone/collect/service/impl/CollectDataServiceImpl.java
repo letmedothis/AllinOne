@@ -191,17 +191,6 @@ public class CollectDataServiceImpl implements ICollectDataService {
                 record.setExportNote("内容过大未导出");
             }
         }
-        List<Long> loadableIds = new ArrayList<>(list.size());
-        for (CollectData record : list) {
-            Long count = cellCounts.get(record.getDataId());
-            if (count != null && count > 0 && count <= EXPORT_MAX_CELLS_PER_RECORD) {
-                loadableIds.add(record.getDataId());
-            }
-        }
-
-        // 仅加载限额内的记录单元格快照，仍按 data_id 分组批量取回，避免逐条记录查询
-        Map<Long, List<CollectDataCell>> cellsByDataId = loadCellsByDataIds(loadableIds);
-
         SXSSFWorkbook wb = new SXSSFWorkbook(500);
         boolean success = false;
         try {
@@ -215,9 +204,14 @@ public class CollectDataServiceImpl implements ICollectDataService {
             int seq = 0;
             for (CollectData record : list) {
                 seq++;
-                List<CollectDataCell> cells = cellsByDataId.get(record.getDataId());
-                if (cells == null || cells.isEmpty() || cells.size() > EXPORT_MAX_CELLS_PER_RECORD) {
+                Long count = cellCounts.get(record.getDataId());
+                if (count == null || count == 0 || count > EXPORT_MAX_CELLS_PER_RECORD) {
                     // 已在汇总表“备注”列说明，不生成工作表
+                    continue;
+                }
+                // 逐记录加载快照：内存上界为单条记录（≤5 万格），即使 200 条大记录也不会同时驻留
+                List<CollectDataCell> cells = collectDataCellMapper.selectCollectDataCellByDataId(record.getDataId());
+                if (cells.isEmpty()) {
                     continue;
                 }
                 appendDataSheets(wb, record, cells, seq, usedSheetNames);
@@ -249,18 +243,6 @@ public class CollectDataServiceImpl implements ICollectDataService {
             if (dataId instanceof Number id && cellCount instanceof Number count) {
                 result.put(id.longValue(), count.longValue());
             }
-        }
-        return result;
-    }
-
-    /** 批量查询单元格快照并按 data_id 分组 */
-    private Map<Long, List<CollectDataCell>> loadCellsByDataIds(List<Long> dataIds) {
-        Map<Long, List<CollectDataCell>> result = new HashMap<>();
-        if (dataIds.isEmpty()) {
-            return result;
-        }
-        for (CollectDataCell cell : collectDataCellMapper.selectCollectDataCellByDataIds(dataIds)) {
-            result.computeIfAbsent(cell.getDataId(), key -> new ArrayList<>()).add(cell);
         }
         return result;
     }

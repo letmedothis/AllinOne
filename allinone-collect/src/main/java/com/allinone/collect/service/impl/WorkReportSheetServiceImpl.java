@@ -1,5 +1,6 @@
 package com.allinone.collect.service.impl;
 
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Collections;
@@ -168,5 +169,11 @@ public class WorkReportSheetServiceImpl implements IWorkReportSheetService
             permissionService.revokeBySheet(s.getId());
         }
         return workReportSheetMapper.deleteWorkReportSheetByReportId(reportId);
+    }
+
+    @Override
+    public int compareAndIncrementVersion(String id, Long expectedVersion, Date updateTime)
+    {
+        return workReportSheetMapper.compareAndIncrementVersion(id, expectedVersion, updateTime);
     }
 }

@@ -248,6 +248,7 @@ CREATE TABLE IF NOT EXISTS `work_report_sheet` (
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime DEFAULT NULL COMMENT '更新时间',
   `del_status` bigint(20) DEFAULT 0 COMMENT '逻辑删除状态 0未删除 1已删除',
+  `version` bigint(20) NOT NULL DEFAULT 0 COMMENT '乐观锁版本号，单元格保存时 CAS 递增',
   PRIMARY KEY (`id`),
   KEY `idx_report_id` (`report_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报表Sheet管理';
