@@ -160,9 +160,11 @@
         </el-row>
         <el-form-item v-if="form.reportType === '0'" label="JimuReport ID" prop="jimuReportId">
           <el-input v-model="form.jimuReportId" placeholder="请输入 JimuReport 报表ID" maxlength="64" />
+          <div class="form-item-tip">填写 JimuReport 报表设计器中的报表 ID（报表列表或设计器 URL /jmreport/list、/jmreport/view/{id} 中的 id）；填写的 ID 必须在积木报表引擎中真实存在</div>
         </el-form-item>
         <el-form-item v-else label="JimuBI ID" prop="jmbiId">
           <el-input v-model="form.jmbiId" placeholder="请输入 JimuBI 大屏/仪表盘ID" maxlength="64" />
+          <div class="form-item-tip">填写 JimuBI 大屏/仪表盘页面的 pageId（大屏设计器保存的页面 ID）；注意它不是积木报表的报表 ID</div>
         </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
@@ -367,3 +369,12 @@ function handleView(row: ReportConfig) {
 getList()
 loadCategoryTree()
 </script>
+
+<style scoped>
+.form-item-tip {
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-secondary);
+}
+</style>
