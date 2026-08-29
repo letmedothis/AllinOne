@@ -238,6 +238,17 @@ npm run dev
 
 ---
 
+## 📖 使用文档
+
+| 文档 | 说明 |
+|------|------|
+| **[使用手册](doc/使用手册.md)** | 面向业务用户的完整操作手册:登录、填报模板设计、在线填报、草稿与提交、报表查看,含全流程截图、权限速查与常见问题 FAQ |
+| [报表集成指南](doc/REPORT_INTEGRATION_GUIDE.md) | JimuReport/JimuBI 集成配置、数据源与票据鉴权说明 |
+| [SQL 执行顺序](doc/SQL_EXECUTION_ORDER.md) | 初始化脚本的执行顺序与逐条说明 |
+| [浏览器交互回归报告](doc/浏览器交互回归报告_2026-08-29.md) | 关键链路浏览器级回归验证记录(含已知限制) |
+
+---
+
 ## 🧭 开发指南
 
 本项目在 `.agents/skills/` 中提供以下通用 Agent Skill。它们采用 `<skill-name>/SKILL.md` 标准结构，可供支持 Agent Skills 规范的编码代理发现和加载：
