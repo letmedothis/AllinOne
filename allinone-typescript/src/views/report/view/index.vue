@@ -23,7 +23,7 @@
     </el-card>
 
     <!-- 无数据 -->
-    <el-empty v-if="!loading && !src" :description="'报表不存在或已停用'" />
+    <el-empty v-if="!loading && !src" :description="emptyDesc" />
   </div>
 </template>
 
@@ -41,6 +41,7 @@ const frameRef = ref<InstanceType<typeof ReportFrame> | null>(null)
 const loading = ref<boolean>(true)
 const src = ref<string>('')
 const reportName = ref<string>('')
+const emptyDesc = ref<string>('报表不存在或已停用')
 const frameHeight = ref<string>('calc(100vh - 280px)')
 
 /**
@@ -48,16 +49,12 @@ const frameHeight = ref<string>('calc(100vh - 280px)')
  * JimuReportTokenService 会消费 ticket 换出登录令牌完成鉴权，长期 JWT 绝不进入 URL。
  */
 async function buildSrc(url: string): Promise<string> {
-  try {
-    const response = await requestJimuTicket()
-    const ticket = response.data
-    if (ticket) {
-      return url + (url.includes('?') ? '&' : '?') + 'ticket=' + encodeURIComponent(ticket)
-    }
-  } catch (e) {
-    console.error('获取JimuReport票据失败', e)
+  const response = await requestJimuTicket()
+  const ticket = response.data
+  if (!ticket) {
+    throw new Error('无法获取报表访问票据，请稍后重试')
   }
-  throw new Error('无法获取报表访问票据，请稍后重试')
+  return url + (url.includes('?') ? '&' : '?') + 'ticket=' + encodeURIComponent(ticket)
 }
 
 /** 加载报表配置 */
@@ -70,9 +67,17 @@ function loadReport() {
 
   getConfig(Number(id)).then(async response => {
     const data = response.data
-    if (data && data.url && data.status === '0') {
-      reportName.value = data.reportName || ''
+    if (!data || !data.url || data.status !== '0') {
+      // 配置缺失/停用：保持“报表不存在或已停用”的空态提示
+      return
+    }
+    reportName.value = data.reportName || ''
+    try {
       src.value = await buildSrc(data.url)
+    } catch (e: any) {
+      // 取票失败与配置缺失分开提示，避免误导排查方向
+      emptyDesc.value = e.message || '无法获取报表访问票据，请稍后重试'
+      console.error('获取JimuReport票据失败', e)
     }
   }).catch((e: any) => {
     proxy.$modal.msgError(e.message || '加载报表失败')

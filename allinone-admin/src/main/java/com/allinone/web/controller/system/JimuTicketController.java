@@ -50,6 +50,8 @@ public class JimuTicketController extends BaseController
         {
             return error("未登录或令牌无效");
         }
-        return success(jimuTicketService.generateTicket(userId, token));
+        // 注意不能用 success(String) 形参的重载：ticket 是字符串会绑定到 msg 字段，
+        // 前端从 data 字段取票据。须显式走 (msg, data) 重载把票据放入 data。
+        return AjaxResult.success("操作成功", jimuTicketService.generateTicket(userId, token));
     }
 }
