@@ -20,18 +20,23 @@ let _rowLocation = rowLocation
 let _colLocation = colLocation
 
 // Dynamically load dependent scripts and styles
+// 插件资源路径锚定到 luckysheet 主库 <script> 的实际 URL：
+// 直接写相对路径时，浏览器会基于页面路由（如 /collect/template/edit）解析导致 404
+const luckysheetBase = ((document.querySelector('script[src*="luckysheet.umd.js"]') || {}).src || '/luckysheet/luckysheet.umd.js')
+    .replace(/[^/]*$/, '')
+
 const dependScripts = [
     'https://cdn.jsdelivr.net/npm/vue@2.6.11',
     'https://unpkg.com/vuex@3.4.0',
     'https://cdn.bootcdn.net/ajax/libs/element-ui/2.13.2/index.js',
     'https://cdn.bootcdn.net/ajax/libs/echarts/4.8.0/echarts.min.js',
-    'expendPlugins/chart/chartmix.umd.min.js',
+    luckysheetBase + 'expendPlugins/chart/chartmix.umd.min.js',
     // 'http://26.26.26.1:8000/chartmix.umd.js'
 ]
 
 const dependLinks = [
     'https://cdn.bootcdn.net/ajax/libs/element-ui/2.13.2/theme-chalk/index.css',
-    'expendPlugins/chart/chartmix.css',
+    luckysheetBase + 'expendPlugins/chart/chartmix.css',
     // 'http://26.26.26.1:8000/chartmix.css'
 ]
 

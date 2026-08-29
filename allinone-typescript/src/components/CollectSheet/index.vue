@@ -37,6 +37,12 @@
 import 'luckysheet/dist/plugins/css/pluginsCss.css'
 import 'luckysheet/dist/plugins/plugins.css'
 import 'luckysheet/dist/css/luckysheet.css'
+// Luckysheet 产物是依赖全局 jQuery 的经典脚本（plugin.js 内含 jQuery，须先于主库执行），
+// 不能作为 ES Module 动态 import：模块作用域下顶层 $ 未定义会中断求值，window.luckysheet 永不挂载。
+// 主库须经 /luckysheet/ 固定站点路径加载（vite 插件提供）：
+// 其内部按相对路径加载 expendPlugins/chart/*，相对页面 URL 会 404。
+const LUCKYSHEET_PLUGIN_JS = '/luckysheet/plugins/js/plugin.js'
+const LUCKYSHEET_UMD_JS = '/luckysheet/luckysheet.umd.js'
 
 const props = defineProps({
   /** 表格数据（JSON字符串或对象） */
@@ -76,8 +82,7 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
 
   try {
     // 确保 Luckysheet 已加载
-    if (typeof (window as any).luckysheet === 'undefined') {
-      // 动态加载 Luckysheet
+    if (typeof (window as any).luckysheet?.create !== 'function') {
       await loadLuckysheet()
     }
 
@@ -97,6 +102,9 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
       showstatisticBar: !props.readonly,
       sheetFormulaBar: !props.readonly,
       allowCopy: true,
+      // 启用内置图表插件（chartmix）：由 luckysheet 按此清单动态加载，
+      // 依赖公网 CDN 的 vue2/vuex/element-ui/echarts，离线环境不可用
+      plugins: ['chart'],
       myFolderUrl: '',
       hook: {
         cellUpdated: (cell: any, r: number, c: number) => {
@@ -130,13 +138,40 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
   }
 }
 
-/** 动态加载 Luckysheet 依赖 */
-  function loadLuckysheet(): Promise<void> {
-    return (async () => {
-      await import('luckysheet/dist/plugins/js/plugin.js')
-      await import('luckysheet')
-    })()
+/** 按序注入经典 <script>（同一地址只注入一次） */
+function loadScriptOnce(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const marker = 'data-luckysheet-src'
+    let el = document.querySelector(`script[${marker}="${src}"]`) as HTMLScriptElement | null
+    if (el) {
+      if (el.dataset.loaded === 'true') {
+        resolve()
+        return
+      }
+      el.addEventListener('load', () => resolve())
+      el.addEventListener('error', () => reject(new Error('Luckysheet 脚本加载失败: ' + src)))
+      return
+    }
+    el = document.createElement('script')
+    el.src = src
+    el.setAttribute(marker, src)
+    el.onload = () => {
+      el!.dataset.loaded = 'true'
+      resolve()
+    }
+    el.onerror = () => reject(new Error('Luckysheet 脚本加载失败: ' + src))
+    document.head.appendChild(el)
+  })
+}
+
+/** 动态加载 Luckysheet 依赖：plugin.js（内含 jQuery）先于主库执行 */
+async function loadLuckysheet(): Promise<void> {
+  await loadScriptOnce(LUCKYSHEET_PLUGIN_JS)
+  await loadScriptOnce(LUCKYSHEET_UMD_JS)
+  if (typeof (window as any).luckysheet?.create !== 'function') {
+    throw new Error('Luckysheet 库加载失败')
   }
+}
 
 /** 获取当前表格数据 */
 function getData(): any {
@@ -152,14 +187,23 @@ function getData(): any {
 }
 
 /** 从外部加载数据 */
-function loadData(data: string | Record<string, any>) {
-  const luckysheet = (window as any).luckysheet
-  if (!luckysheet) return
-  luckysheet.destroy()
-  loading.value = true
-  nextTick(() => {
-    initSheet(data)
-  })
+async function loadData(data: string | Record<string, any>) {
+  try {
+    // 模板接口可能先于经典脚本执行完成返回，此时 window.luckysheet 尚不可用
+    // （存在未挂载完成的空对象），必须先等待库就绪再 destroy，否则重放数据丢失
+    if (typeof (window as any).luckysheet?.create !== 'function') {
+      await loadLuckysheet()
+    }
+    const luckysheet = (window as any).luckysheet
+    luckysheet.destroy()
+    loading.value = true
+    nextTick(() => {
+      initSheet(data)
+    })
+  } catch (e: any) {
+    error.value = e.message || '表格加载失败'
+    loading.value = false
+  }
 }
 
 /** 表格内容变更处理 */
