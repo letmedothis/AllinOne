@@ -37,12 +37,7 @@
 import 'luckysheet/dist/plugins/css/pluginsCss.css'
 import 'luckysheet/dist/plugins/plugins.css'
 import 'luckysheet/dist/css/luckysheet.css'
-// Luckysheet 产物是依赖全局 jQuery 的经典脚本（plugin.js 内含 jQuery，须先于主库执行），
-// 不能作为 ES Module 动态 import：模块作用域下顶层 $ 未定义会中断求值，window.luckysheet 永不挂载。
-// 主库须经 /luckysheet/ 固定站点路径加载（vite 插件提供）：
-// 其内部按相对路径加载 expendPlugins/chart/*，相对页面 URL 会 404。
-const LUCKYSHEET_PLUGIN_JS = '/luckysheet/plugins/js/plugin.js'
-const LUCKYSHEET_UMD_JS = '/luckysheet/luckysheet.umd.js'
+import { loadLuckysheet } from '@/utils/luckysheetLoader'
 
 const props = defineProps({
   /** 表格数据（JSON字符串或对象） */
@@ -138,40 +133,7 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
   }
 }
 
-/** 按序注入经典 <script>（同一地址只注入一次） */
-function loadScriptOnce(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const marker = 'data-luckysheet-src'
-    let el = document.querySelector(`script[${marker}="${src}"]`) as HTMLScriptElement | null
-    if (el) {
-      if (el.dataset.loaded === 'true') {
-        resolve()
-        return
-      }
-      el.addEventListener('load', () => resolve())
-      el.addEventListener('error', () => reject(new Error('Luckysheet 脚本加载失败: ' + src)))
-      return
-    }
-    el = document.createElement('script')
-    el.src = src
-    el.setAttribute(marker, src)
-    el.onload = () => {
-      el!.dataset.loaded = 'true'
-      resolve()
-    }
-    el.onerror = () => reject(new Error('Luckysheet 脚本加载失败: ' + src))
-    document.head.appendChild(el)
-  })
-}
-
-/** 动态加载 Luckysheet 依赖：plugin.js（内含 jQuery）先于主库执行 */
-async function loadLuckysheet(): Promise<void> {
-  await loadScriptOnce(LUCKYSHEET_PLUGIN_JS)
-  await loadScriptOnce(LUCKYSHEET_UMD_JS)
-  if (typeof (window as any).luckysheet?.create !== 'function') {
-    throw new Error('Luckysheet 库加载失败')
-  }
-}
+/** 动态加载 Luckysheet 依赖(共享加载器:plugin.js 内含 jQuery,先于主库执行) */
 
 /** 获取当前表格数据 */
 function getData(): any {

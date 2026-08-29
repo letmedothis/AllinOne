@@ -22,6 +22,7 @@ import SheetPermissionDialog from './SheetPermissionDialog.vue'
 import 'luckysheet/dist/plugins/css/pluginsCss.css'
 import 'luckysheet/dist/plugins/plugins.css'
 import 'luckysheet/dist/css/luckysheet.css'
+import { loadLuckysheet } from '@/utils/luckysheetLoader'
 
 const route = useRoute()
 const { proxy } = getCurrentInstance()
@@ -43,13 +44,6 @@ const initialSheetIds = new Set<string>()
 let scrollLoadTimer: number | undefined
 
 function makeCellKey(r: number, c: number): string { return `${r},${c}` }
-
-function loadLuckysheet(): Promise<void> {
-  return (async () => {
-    await import('luckysheet/dist/plugins/js/plugin.js')
-    await import('luckysheet')
-  })()
-}
 
 function getSerializedSheets(): any[] {
   const sheets = luckysheet.getAllSheets?.()
@@ -111,7 +105,7 @@ async function initEditor() {
       if (sheet._sheetDbId) initialSheetIds.add(String(sheet._sheetDbId))
     }
 
-    if (typeof (window as any).luckysheet === 'undefined') {
+    if (typeof (window as any).luckysheet?.create !== 'function') {
       await loadLuckysheet()
     }
 
