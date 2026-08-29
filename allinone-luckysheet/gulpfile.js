@@ -227,6 +227,9 @@ async function core() {
         target: ['es2015'],
         sourcemap: true,
         outfile: 'dist/luckysheet.umd.js',
+        // IIFE 产物的顶层 var 在被 Vite 等打包器按 ES Module 处理时不会挂到 window 上，
+        // 必须显式赋值全局对象，否则前端 `window.luckysheet` 永远是 undefined
+        footer: { js: 'window.luckysheet = luckysheet;' },
       })
 }
 

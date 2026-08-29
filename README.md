@@ -308,8 +308,14 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
     
-    # 报表路径代理
+    # 报表/大屏引擎路径代理（JimuReport、JimuBI、拖拽设计器）
     location /jmreport/ {
+        proxy_pass http://localhost:8080;
+    }
+    location /jimubi/ {
+        proxy_pass http://localhost:8080;
+    }
+    location /drag/ {
         proxy_pass http://localhost:8080;
     }
 }

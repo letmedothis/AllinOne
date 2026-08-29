@@ -10,6 +10,12 @@ target/
 
 # 本地 Maven 仓库（构建缓存，不入库）
 .m2repo/
+.m2/
+
+# 本地静态审查临时产物
+review_output.json
+tmp_output.json
+D:\\java\\apache-maven-repository/
 
 ######################################################################
 # IDE

@@ -82,8 +82,6 @@
       @pagination="getList"
     />
 
-    <!-- 报表详情抽屉 -->
-    <report-view-drawer ref="reportViewRef" />
     <!-- 添加或修改报表对话框 -->
     <el-dialog :title="title" v-model="open" width="500px" append-to-body>
       <el-form ref="reportRef" :model="form" :rules="rules" label-width="100px">
@@ -249,11 +247,6 @@ function handleDelete(row: WorkReport) {
     getList()
     proxy.$modal.msgSuccess("删除成功")
   }).catch(() => {})
-}
-
-/** 详情按钮操作 */
-function handleViewData(row: WorkReport) {
-  proxy.$refs["reportViewRef"].open(row.id)
 }
 
 /** 编辑表格按钮操作 */

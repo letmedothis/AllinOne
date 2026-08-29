@@ -21,7 +21,6 @@ import com.allinone.common.utils.ip.IpUtils;
 import com.allinone.common.utils.uuid.IdUtils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -230,7 +229,7 @@ public class TokenService
         String token = Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(new java.util.Date())
-                .signWith(SignatureAlgorithm.HS512, secret).compact();
+                .signWith(Keys.hmacShaKeyFor(secret.getBytes())).compact();
         return token;
     }
 

@@ -128,7 +128,9 @@ async function initEditor() {
       loadCellNum: 30,
       pageSize: 200,
       hook: {
-        workbookCreated: async () => {
+        // 本 fork 只触发 workbookCreateAfter（不存在 workbookCreated 钩子），
+        // 用错钩子名会导致初始单元格快照永远不加载
+        workbookCreateAfter: async () => {
           const file = luckysheet.getluckysheetfile()
           for (const sheet of file) {
             if (!sheet._sheetDbId) continue
@@ -167,10 +169,14 @@ async function loadVisibleCellsAndSnapshot(
       const cell = res.data[index]
       let value = cell.cellValue
       try { value = cell.cellValue == null ? null : JSON.parse(cell.cellValue) } catch { /* 兼容旧的纯文本数据 */ }
-      luckysheet.setCellValue(cell.rowIndex, cell.colIndex, value, {
-        order: sheetIndex,
-        isRefresh: index === res.data.length - 1
-      })
+      try {
+        luckysheet.setCellValue(cell.rowIndex, cell.colIndex, value, {
+          order: sheetIndex,
+          isRefresh: index === res.data.length - 1
+        })
+      } catch {
+        // 单个单元格越界（超出当前活动 sheet 的 flowdata 范围）不应中断整页加载
+      }
     }
 
     const serializedSheet = getSerializedSheets().find((sheet: any) => sheet._sheetDbId === sheetDbId)
@@ -250,8 +256,8 @@ async function handleSave() {
         const snapMap = cellSnapshots.get(cell.sheetDbId) || new Map<string, string>()
         cellSnapshots.set(cell.sheetDbId, snapMap)
         const key = makeCellKey(cell.rowIndex, cell.colIndex)
-        if (cell.cellValue == null) snapMap.delete(key)
-        else snapMap.set(key, cell.cellValue)
+        // 置空单元格统一记录为 "null" 快照；若删除快照键，下次保存会把 null 值误判为脏数据反复提交
+        snapMap.set(key, cell.cellValue == null ? 'null' : cell.cellValue)
       }
     }
 

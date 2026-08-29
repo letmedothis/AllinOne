@@ -33,6 +33,8 @@ import { parseTime, resetForm, addDateRange, handleTree, selectDictLabel, select
 import Pagination from '@/components/Pagination/index.vue'
 // 自定义表格工具组件
 import RightToolbar from '@/components/RightToolbar/index.vue'
+// 页面标题头组件
+import PageHeader from '@/components/PageHeader/index.vue'
 // 富文本组件
 import Editor from "@/components/Editor/index.vue"
 // 文件上传组件
@@ -64,6 +66,7 @@ app.component('FileUpload', FileUpload)
 app.component('ImageUpload', ImageUpload)
 app.component('ImagePreview', ImagePreview)
 app.component('RightToolbar', RightToolbar)
+app.component('PageHeader', PageHeader)
 app.component('Editor', Editor)
 
 app.use(router)

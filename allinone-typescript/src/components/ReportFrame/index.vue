@@ -71,11 +71,18 @@ const maxRetry = ref<number>(3)
 const loadSuccess = ref<boolean>(false)
 
 /** 当前加载的src（带时间戳防缓存） */
-const currentSrc = computed(() => {
-  if (!props.src) return ''
-  const separator = props.src.includes('?') ? '&' : '?'
-  return loadSuccess.value ? props.src : `${props.src}${separator}_t=${Date.now()}`
-})
+const currentSrc = ref('')
+
+function buildSrc(val: string): string {
+  const separator = val.includes('?') ? '&' : '?'
+  return `${val}${separator}_t=${Date.now()}`
+}
+
+// src 必须保持稳定：加载成功后改变 computed src 会触发 iframe 二次导航，
+// 导致一次性 ticket 被重复消费。仅在与 src 绑定变化或显式重试/刷新时重新生成。
+watch(() => props.src, (val) => {
+  currentSrc.value = val ? buildSrc(val) : ''
+}, { immediate: true })
 
 /** iframe样式 */
 const iframeStyle = computed(() => ({
@@ -133,6 +140,7 @@ function handleRetry() {
   loading.value = true
   error.value = ''
   loadSuccess.value = false
+  if (props.src) currentSrc.value = buildSrc(props.src)
   startLoadTimer()
 }
 
@@ -141,6 +149,7 @@ function reload() {
   loading.value = true
   error.value = ''
   loadSuccess.value = false
+  if (props.src) currentSrc.value = buildSrc(props.src)
   startLoadTimer()
 }
 

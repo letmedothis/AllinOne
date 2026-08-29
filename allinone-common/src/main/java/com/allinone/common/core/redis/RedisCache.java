@@ -110,11 +110,22 @@ public class RedisCache
 
     /**
      * 原子获取并删除缓存对象，用于一次性令牌等不可重复消费的数据。
+     * GETDEL 需要 Redis 6.2+；旧版本服务端不支持该命令时降级为 get+delete，
+     * 保证一次性令牌流程不被 Redis 版本阻断。
      */
     public <T> T getAndDeleteCacheObject(final String key)
     {
         ValueOperations<String, T> operation = redisTemplate.opsForValue();
-        return operation.getAndDelete(key);
+        try
+        {
+            return operation.getAndDelete(key);
+        }
+        catch (org.springframework.data.redis.RedisSystemException e)
+        {
+            T value = operation.get(key);
+            redisTemplate.delete(key);
+            return value;
+        }
     }
 
     /**

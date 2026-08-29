@@ -56,6 +56,19 @@ export default defineConfig(({ mode, command }) => {
          '^/v3/api-docs/(.*)': {
           target: baseUrl,
           changeOrigin: true,
+        },
+        // JimuReport / JimuBI 引擎页面与接口（iframe 内嵌，浏览器直接导航，无法走 /dev-api 前缀）
+        '/jmreport': {
+          target: baseUrl,
+          changeOrigin: true
+        },
+        '/jimubi': {
+          target: baseUrl,
+          changeOrigin: true
+        },
+        '/drag': {
+          target: baseUrl,
+          changeOrigin: true
         }
       }
     },
