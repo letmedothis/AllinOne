@@ -230,9 +230,9 @@ npm run dev
 > npm ci
 > npm run dev
 > ```
-> 生产构建可在项目根目录直接执行 `./scripts/build-frontend.sh`；该脚本会按锁文件安装依赖，先构建 Luckysheet，再构建主前端。
+> 生产构建可在项目根目录直接执行 `./scripts/build-frontend.sh`（Windows 下用 `scripts\build-frontend.bat`）；该脚本会按锁文件安装依赖，先构建 Luckysheet，再构建主前端。
 
-前端生产依赖安全审计可执行 `./scripts/audit-frontend.sh`，高危或严重漏洞会返回非零退出码，可直接作为 CI 发布门禁。执行 `./scripts/audit-frontend.sh --all` 可额外检查完整构建工具链；旧工具链问题单独治理，不阻塞生产依赖门禁。依赖升级应逐项回归，禁止使用 `npm audit fix --force` 批量跨主版本修复。
+前端生产依赖安全审计可执行 `./scripts/audit-frontend.sh`（Windows 下用 `scripts\audit-frontend.bat`），高危或严重漏洞会返回非零退出码，可直接作为 CI 发布门禁。执行 `./scripts/audit-frontend.sh --all` 可额外检查完整构建工具链；旧工具链问题单独治理，不阻塞生产依赖门禁。依赖升级应逐项回归，禁止使用 `npm audit fix --force` 批量跨主版本修复。
 
 访问地址：`http://localhost:80`（登录账号为你在导入 SQL 时通过 `@bootstrap_password_bcrypt` 设定的 admin 密码）
 
