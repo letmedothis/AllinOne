@@ -1,0 +1,13 @@
+# 构建上下文排除项，减小镜像构建体积
+.git
+node_modules
+**/node_modules
+**/target
+**/dist
+gui-test-screenshots
+doc
+scripts
+bin
+*.md
+!README.md
+.env

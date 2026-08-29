@@ -1,0 +1,28 @@
+# 前端镜像：先构建 Luckysheet，再构建应用前端，最后由 Nginx 托管
+# 与 scripts/build-frontend.sh 流程一致：Luckysheet 产物经 vite 插件
+# (luckysheet-static-assets 的 closeBundle) 拷贝进应用 dist/luckysheet 一同发布。
+# 构建阶段用 glibc 的 bookworm-slim 而非 alpine：vite/esbuild 的平台二进制
+# 依赖锁文件中的 linux-x64 变体，musl 下 npm ci 会缺二进制
+FROM node:20-bookworm-slim AS builder
+WORKDIR /build
+
+# 保持 allinone-luckysheet 与 allinone-typescript 的相对位置，
+# 应用通过 file:../allinone-luckysheet 引用其构建产物
+COPY allinone-luckysheet/package.json allinone-luckysheet/package-lock.json ./allinone-luckysheet/
+RUN cd allinone-luckysheet && npm ci
+
+COPY allinone-luckysheet ./allinone-luckysheet
+RUN cd allinone-luckysheet && npm run build
+
+COPY allinone-typescript/package.json allinone-typescript/package-lock.json ./allinone-typescript/
+RUN cd allinone-typescript && npm ci
+
+COPY allinone-typescript ./allinone-typescript
+RUN cd allinone-typescript && npm run build:prod
+
+FROM nginx:1.27-alpine
+ENV TZ=Asia/Shanghai
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /build/allinone-typescript/dist /usr/share/nginx/html
+
+EXPOSE 80

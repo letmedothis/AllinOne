@@ -1,0 +1,50 @@
+# 后端镜像：多阶段构建，Maven 打包后仅保留 JRE 运行时
+# 注意：allinone-luckysheet 是纯 Node 工程，不属于 Maven 模块，不要拷入构建上下文参与打包
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /build
+
+# 先拷贝 pom 以利用 Docker 层缓存，依赖不变时不重复下载
+COPY pom.xml ./
+COPY allinone-common/pom.xml allinone-common/
+COPY allinone-framework/pom.xml allinone-framework/
+COPY allinone-system/pom.xml allinone-system/
+COPY allinone-admin/pom.xml allinone-admin/
+COPY allinone-collect/pom.xml allinone-collect/
+COPY allinone-generator/pom.xml allinone-generator/
+COPY allinone-quartz/pom.xml allinone-quartz/
+COPY allinone-report/pom.xml allinone-report/
+RUN mvn -B dependency:go-offline -DskipTests || true
+
+COPY allinone-common allinone-common
+COPY allinone-framework allinone-framework
+COPY allinone-system allinone-system
+COPY allinone-admin allinone-admin
+COPY allinone-collect allinone-collect
+COPY allinone-generator allinone-generator
+COPY allinone-quartz allinone-quartz
+COPY allinone-report allinone-report
+RUN mvn -B clean package -DskipTests
+
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+
+# 时区默认东八区，与 JDBC serverTimezone=GMT+8 保持一致；
+# curl 仅供容器健康检查使用
+ENV TZ=Asia/Shanghai \
+    SERVER_PORT=8080 \
+    JAVA_OPTS=""
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# 非 root 运行
+RUN groupadd -r allinone && useradd -r -g allinone allinone \
+    && mkdir -p /app/uploadPath && chown -R allinone:allinone /app
+USER allinone
+
+COPY --from=builder /build/allinone-admin/target/allinone-admin.jar app.jar
+
+EXPOSE 8080
+# SPRING_PROFILES_ACTIVE 由环境变量直接生效（compose 中已设为 druid,prod）
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

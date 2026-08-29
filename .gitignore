@@ -55,3 +55,6 @@ nbdist/
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml
+
+# Docker compose 环境变量
+.env

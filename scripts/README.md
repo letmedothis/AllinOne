@@ -9,6 +9,7 @@
 | 运行后端 | `run.bat` | `run.sh` | 以固定 JVM 参数运行 `allinone-admin.jar`，jar 不存在时会提示先执行打包 |
 | 前端构建 | `build-frontend.bat` | `build-frontend.sh` | 按锁文件安装依赖，先构建 Luckysheet，再构建主前端 |
 | 前端依赖审计 | `audit-frontend.bat` | `audit-frontend.sh` | 默认审计生产依赖，`--all` 额外审计开发依赖；高危漏洞返回非零退出码，可作 CI 门禁 |
+| Docker 一键部署 | `docker-deploy.bat` | `docker-deploy.sh` | 自动生成含随机密钥的 `.env`，`docker compose up -d --build` 构建启动全部容器并等待后端健康；`--no-build` 跳过构建直接启动 |
 | SQL 脱敏 | — | `sanitize-public-sql.ps1` | 仅 Windows PowerShell；对公开 SQL 文件做确定性联系方式替换与分享记录删除 |
 
 注意事项：

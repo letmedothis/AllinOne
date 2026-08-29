@@ -283,6 +283,16 @@ Vue 3 和 Element Plus 的通用用法以官方文档为准；未集成的 Warm-
 
 ## 📐 部署
 
+### Docker 部署（推荐）
+
+```bash
+# 一键部署：自动生成含随机密钥的 .env，构建镜像并启动，等待就绪
+scripts/docker-deploy.sh    # Windows: scripts\docker-deploy.bat
+# 访问 http://localhost/ ，默认账号 admin/admin123
+```
+
+一键拉起 MySQL + Redis + 后端 + 前端(Nginx)，数据库首次启动自动初始化，无需本机安装 Maven/Node。详见 [docker/README.md](docker/README.md)。
+
 ### 单体部署
 
 ```bash

@@ -1,0 +1,99 @@
+name: allinone
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: allinone-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: allinone
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql:/sql:ro
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # CMD-SHELL 形式才能在容器内展开 $MYSQL_ROOT_PASSWORD
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    # 如需宿主机访问数据库，取消注释
+    # ports:
+    #   - "3306:3306"
+
+  redis:
+    image: redis:7-alpine
+    container_name: allinone-redis
+    restart: unless-stopped
+    # requirepass 与 .env 的 REDIS_PASSWORD 联动；为空时等价于无密码
+    command: ["sh", "-c", "exec redis-server --requirepass \"${REDIS_PASSWORD:-}\""]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ${REDIS_PASSWORD:+-a \"$REDIS_PASSWORD\"} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    image: allinone/backend:latest
+    container_name: allinone-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: druid,prod
+      SERVER_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/allinone?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # 生产必填，token 签名密钥（建议 64 位以上随机字符串）
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+      RUOYI_PROFILE: /app/uploadPath
+      # JVM 参数可经 .env 的 JAVA_OPTS 调整，如 -Xmx2g
+      JAVA_OPTS: ${JAVA_OPTS:-}
+      TZ: Asia/Shanghai
+    volumes:
+      - upload-data:/app/uploadPath
+    expose:
+      - "8080"
+    healthcheck:
+      # /captchaImage 为登录页公开接口，可 200 即代表应用与 Redis 均已就绪
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:8080/captchaImage"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    image: allinone/frontend:latest
+    container_name: allinone-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  mysql-data:
+  redis-data:
+  upload-data:
