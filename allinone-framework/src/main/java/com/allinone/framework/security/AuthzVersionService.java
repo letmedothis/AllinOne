@@ -1,10 +1,14 @@
 package com.allinone.framework.security;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.ReturnType;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -24,13 +28,20 @@ public class AuthzVersionService {
 
     private static final String AUTHZ_VERSION_KEY = CacheConstants.LOGIN_TOKEN_KEY + "authz_version:";
 
-    /** 兼容旧 FastJson2 Long 值（如 1L/"1L"）并在 Redis 内原子递增。 */
+    /**
+     * 兼容旧 FastJson2 Long 值（如 1L/"1L"）并在 Redis 内原子递增。
+     * 每次递增附带 7 天滑动 TTL，避免不再变更的版本 key 永久残留：
+     * key 过期等价于版本归零，仅影响超过 7 天无任何权限变更的场景，
+     * 而登录态本身 30 分钟过期，实际无感知。
+     */
     private static final DefaultRedisScript<Long> INCREMENT_SCRIPT = new DefaultRedisScript<>(
         "local value = redis.call('GET', KEYS[1]); "
             + "if not value then value = '0' end; "
             + "value = string.gsub(value, '[^0-9%-]', ''); "
             + "local next = (tonumber(value) or 0) + 1; "
-            + "redis.call('SET', KEYS[1], tostring(next)); return next;",
+            + "redis.call('SET', KEYS[1], tostring(next)); "
+            + "redis.call('EXPIRE', KEYS[1], 604800); "
+            + "return next;",
         Long.class);
 
     @Autowired
@@ -71,9 +82,19 @@ public class AuthzVersionService {
         if (userIds == null || userIds.isEmpty()) {
             return;
         }
-        for (Long userId : userIds) {
-            incrementVersion(userId);
-        }
+        // pipeline 批量执行同一段 Lua，避免逐用户一次网络往返
+        byte[] script = INCREMENT_SCRIPT.getScriptAsString().getBytes(StandardCharsets.UTF_8);
+        stringRedisTemplate.executePipelined(new RedisCallback<Object>() {
+            @Override
+            public Object doInRedis(RedisConnection connection) {
+                for (Long userId : userIds) {
+                    connection.scriptingCommands().eval(script, ReturnType.INTEGER, 1,
+                            (AUTHZ_VERSION_KEY + userId).getBytes(StandardCharsets.UTF_8));
+                }
+                return null;
+            }
+        });
+        log.info("批量递增授权版本，用户数[{}]", userIds.size());
     }
 
     /**

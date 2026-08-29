@@ -9,7 +9,14 @@
       </el-button>
       <span class="editor-title">{{ reportName }}</span>
     </div>
-    <div id="luckysheet" class="luckysheet-container" v-loading="initLoading"></div>
+    <div id="luckysheet" class="luckysheet-container" v-loading="initLoading" element-loading-text="正在加载表格引擎与首屏数据…"></div>
+    <div v-if="initError" class="editor-error-mask">
+      <el-result icon="error" title="报表加载失败" :sub-title="initError">
+        <template #extra>
+          <el-button type="primary" @click="initEditor">重新加载</el-button>
+        </template>
+      </el-result>
+    </div>
     <SheetPermissionDialog ref="permDialogRef" />
   </div>
 </template>
@@ -31,6 +38,7 @@ const reportId = ref('')
 const reportName = ref('')
 const saving = ref(false)
 const initLoading = ref(true)
+const initError = ref('')
 const canManage = ref(false)
 const permDialogRef = ref<InstanceType<typeof SheetPermissionDialog> | null>(null)
 const userStore = useUserStore()
@@ -88,6 +96,7 @@ function scheduleVisibleCellLoad(position: { scrollLeft?: number; scrollTop?: nu
 
 async function initEditor() {
   initLoading.value = true
+  initError.value = ''
   try {
     reportId.value = route.params.id as string
     const res = await getReport(reportId.value)
@@ -126,15 +135,19 @@ async function initEditor() {
         // 用错钩子名会导致初始单元格快照永远不加载
         workbookCreateAfter: async () => {
           const file = luckysheet.getluckysheetfile()
-          for (const sheet of file) {
-            if (!sheet._sheetDbId) continue
-            await loadVisibleCellsAndSnapshot(sheet._sheetDbId, 0, CELL_PAGE_ROWS - 1, 0, CELL_PAGE_COLS - 1)
-          }
+          // 多 sheet 首屏并行加载，避免首屏时间随 sheet 数线性叠加
+          const sheetIds = file.filter((sheet: any) => sheet._sheetDbId).map((sheet: any) => sheet._sheetDbId)
+          await Promise.all(sheetIds.map((sheetDbId: string) =>
+            loadVisibleCellsAndSnapshot(sheetDbId, 0, CELL_PAGE_ROWS - 1, 0, CELL_PAGE_COLS - 1)
+          ))
           initLoading.value = false
         },
         scroll: (position: { scrollLeft?: number; scrollTop?: number }) => scheduleVisibleCellLoad(position)
       }
     })
+  } catch (e: any) {
+    // 无兜底时加载失败表现为静默空白页，这里给出可重试的错误态
+    initError.value = e?.message || '请检查网络后重试'
   } finally {
     initLoading.value = false
   }
@@ -327,5 +340,14 @@ onBeforeUnmount(() => {
   left: 0;
   width: 100%;
   height: calc(100% - 40px);
+}
+.editor-error-mask {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 40px);
+  background: #fff;
+  z-index: 20;
 }
 </style>

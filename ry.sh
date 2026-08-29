@@ -6,6 +6,8 @@ AppName=allinone-admin.jar
 JVM_OPTS="-Dname=$AppName  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -Xlog:gc*:logs/gc.log:time,uptime:filecount=5,filesize=10m"
 APP_HOME=`pwd`
 LOG_PATH=$APP_HOME/logs/$AppName.log
+# logback 的 sys-info/sys-error/sys-user 日志写到应用目录，便于排障与回收
+JVM_OPTS="$JVM_OPTS -DLOG_PATH=$APP_HOME/logs"
 
 if [ "$1" = "" ];
 then
@@ -27,7 +29,7 @@ start()
 	    echo "$AppName is running..."
 	else
 		mkdir -p "$APP_HOME/logs"
-		nohup java $JVM_OPTS -jar $AppName > /dev/null 2>&1 &
+		nohup java $JVM_OPTS -jar $AppName > "$APP_HOME/logs/startup.out" 2>&1 &
 		echo "Start $AppName success..."
 	fi
 }
@@ -45,12 +47,20 @@ stop()
 	if [ x"$PID" != x"" ]; then
 		kill -TERM $PID
 		echo "$AppName (pid:$PID) exiting..."
-		while [ x"$PID" != x"" ]
+		# 最多等 30 秒，超时强制 kill，避免 stop 卡死
+		waited=0
+		while [ x"$PID" != x"" ] && [ "$waited" -lt 30 ]
 		do
 			sleep 1
+			waited=$((waited + 1))
 			query
 		done
-		echo "$AppName exited."
+		if [ x"$PID" != x"" ]; then
+			kill -9 $PID
+			echo "$AppName force killed after 30s."
+		else
+			echo "$AppName exited."
+		fi
 	else
 		echo "$AppName already stopped."
 	fi

@@ -5,6 +5,12 @@ services:
     image: mysql:8.0
     container_name: allinone-mysql
     restart: unless-stopped
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: allinone
@@ -31,12 +37,22 @@ services:
     image: redis:7-alpine
     container_name: allinone-redis
     restart: unless-stopped
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     # requirepass 与 .env 的 REDIS_PASSWORD 联动；为空时等价于无密码
     command: ["sh", "-c", "exec redis-server --requirepass \"${REDIS_PASSWORD:-}\""]
+    environment:
+      # 供下方健康检查在容器内读取；compose 解析期不展开 $$ 形式
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ${REDIS_PASSWORD:+-a \"$REDIS_PASSWORD\"} ping | grep -q PONG"]
+      # $$ 转义后由容器 shell 展开：密码非空时携带 -a 认证，为空时退化为匿名 ping
+      test: ["CMD-SHELL", "redis-cli $${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\"} ping 2>/dev/null | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -65,13 +81,20 @@ services:
       # 生产必填，token 签名密钥（建议 64 位以上随机字符串）
       JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
       RUOYI_PROFILE: /app/uploadPath
-      # JVM 参数可经 .env 的 JAVA_OPTS 调整，如 -Xmx2g
-      JAVA_OPTS: ${JAVA_OPTS:-}
+      # JVM 参数可经 .env 的 JAVA_OPTS 调整，如 -Xmx2g；
+      # 默认按容器内存 75% 计算堆上限，配合 mem_limit 防止小内存主机 OOM
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75.0}
       TZ: Asia/Shanghai
     volumes:
       - upload-data:/app/uploadPath
     expose:
       - "8080"
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     healthcheck:
       # /captchaImage 为登录页公开接口，可 200 即代表应用与 Redis 均已就绪
       test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:8080/captchaImage"]
@@ -92,6 +115,18 @@ services:
         condition: service_healthy
     ports:
       - "${HTTP_PORT:-80}:80"
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   mysql-data:

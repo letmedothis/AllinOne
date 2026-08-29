@@ -3,8 +3,8 @@
 rem jar平级目录
 set AppName=allinone-admin.jar
 
-rem JVM参数
-set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+PrintGCDateStamps  -XX:+PrintGCDetails -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -XX:+UseParallelOldGC"
+rem JVM参数（JDK 17：GC 日志统一走 -Xlog，PrintGC* / UseParallelOldGC 已移除）
+set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -Xlog:gc*:logs/gc.log:time,uptime:filecount=5,filesize=10m"
 
 
 ECHO.
@@ -29,8 +29,9 @@ PAUSE
 		set image_name=%%b
 	)
 	if  defined pid (
-		echo %%is running
+		echo %AppName% is running
 		PAUSE
+		goto:eof
 	)
 
 start javaw %JVM_OPTS% -jar %AppName%

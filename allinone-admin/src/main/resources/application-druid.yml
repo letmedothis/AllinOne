@@ -4,10 +4,10 @@ spring:
         type: com.alibaba.druid.pool.DruidDataSource
         driverClassName: com.mysql.cj.jdbc.Driver
         druid:
-            # 主库数据源
+            # 主库数据源（默认本机；可用 DB_URL/DB_USERNAME 环境变量覆盖）
             master:
-                url: jdbc:mysql://localhost:3306/allinone?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
-                username: root
+                url: ${DB_URL:jdbc:mysql://localhost:3306/allinone?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8}
+                username: ${DB_USERNAME:root}
                 password: ${DB_PASSWORD}
             # 从库数据源
             slave:
@@ -20,10 +20,10 @@ spring:
             initialSize: 5
             # 最小连接池数量
             minIdle: 10
-            # 最大连接池数量
-            maxActive: 20
-            # 配置获取连接等待超时的时间
-            maxWait: 60000
+            # 最大连接池数量（与 Tomcat 线程数 200 匹配，避免慢事务时请求线程长时间排队）
+            maxActive: 50
+            # 配置获取连接等待超时的时间（快速失败优于长时间挂起请求线程）
+            maxWait: 10000
             # 配置连接超时时间
             connectTimeout: 30000
             # 配置网络超时时间

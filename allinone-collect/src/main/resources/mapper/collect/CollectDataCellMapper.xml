@@ -60,4 +60,13 @@
         <foreach collection="dataIds" item="dataId" open="(" separator="," close=")">#{dataId}</foreach>
     </select>
 
+    <!-- 导出前先按 data_id 计数，超限记录不加载快照，防止大快照整体入内存 -->
+    <select id="countCollectDataCellByDataIds" resultType="map">
+        select data_id AS dataId, count(*) AS cellCount
+        from collect_data_cell
+        where del_flag = '0' and data_id in
+        <foreach collection="dataIds" item="dataId" open="(" separator="," close=")">#{dataId}</foreach>
+        group by data_id
+    </select>
+
 </mapper>

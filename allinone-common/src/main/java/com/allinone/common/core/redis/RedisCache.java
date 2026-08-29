@@ -1,6 +1,7 @@
 package com.allinone.common.core.redis;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -8,8 +9,11 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.BoundSetOperations;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Component;
 
@@ -277,12 +281,30 @@ public class RedisCache
 
     /**
      * 获得缓存的基本对象列表
+     * 使用 SCAN 增量遍历代替 KEYS：key 数量大时 KEYS 会阻塞 Redis，
+     * 造成所有请求的 token 读取排队，表现为全局卡顿
      *
      * @param pattern 字符串前缀
      * @return 对象列表
      */
     public Collection<String> keys(final String pattern)
     {
-        return redisTemplate.keys(pattern);
+        Set<String> keys = new HashSet<>();
+        ScanOptions options = ScanOptions.scanOptions().match(pattern).count(1000).build();
+        redisTemplate.execute((RedisCallback<Void>) connection -> {
+            try (Cursor<byte[]> cursor = connection.scan(options))
+            {
+                while (cursor.hasNext())
+                {
+                    Object key = redisTemplate.getKeySerializer().deserialize(cursor.next());
+                    if (key != null)
+                    {
+                        keys.add(String.valueOf(key));
+                    }
+                }
+            }
+            return null;
+        });
+        return keys;
     }
 }

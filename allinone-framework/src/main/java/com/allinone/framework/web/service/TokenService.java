@@ -1,5 +1,6 @@
 package com.allinone.framework.web.service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,7 @@ import com.allinone.common.utils.uuid.IdUtils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import com.allinone.framework.security.AuthzVersionService;
@@ -74,6 +76,21 @@ public class TokenService
 
     @Autowired
     private AuthzVersionService authzVersionService;
+
+    /**
+     * 启动期校验 JWT 密钥强度：jjwt 的 hmacShaKeyFor 要求至少 32 字节，
+     * 若不在此拦截，密钥过弱将延迟到首个用户登录时才抛 WeakKeyException。
+     */
+    @PostConstruct
+    public void validateSecretStrength()
+    {
+        int length = secret == null ? 0 : secret.getBytes(StandardCharsets.UTF_8).length;
+        if (length < 32)
+        {
+            throw new IllegalStateException(
+                    "token.secret 未配置或不足 32 字节（当前 " + length + " 字节），请通过环境变量 JWT_SECRET 设置更强的密钥");
+        }
+    }
 
     /**
      * 获取用户身份信息

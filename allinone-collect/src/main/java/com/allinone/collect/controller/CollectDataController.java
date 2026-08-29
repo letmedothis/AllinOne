@@ -59,19 +59,32 @@ public class CollectDataController extends BaseController {
     }
 
     @PreAuthorize("@ss.hasPermi('collect:data:add')")
-    @Log(title = "填报数据", businessType = BusinessType.INSERT)
+    // 请求体含整本工作簿 JSON（自动保存高频触发），不落库到操作日志
+    @Log(title = "填报数据", businessType = BusinessType.INSERT, isSaveRequestData = false)
     @PostMapping
     public AjaxResult add(@RequestBody CollectData data) {
         int rows = collectDataService.insertCollectData(data);
-        return rows > 0 ? success(data) : error("新增填报数据失败");
+        if (rows > 0) {
+            // 大体积 formData 不回传，前端保留刚提交的本地副本
+            data.setFormData(null);
+            return success(data);
+        }
+        return error("新增填报数据失败");
     }
 
     @PreAuthorize("@ss.hasPermi('collect:data:edit')")
-    @Log(title = "填报数据", businessType = BusinessType.UPDATE)
+    // 请求体含整本工作簿 JSON（自动保存高频触发），不落库到操作日志
+    @Log(title = "填报数据", businessType = BusinessType.UPDATE, isSaveRequestData = false)
     @PutMapping
     public AjaxResult edit(@RequestBody CollectData data) {
         int rows = collectDataService.updateCollectData(data);
-        return rows > 0 ? success(collectDataService.selectCollectDataById(data.getDataId())) : error("修改填报数据失败");
+        if (rows > 0) {
+            CollectData updated = collectDataService.selectCollectDataById(data.getDataId());
+            // 大体积 formData 不回传，避免 30s 一次的自动保存产生双向全量传输
+            updated.setFormData(null);
+            return success(updated);
+        }
+        return error("修改填报数据失败");
     }
 
     @PreAuthorize("@ss.hasPermi('collect:data:remove')")

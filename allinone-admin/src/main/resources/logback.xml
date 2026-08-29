@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- 日志存放路径 -->
-	<property name="log.path" value="/home/ruoyi/logs" />
+    <!-- 日志存放路径：优先取 -DLOG_PATH 或环境变量 LOG_PATH（容器由 Dockerfile 注入 /app/logs） -->
+	<property name="log.path" value="${LOG_PATH:-/home/allinone/logs}" />
     <!-- 日志输出格式 -->
 	<property name="log.pattern" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - [%method,%line] - %msg%n" />
 
@@ -16,11 +16,15 @@
 	<appender name="file_info" class="ch.qos.logback.core.rolling.RollingFileAppender">
 	    <file>${log.path}/sys-info.log</file>
         <!-- 循环政策：基于时间创建日志文件 -->
-		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <!-- 日志文件名格式 -->
-			<fileNamePattern>${log.path}/sys-info.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<fileNamePattern>${log.path}/sys-info.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<!-- 单文件上限，防止单日大日志无限膨胀 -->
+			<maxFileSize>100MB</maxFileSize>
 			<!-- 日志最大的历史 60天 -->
 			<maxHistory>60</maxHistory>
+			<!-- 该 appender 日志总容量上限，超限淘汰最旧文件 -->
+			<totalSizeCap>2GB</totalSizeCap>
 		</rollingPolicy>
 		<encoder>
 			<pattern>${log.pattern}</pattern>
@@ -38,11 +42,14 @@
 	<appender name="file_error" class="ch.qos.logback.core.rolling.RollingFileAppender">
 	    <file>${log.path}/sys-error.log</file>
         <!-- 循环政策：基于时间创建日志文件 -->
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <!-- 日志文件名格式 -->
-            <fileNamePattern>${log.path}/sys-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${log.path}/sys-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单文件上限，防止单日大日志无限膨胀 -->
+            <maxFileSize>100MB</maxFileSize>
 			<!-- 日志最大的历史 60天 -->
 			<maxHistory>60</maxHistory>
+			<totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${log.pattern}</pattern>
@@ -60,11 +67,14 @@
 	<!-- 用户访问日志输出  -->
     <appender name="sys-user" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>${log.path}/sys-user.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <!-- 按天回滚 daily -->
-            <fileNamePattern>${log.path}/sys-user.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${log.path}/sys-user.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单文件上限，防止单日大日志无限膨胀 -->
+            <maxFileSize>100MB</maxFileSize>
             <!-- 日志最大的历史 60天 -->
             <maxHistory>60</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${log.pattern}</pattern>
@@ -78,13 +88,10 @@
 
 	<root level="info">
 		<appender-ref ref="console" />
+		<!--系统操作日志-->
+		<appender-ref ref="file_info" />
+		<appender-ref ref="file_error" />
 	</root>
-	
-	<!--系统操作日志-->
-    <root level="info">
-        <appender-ref ref="file_info" />
-        <appender-ref ref="file_error" />
-    </root>
 	
 	<!--系统用户操作日志-->
     <logger name="sys-user" level="info">

@@ -181,18 +181,26 @@ public class CollectDataServiceImpl implements ICollectDataService {
             throw new ServiceException("导出数据过多，请缩小筛选范围");
         }
 
-        // 一次性批量取回全部单元格快照并按 data_id 分组，避免逐条记录查询
-        Map<Long, List<CollectDataCell>> cellsByDataId = loadCellsByDataId(list);
-
-        // 先确定每条记录的备注，再写汇总表，保证“备注”列同步导出
+        // 先按 data_id 计数再决定加载哪些快照，避免把超额快照整体载入内存后才拒绝
+        Map<Long, Long> cellCounts = countCellsByDataId(list);
         for (CollectData record : list) {
-            List<CollectDataCell> cells = cellsByDataId.get(record.getDataId());
-            if (cells == null || cells.isEmpty()) {
+            Long count = cellCounts.get(record.getDataId());
+            if (count == null || count == 0) {
                 record.setExportNote("无填报内容");
-            } else if (cells.size() > EXPORT_MAX_CELLS_PER_RECORD) {
+            } else if (count > EXPORT_MAX_CELLS_PER_RECORD) {
                 record.setExportNote("内容过大未导出");
             }
         }
+        List<Long> loadableIds = new ArrayList<>(list.size());
+        for (CollectData record : list) {
+            Long count = cellCounts.get(record.getDataId());
+            if (count != null && count > 0 && count <= EXPORT_MAX_CELLS_PER_RECORD) {
+                loadableIds.add(record.getDataId());
+            }
+        }
+
+        // 仅加载限额内的记录单元格快照，仍按 data_id 分组批量取回，避免逐条记录查询
+        Map<Long, List<CollectDataCell>> cellsByDataId = loadCellsByDataIds(loadableIds);
 
         SXSSFWorkbook wb = new SXSSFWorkbook(500);
         boolean success = false;
@@ -225,15 +233,31 @@ public class CollectDataServiceImpl implements ICollectDataService {
         }
     }
 
-    /** 批量查询单元格快照并按 data_id 分组 */
-    private Map<Long, List<CollectDataCell>> loadCellsByDataId(List<CollectData> list) {
-        Map<Long, List<CollectDataCell>> result = new HashMap<>();
+    /** 按填报记录统计单元格快照数：data_id → 行数 */
+    private Map<Long, Long> countCellsByDataId(List<CollectData> list) {
+        Map<Long, Long> result = new HashMap<>();
         if (list.isEmpty()) {
             return result;
         }
         List<Long> dataIds = new ArrayList<>(list.size());
         for (CollectData record : list) {
             dataIds.add(record.getDataId());
+        }
+        for (Map<String, Object> row : collectDataCellMapper.countCollectDataCellByDataIds(dataIds)) {
+            Object dataId = row.get("dataId");
+            Object cellCount = row.get("cellCount");
+            if (dataId instanceof Number id && cellCount instanceof Number count) {
+                result.put(id.longValue(), count.longValue());
+            }
+        }
+        return result;
+    }
+
+    /** 批量查询单元格快照并按 data_id 分组 */
+    private Map<Long, List<CollectDataCell>> loadCellsByDataIds(List<Long> dataIds) {
+        Map<Long, List<CollectDataCell>> result = new HashMap<>();
+        if (dataIds.isEmpty()) {
+            return result;
         }
         for (CollectDataCell cell : collectDataCellMapper.selectCollectDataCellByDataIds(dataIds)) {
             result.computeIfAbsent(cell.getDataId(), key -> new ArrayList<>()).add(cell);

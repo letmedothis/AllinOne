@@ -19,7 +19,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -154,6 +156,8 @@ class CollectDataServiceImplTest {
         CollectData multi = submittedRecord(2L, "TPL_B");
         when(dataMapper.selectCollectDataList(query)).thenReturn(new ArrayList<>(Arrays.asList(single, multi)));
         // 快照故意乱序返回，验证按 data_id 分组与按坐标重建网格
+        when(cellMapper.countCollectDataCellByDataIds(Arrays.asList(1L, 2L))).thenReturn(Arrays.asList(
+            cellCount(1L, 3), cellCount(2L, 2)));
         when(cellMapper.selectCollectDataCellByDataIds(Arrays.asList(1L, 2L))).thenReturn(Arrays.asList(
             cell(1L, 0, 1, 1, "张三"),
             cell(1L, 0, 1, 0, "姓名"),
@@ -209,7 +213,7 @@ class CollectDataServiceImplTest {
         CollectData query = new CollectData();
         CollectData empty = submittedRecord(1L, "TPL_EMPTY");
         when(dataMapper.selectCollectDataList(query)).thenReturn(new ArrayList<>(List.of(empty)));
-        when(cellMapper.selectCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of());
+        when(cellMapper.countCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of());
 
         XSSFWorkbook wb = exportAndReopen(service.exportWorkbook(query));
 
@@ -230,12 +234,9 @@ class CollectDataServiceImplTest {
     void exportSkipsOversizedSnapshotWithNote() throws IOException {
         CollectData query = new CollectData();
         CollectData oversized = submittedRecord(1L, "TPL_BIG");
-        List<CollectDataCell> cells = new ArrayList<>();
-        for (int i = 0; i < 50001; i++) {
-            cells.add(cell(1L, 0, i, 0, "v" + i));
-        }
+        // 计数超限（50001 > 50000）即标记“内容过大未导出”，快照不再加载
         when(dataMapper.selectCollectDataList(query)).thenReturn(new ArrayList<>(List.of(oversized)));
-        when(cellMapper.selectCollectDataCellByDataIds(List.of(1L))).thenReturn(cells);
+        when(cellMapper.countCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of(cellCount(1L, 50001)));
 
         XSSFWorkbook wb = exportAndReopen(service.exportWorkbook(query));
 
@@ -253,6 +254,7 @@ class CollectDataServiceImplTest {
         CollectData query = new CollectData();
         CollectData record = submittedRecord(1L, "A/B\\C:D*E?F[G]H_0123456789012345678901");
         when(dataMapper.selectCollectDataList(query)).thenReturn(new ArrayList<>(List.of(record)));
+        when(cellMapper.countCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of(cellCount(1L, 1)));
         when(cellMapper.selectCollectDataCellByDataIds(List.of(1L))).thenReturn(List.of(cell(1L, 0, 0, 0, "v")));
 
         XSSFWorkbook wb = exportAndReopen(service.exportWorkbook(query));
@@ -295,6 +297,14 @@ class CollectDataServiceImplTest {
         cell.setColIndex(colIndex);
         cell.setCellValue(value);
         return cell;
+    }
+
+    /** 模拟 countCollectDataCellByDataIds 的计数行（dataId/cellCount） */
+    private static Map<String, Object> cellCount(long dataId, long count) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("dataId", dataId);
+        row.put("cellCount", count);
+        return row;
     }
 
     private CollectData draftOwnedByAlice() {

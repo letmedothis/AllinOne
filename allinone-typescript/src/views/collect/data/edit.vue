@@ -92,6 +92,7 @@
         :sheetData="form.formData"
         :readonly="submitStatus === 'submitted'"
         :height="700"
+        @touch="onSheetTouch"
         @change="onSheetChange"
         @save="onSheetSave"
       />
@@ -234,7 +235,7 @@ function loadData() {
   })
 }
 
-/** 表格数据变更 */
+/** 表格数据变更（CollectSheet 已做 300ms 防抖） */
 function onSheetChange(data: any) {
   form.value.formData = typeof data === 'string' ? data : JSON.stringify(data)
   // 初始加载模板也会触发一次 change，不算作用户修改
@@ -242,6 +243,12 @@ function onSheetChange(data: any) {
     pendingLoadChange = false
     return
   }
+  dirty.value = true
+}
+
+/** 用户开始编辑（即时信号，先于防抖的 change）：立刻置脏以驱动离开提示 */
+function onSheetTouch() {
+  if (pendingLoadChange) return
   dirty.value = true
 }
 
@@ -253,6 +260,16 @@ function onSheetSave(data: any) {
 /** 手动保存草稿（带成功/失败提示） */
 function handleSaveDraft() {
   return saveDraft(false)
+}
+
+/**
+ * 合并服务端返回的元数据（dataId/version/updateTime 等）到本地表单。
+ * 后端不再回传大体积 formData，本地副本以刚提交的内容为准，不可覆盖。
+ */
+function mergeServerMeta(data: CollectData | undefined | null) {
+  if (!data) return
+  const { formData: _ignored, ...meta } = data
+  form.value = { ...form.value, ...meta }
 }
 
 /** 保存草稿（silent=true 时为自动保存：不弹成功提示，失败提示去重） */
@@ -272,11 +289,11 @@ async function saveDraft(silent = false) {
 
     if (form.value.dataId) {
       const response = await updateData(form.value)
-      form.value = response.data || form.value
+      mergeServerMeta(response.data)
       if (!silent) proxy.$modal.msgSuccess('草稿已更新')
     } else {
       const res: any = await addData(form.value)
-      form.value = res.data || form.value
+      mergeServerMeta(res.data)
       router.replace({ query: { ...route.query, id: form.value.dataId } })
       if (!silent) proxy.$modal.msgSuccess('草稿已保存')
     }
@@ -365,10 +382,10 @@ async function handleSubmit() {
       let dataId = form.value.dataId
       if (dataId) {
         const response = await updateData(form.value)
-        form.value = response.data || form.value
+        mergeServerMeta(response.data)
       } else {
         const res: any = await addData(form.value)
-        form.value = res.data || form.value
+        mergeServerMeta(res.data)
         dataId = form.value.dataId
       }
       // 草稿已随提交落库，清脏

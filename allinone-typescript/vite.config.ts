@@ -36,11 +36,21 @@ function luckysheetStatic(): Plugin {
         fs.createReadStream(fp).pipe(res)
       })
     },
-    // 生产构建后随产物发布，保证线上路径一致
+    // 生产构建后随产物发布，保证线上路径一致。
+    // sourcemap / demo 页 / 演示数据仅供本地调试，剔除后发布体积减少约 10MB
     closeBundle() {
       const dest = path.resolve(__dirname, 'dist/luckysheet')
       if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true })
-      fs.cpSync(luckysheetDist, dest, { recursive: true })
+      fs.cpSync(luckysheetDist, dest, {
+        recursive: true,
+        filter: (src) => {
+          const base = path.basename(src)
+          if (base.endsWith('.map')) return false
+          if (base === 'demoData') return false
+          if (path.relative(luckysheetDist, src) === 'index.html') return false
+          return true
+        }
+      })
       console.log('[luckysheet-static-assets] copied dist ->', dest)
     }
   }
@@ -73,12 +83,20 @@ export default defineConfig(({ mode, command }) => {
       sourcemap: command === 'build' ? false : 'inline',
       outDir: 'dist',
       assetsDir: 'assets',
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 1500,
       rollupOptions: {
         output: {
           chunkFileNames: 'static/js/[name]-[hash].js',
           entryFileNames: 'static/js/[name]-[hash].js',
-          assetFileNames: 'static/[ext]/[name]-[hash].[ext]'
+          assetFileNames: 'static/[ext]/[name]-[hash].[ext]',
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return undefined
+            // vendor 拆分：大依赖独立成 chunk，业务迭代时充分利用浏览器长缓存
+            if (id.includes('element-plus')) return 'element-plus'
+            if (id.includes('echarts')) return 'echarts'
+            if (id.includes('/quill/') || id.includes('vue-quill')) return 'editor'
+            return 'vendor'
+          }
         }
       }
     },

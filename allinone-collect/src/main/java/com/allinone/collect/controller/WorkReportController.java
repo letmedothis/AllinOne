@@ -88,7 +88,8 @@ public class WorkReportController extends BaseController
     // ==================== Sheet 保存/加载 ====================
     @SuppressWarnings("unchecked")
     @PreAuthorize("@ss.hasPermi('collect:report:edit')")
-    @Log(title = "报表Sheet", businessType = BusinessType.UPDATE)
+    // 请求体含全部 Sheet 元数据，不落库到操作日志
+    @Log(title = "报表Sheet", businessType = BusinessType.UPDATE, isSaveRequestData = false)
     @PutMapping("/sheet/{reportId}")
     @Transactional(rollbackFor = Exception.class)
     public AjaxResult saveSheet(@PathVariable String reportId, @RequestBody Map<String, Object> body) {
@@ -206,7 +207,8 @@ public class WorkReportController extends BaseController
         return success(workReportCellService.selectCellsByRange(sheetDbId, startRow, endRow, startCol, endCol));
     }
     @PreAuthorize("@ss.hasPermi('collect:report:edit')")
-    @Log(title = "报表单元格", businessType = BusinessType.UPDATE)
+    // 请求体最多 5000 个单元格（每个含完整单元格 JSON），不落库到操作日志
+    @Log(title = "报表单元格", businessType = BusinessType.UPDATE, isSaveRequestData = false)
     @PutMapping("/cells")
     @Transactional(rollbackFor = Exception.class)
     public AjaxResult saveCells(@RequestBody Map<String, Object> body) {

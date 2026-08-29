@@ -58,6 +58,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
+  /** 即时编辑信号（无数据）：让父组件第一时间置脏，用于离开提示等场景 */
+  touch: []
+  /** 防抖后的全量数据变更 */
   change: [data: any]
   save: [data: any]
 }>()
@@ -97,9 +100,9 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
       showstatisticBar: !props.readonly,
       sheetFormulaBar: !props.readonly,
       allowCopy: true,
-      // 启用内置图表插件（chartmix）：由 luckysheet 按此清单动态加载，
-      // 依赖公网 CDN 的 vue2/vuex/element-ui/echarts，离线环境不可用
-      plugins: ['chart'],
+      // 图表插件（chartmix）依赖约 1.8MB 的 vue2/element-ui/echarts 本地库：
+      // 仅在可编辑、或工作簿本身包含图表（只读时需要渲染）时才加载
+      plugins: props.readonly && !workbookHasCharts(initialData) ? [] : ['chart'],
       myFolderUrl: '',
       hook: {
         cellUpdated: (cell: any, r: number, c: number) => {
@@ -135,6 +138,19 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
 
 /** 动态加载 Luckysheet 依赖(共享加载器:plugin.js 内含 jQuery,先于主库执行) */
 
+/** 判断工作簿（数组或 {sheets:[...]} 结构）是否包含图表定义 */
+function workbookHasCharts(data: string | Record<string, any> | null): boolean {
+  if (!data) return false
+  try {
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data
+    const sheets = Array.isArray(parsed) ? parsed : parsed?.sheets
+    return Array.isArray(sheets) && sheets.some((s: any) => Array.isArray(s?.chart) && s.chart.length > 0)
+  } catch {
+    // 解析失败时按包含图表处理，避免只读页丢失图表渲染
+    return true
+  }
+}
+
 /** 获取当前表格数据 */
 function getData(): any {
   const luckysheet = (window as any).luckysheet
@@ -168,10 +184,18 @@ async function loadData(data: string | Record<string, any>) {
   }
 }
 
+/** 表格内容变更防抖计时器：全量序列化整本工作簿开销大，尾沿合并连续击键 */
+let changeDebounceTimer: number | null = null
+
 /** 表格内容变更处理 */
 function handleSheetChange() {
-  const data = getData()
-  emit('change', data)
+  // 即时信号：父组件据此置脏（离开提示依赖它），不等防抖
+  emit('touch')
+  if (changeDebounceTimer !== null) window.clearTimeout(changeDebounceTimer)
+  changeDebounceTimer = window.setTimeout(() => {
+    changeDebounceTimer = null
+    emit('change', getData())
+  }, 300)
 }
 
 /** 保存操作 */
@@ -205,6 +229,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (changeDebounceTimer !== null) {
+    window.clearTimeout(changeDebounceTimer)
+    changeDebounceTimer = null
+  }
   const luckysheet = (window as any).luckysheet
   if (luckysheet?.destroy) luckysheet.destroy()
 })

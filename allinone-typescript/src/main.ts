@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, defineAsyncComponent } from 'vue'
 
 import Cookies from 'js-cookie'
 
@@ -35,8 +35,8 @@ import Pagination from '@/components/Pagination/index.vue'
 import RightToolbar from '@/components/RightToolbar/index.vue'
 // 页面标题头组件
 import PageHeader from '@/components/PageHeader/index.vue'
-// 富文本组件
-import Editor from "@/components/Editor/index.vue"
+// 富文本组件（异步加载：quill 体量大且仅公告页使用，避免打进首屏主包）
+const Editor = defineAsyncComponent(() => import("@/components/Editor/index.vue"))
 // 文件上传组件
 import FileUpload from "@/components/FileUpload/index.vue"
 // 图片上传组件

@@ -32,7 +32,8 @@ WORKDIR /app
 # curl 仅供容器健康检查使用
 ENV TZ=Asia/Shanghai \
     SERVER_PORT=8080 \
-    JAVA_OPTS=""
+    JAVA_OPTS="" \
+    LOG_PATH=/app/logs
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl tzdata \
@@ -40,7 +41,7 @@ RUN apt-get update \
 
 # 非 root 运行
 RUN groupadd -r allinone && useradd -r -g allinone allinone \
-    && mkdir -p /app/uploadPath && chown -R allinone:allinone /app
+    && mkdir -p /app/uploadPath /app/logs && chown -R allinone:allinone /app
 USER allinone
 
 COPY --from=builder /build/allinone-admin/target/allinone-admin.jar app.jar

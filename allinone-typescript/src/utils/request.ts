@@ -88,7 +88,9 @@ service.interceptors.response.use((res: any) => {
         ElMessageBox.confirm('登录状态已过期，您可以继续留在该页面，或者重新登录', '系统提示', { confirmButtonText: '重新登录', cancelButtonText: '取消', type: 'warning' }).then(() => {
           isRelogin.show = false
           useUserStore().logOut().then(() => {
-            location.href = '/index'
+            // 携带当前页地址，重新登录后可回到原页面（登录页已支持 redirect 参数）
+            const current = encodeURIComponent(window.location.pathname + window.location.search)
+            location.href = `/login?redirect=${current}`
           })
       }).catch(() => {
         isRelogin.show = false
@@ -130,6 +132,8 @@ export function download(url: string, params: any, filename: string, config?: an
     transformRequest: [(params: any) => { return tansParams(params) }],
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     responseType: 'blob',
+    // 导出/下载耗时较长，默认放宽到 2 分钟，可经 config 覆盖
+    timeout: 120000,
     ...config
   }).then(async (data: any) => {
     const isBlob = blobValidate(data)
@@ -145,7 +149,11 @@ export function download(url: string, params: any, filename: string, config?: an
     downloadLoadingInstance.close()
   }).catch((r: any) => {
     console.error(r)
-    ElMessage.error('下载文件出现错误，请联系管理员！')
+    // 区分常见失败原因，避免笼统提示让用户无从判断
+    const reason = r?.message?.includes('timeout') ? '导出耗时超过 2 分钟，请缩小数据范围后重试'
+      : r?.response?.status === 403 ? '没有导出权限'
+      : r?.response?.status ? `服务异常（${r.response.status}）` : '网络异常或服务不可用'
+    ElMessage.error(`下载文件出现错误：${reason}`)
     downloadLoadingInstance.close()
   })
 }
