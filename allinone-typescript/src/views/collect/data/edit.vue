@@ -4,6 +4,7 @@
     <page-header :title="pageTitle" @back="handleBack">
       <template #extra>
         <el-space>
+          <el-text v-if="lastAutoSaveTime" size="small" type="info">{{ lastAutoSaveTime }}</el-text>
           <el-button @click="handleBack">返回</el-button>
           <el-button v-if="submitStatus !== 'submitted'" type="primary" :loading="saving" @click="handleSaveDraft">
             保存草稿
@@ -25,7 +26,13 @@
       </template>
       <el-form :inline="true">
         <el-form-item label="模板">
-          <el-select v-model="selectedTemplateId" placeholder="请选择模板" style="width: 300px" @change="onTemplateChange">
+          <el-select
+            v-model="selectedTemplateId"
+            :placeholder="templatesLoading ? '模板列表加载中...' : '请选择模板'"
+            :disabled="templatesLoading"
+            style="width: 300px"
+            @change="onTemplateChange"
+          >
             <el-option
               v-for="item in publishedTemplates"
               :key="item.templateId"
@@ -109,6 +116,22 @@ const saving = ref<boolean>(false)
 const submitting = ref<boolean>(false)
 const sheetKey = ref<number>(0)
 
+/** 自动保存间隔（毫秒） */
+const AUTO_SAVE_INTERVAL = 30 * 1000
+/** 表格自上次保存后是否有变更（脏标记） */
+const dirty = ref<boolean>(false)
+/** 最近一次自动保存的状态文本（如“已自动保存 14:30”） */
+const lastAutoSaveTime = ref<string>('')
+/** 自动保存定时器 */
+let autoSaveTimer: number | null = null
+/** 自动保存失败是否已提示过（连续失败只提示一次，恢复成功后重新允许提示） */
+let autoSaveErrorNotified = false
+/** 表格（重）加载后忽略 change 事件的静默窗口时长：等待 Luckysheet 初始化及模板公式重算 */
+const LOAD_CHANGE_SKIP_MS = 5 * 1000
+/** 加载静默窗口标记：窗口内的 change 视为加载引起，不算用户修改 */
+let pendingLoadChange = false
+let loadChangeSkipTimer: number | null = null
+
 /** 是否为只读查看模式（从数据列表查看进入） */
 const isEdit = computed(() => !!route.query.id)
 
@@ -144,10 +167,26 @@ const form = ref<CollectData>({
   version: 1
 })
 
+/** 模板列表加载中（请求未返回前禁用下拉，避免误认为无数据） */
+const templatesLoading = ref<boolean>(false)
+
+/** 表格（重）加载后开启 change 静默窗口；若加载未触发 change 则超时自动解除，避免吞掉用户首次编辑 */
+function armLoadChangeSkip() {
+  pendingLoadChange = true
+  if (loadChangeSkipTimer !== null) window.clearTimeout(loadChangeSkipTimer)
+  loadChangeSkipTimer = window.setTimeout(() => {
+    pendingLoadChange = false
+    loadChangeSkipTimer = null
+  }, LOAD_CHANGE_SKIP_MS)
+}
+
 /** 加载已发布的模板列表 */
 function loadPublishedTemplates() {
+  templatesLoading.value = true
   listTemplate({ pageNum: 1, pageSize: 100, status: '1' }).then(response => {
     publishedTemplates.value = response.rows
+  }).finally(() => {
+    templatesLoading.value = false
   })
 }
 
@@ -161,6 +200,9 @@ async function onTemplateChange(id: number) {
   if (tmpl?.templateJson) {
     form.value.formData = tmpl.templateJson
   }
+  // 新模板内容尚未产生用户修改，重置脏标记并跳过加载引起的 change
+  dirty.value = false
+  armLoadChangeSkip()
   // 刷新sheet
   sheetKey.value++
 }
@@ -175,6 +217,9 @@ function loadData() {
     form.value = data
     templateId.value = data.templateId
     submitStatus.value = data.bizStatus || 'draft'
+    // 已有数据重新加载，重置脏标记并跳过加载引起的 change
+    dirty.value = false
+    armLoadChangeSkip()
     sheetKey.value++
 
     // 加载模板信息
@@ -192,6 +237,12 @@ function loadData() {
 /** 表格数据变更 */
 function onSheetChange(data: any) {
   form.value.formData = typeof data === 'string' ? data : JSON.stringify(data)
+  // 初始加载模板也会触发一次 change，不算作用户修改
+  if (pendingLoadChange) {
+    pendingLoadChange = false
+    return
+  }
+  dirty.value = true
 }
 
 /** 表格保存事件 */
@@ -199,10 +250,15 @@ function onSheetSave(data: any) {
   form.value.formData = typeof data === 'string' ? data : JSON.stringify(data)
 }
 
-/** 保存草稿 */
-async function handleSaveDraft() {
+/** 手动保存草稿（带成功/失败提示） */
+function handleSaveDraft() {
+  return saveDraft(false)
+}
+
+/** 保存草稿（silent=true 时为自动保存：不弹成功提示，失败提示去重） */
+async function saveDraft(silent = false) {
   if (!templateId.value) {
-    proxy.$modal.msgWarning('请选择模板')
+    if (!silent) proxy.$modal.msgWarning('请选择模板')
     return
   }
   saving.value = true
@@ -217,18 +273,77 @@ async function handleSaveDraft() {
     if (form.value.dataId) {
       const response = await updateData(form.value)
       form.value = response.data || form.value
-      proxy.$modal.msgSuccess('草稿已更新')
+      if (!silent) proxy.$modal.msgSuccess('草稿已更新')
     } else {
       const res: any = await addData(form.value)
       form.value = res.data || form.value
       router.replace({ query: { ...route.query, id: form.value.dataId } })
-      proxy.$modal.msgSuccess('草稿已保存')
+      if (!silent) proxy.$modal.msgSuccess('草稿已保存')
+    }
+    // 保存成功：清脏；自动保存记录状态文本并恢复失败提示
+    dirty.value = false
+    if (silent) {
+      autoSaveErrorNotified = false
+      lastAutoSaveTime.value = formatAutoSaveTime(new Date())
     }
   } catch (e) {
-    proxy.$modal.msgError('保存草稿失败')
+    if (silent) {
+      // 自动保存连续失败只提示一次，恢复成功后重新允许提示
+      if (!autoSaveErrorNotified) {
+        autoSaveErrorNotified = true
+        proxy.$modal.msgError('自动保存草稿失败，请检查网络后手动保存')
+      }
+    } else {
+      proxy.$modal.msgError('保存草稿失败')
+    }
     console.error('保存草稿失败:', e)
   } finally {
     saving.value = false
+  }
+}
+
+/** ===== 草稿自动保存 ===== */
+
+/** 格式化自动保存状态文本 HH:mm */
+function formatAutoSaveTime(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `已自动保存 ${hh}:${mm}`
+}
+
+/** 是否满足自动保存条件：已选模板且非已提交（只读）状态 */
+const autoSaveEnabled = computed(() => !!templateId.value && submitStatus.value !== 'submitted')
+
+/** 启动自动保存定时器 */
+function startAutoSave() {
+  if (autoSaveTimer !== null) return
+  autoSaveTimer = window.setInterval(() => {
+    // 仅当自上次保存后表格有变更时才静默保存，保存/提交进行中跳过
+    if (!dirty.value || saving.value || submitting.value) return
+    saveDraft(true)
+  }, AUTO_SAVE_INTERVAL)
+}
+
+/** 停止自动保存定时器 */
+function stopAutoSave() {
+  if (autoSaveTimer !== null) {
+    window.clearInterval(autoSaveTimer)
+    autoSaveTimer = null
+  }
+}
+
+// 模板已选择且为草稿态时启动定时器；提交成功或只读状态停止
+watch(autoSaveEnabled, (enabled) => {
+  if (enabled) startAutoSave()
+  else stopAutoSave()
+})
+
+/** 关闭/刷新页面前，存在未保存修改时提示用户 */
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value && submitStatus.value !== 'submitted') {
+    e.preventDefault()
+    // Chrome 需要 returnValue 才会弹出确认框
+    e.returnValue = ''
   }
 }
 
@@ -256,11 +371,15 @@ async function handleSubmit() {
         form.value = res.data || form.value
         dataId = form.value.dataId
       }
+      // 草稿已随提交落库，清脏
+      dirty.value = false
 
       // 执行提交
       if (dataId) {
         await submitData(dataId)
         submitStatus.value = 'submitted'
+        // 提交成功后数据只读，停止草稿自动保存
+        stopAutoSave()
         proxy.$modal.msgSuccess('提交成功')
       }
     } catch (e) {
@@ -278,11 +397,21 @@ function handleBack() {
 }
 
 onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
   if (route.query.id) {
     loadData()
   } else {
     loadPublishedTemplates()
   }
+})
+
+onUnmounted(() => {
+  stopAutoSave()
+  if (loadChangeSkipTimer !== null) {
+    window.clearTimeout(loadChangeSkipTimer)
+    loadChangeSkipTimer = null
+  }
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
 
