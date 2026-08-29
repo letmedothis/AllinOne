@@ -56,4 +56,32 @@ class ReportConfigServiceImplTest {
         assertThat(config.getReportId()).isLessThanOrEqualTo(9_007_199_254_740_991L);
         verify(mapper).insertReportConfig(config);
     }
+
+    @Test
+    void insertRejectsDuplicateCodeIncludingSoftDeletedRows() {
+        ReportConfig config = new ReportConfig();
+        config.setReportCode("dup_code");
+        setLoginContext();
+        when(mapper.countReportCodeConflict("dup_code", null)).thenReturn(1);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.insertReportConfig(config))
+                .isInstanceOf(com.allinone.common.exception.ServiceException.class)
+                .hasMessageContaining("报表编码已存在");
+        verify(mapper).countReportCodeConflict("dup_code", null);
+    }
+
+    @Test
+    void updateChecksCodeConflictExcludingItself() {
+        ReportConfig config = new ReportConfig();
+        config.setReportId(7L);
+        config.setReportCode("kept_code");
+        setLoginContext();
+        when(mapper.countReportCodeConflict("kept_code", 7L)).thenReturn(0);
+        when(mapper.updateReportConfig(config)).thenReturn(1);
+
+        service.updateReportConfig(config);
+
+        verify(mapper).countReportCodeConflict("kept_code", 7L);
+        verify(mapper).updateReportConfig(config);
+    }
 }

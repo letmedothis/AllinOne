@@ -37,6 +37,13 @@
         order by rc.order_num
     </select>
 
+    <!-- 编码唯一索引覆盖全部行(含软删),前置查重须不过滤 del_flag -->
+    <select id="countReportCodeConflict" resultType="int">
+        select count(*) from report_config
+        where report_code = #{reportCode}
+        <if test="excludeId != null">and report_id != #{excludeId}</if>
+    </select>
+
     <select id="selectReportConfigById" parameterType="Long" resultMap="ReportConfigResult">
         <include refid="selectReportConfigVo"/> where rc.report_id = #{reportId}
     </select>

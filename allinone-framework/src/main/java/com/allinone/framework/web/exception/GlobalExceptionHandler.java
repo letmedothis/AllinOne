@@ -3,6 +3,8 @@ package com.allinone.framework.web.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -21,10 +23,16 @@ import com.allinone.common.utils.html.EscapeUtil;
 
 /**
  * 全局异常处理器
- * 
+ *
+ * 限定扫描 com.allinone 包并置于最高优先级:JimuReport starter 自带的无范围
+ * RestControllerAdvice 会以 {success,message,...} 格式拦截业务异常,导致前端
+ * 读取 msg 字段失败而显示"系统未知错误";限定后第三方引擎端点(org.jeecg)
+ * 的异常仍由其自有处理器按原格式返回。
+ *
  * @author ruoyi
  */
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.allinone")
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler
 {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);

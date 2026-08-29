@@ -48,6 +48,13 @@
         <include refid="selectCollectTemplateVo"/> where ct.template_code = #{templateCode} and ct.del_flag = '0'
     </select>
 
+    <!-- 编码唯一索引覆盖全部行(含软删),前置查重须不过滤 del_flag -->
+    <select id="countTemplateCodeConflict" resultType="int">
+        select count(*) from collect_template
+        where template_code = #{templateCode}
+        <if test="excludeId != null">and template_id != #{excludeId}</if>
+    </select>
+
     <insert id="insertCollectTemplate" parameterType="CollectTemplate">
         insert into collect_template (template_id, template_name, template_code, category_id, template_type, template_json, status, version, remark, del_flag, create_by, create_time)
         values (#{templateId}, #{templateName}, #{templateCode}, #{categoryId}, #{templateType}, #{templateJson}, #{status}, 1, #{remark}, '0', #{createBy}, #{createTime})

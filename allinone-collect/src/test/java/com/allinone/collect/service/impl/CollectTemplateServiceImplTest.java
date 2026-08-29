@@ -48,6 +48,46 @@ class CollectTemplateServiceImplTest {
         verify(mapper).updateCollectTemplate(template);
     }
 
+    @Test
+    void insertRejectsDuplicateCodeIncludingSoftDeletedRows() {
+        CollectTemplate template = new CollectTemplate();
+        template.setTemplateCode("dup_code");
+        when(mapper.countTemplateCodeConflict("dup_code", null)).thenReturn(1);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.insertCollectTemplate(template))
+                .isInstanceOf(com.allinone.common.exception.ServiceException.class)
+                .hasMessageContaining("模板编码已存在");
+        verify(mapper).countTemplateCodeConflict("dup_code", null);
+    }
+
+    @Test
+    void insertAcceptsUniqueCode() {
+        CollectTemplate template = new CollectTemplate();
+        template.setTemplateCode("fresh_code");
+        when(mapper.countTemplateCodeConflict("fresh_code", null)).thenReturn(0);
+        when(mapper.insertCollectTemplate(template)).thenReturn(1);
+
+        service.insertCollectTemplate(template);
+
+        assertThat(template.getStatus()).isEqualTo("0");
+        verify(mapper).insertCollectTemplate(template);
+    }
+
+    @Test
+    void updateChecksCodeConflictExcludingItself() {
+        CollectTemplate template = new CollectTemplate();
+        template.setTemplateId(5L);
+        template.setVersion(2);
+        template.setTemplateCode("kept_code");
+        when(mapper.countTemplateCodeConflict("kept_code", 5L)).thenReturn(0);
+        when(mapper.updateCollectTemplate(template)).thenReturn(1);
+
+        service.updateCollectTemplate(template);
+
+        verify(mapper).countTemplateCodeConflict("kept_code", 5L);
+        verify(mapper).updateCollectTemplate(template);
+    }
+
     private static final class TestableCollectTemplateService extends CollectTemplateServiceImpl {
         @Override
         protected String currentUsername() {

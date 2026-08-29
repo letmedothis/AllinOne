@@ -1,5 +1,6 @@
 package com.allinone.report.service.impl;
 
+import com.allinone.common.exception.ServiceException;
 import com.allinone.common.utils.DateUtils;
 import com.allinone.common.utils.SecurityUtils;
 import com.allinone.common.utils.StringUtils;
@@ -40,6 +41,7 @@ public class ReportConfigServiceImpl implements IReportConfigService {
 
     @Override
     public int insertReportConfig(ReportConfig config) {
+        checkCodeConflict(config.getReportCode(), null);
         config.setReportId(IdUtils.nextLongId());
         config.setCreateBy(SecurityUtils.getUsername());
         config.setCreateTime(DateUtils.getNowDate());
@@ -48,6 +50,7 @@ public class ReportConfigServiceImpl implements IReportConfigService {
 
     @Override
     public int updateReportConfig(ReportConfig config) {
+        checkCodeConflict(config.getReportCode(), config.getReportId());
         config.setUpdateBy(SecurityUtils.getUsername());
         config.setUpdateTime(DateUtils.getNowDate());
         return reportConfigMapper.updateReportConfig(config);
@@ -56,6 +59,19 @@ public class ReportConfigServiceImpl implements IReportConfigService {
     @Override
     public int deleteReportConfigByIds(Long[] reportIds) {
         return reportConfigMapper.deleteReportConfigByIds(reportIds);
+    }
+
+    /**
+     * 报表编码前置查重:report_code 上的唯一索引覆盖全部行(含软删),
+     * 不拦截会让重复插入以"系统未知错误"形式抛出原始 DuplicateKeyException
+     */
+    private void checkCodeConflict(String reportCode, Long excludeId) {
+        if (StringUtils.isEmpty(reportCode)) {
+            return;
+        }
+        if (reportConfigMapper.countReportCodeConflict(reportCode, excludeId) > 0) {
+            throw new ServiceException("报表编码已存在(已删除报表的编码同样占用),请更换编码");
+        }
     }
 
     /**

@@ -30,6 +30,7 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
 
     @Override
     public int insertCollectTemplate(CollectTemplate template) {
+        checkCodeConflict(template.getTemplateCode(), null);
         template.setTemplateId(IdUtils.nextLongId());
         template.setCreateTime(DateUtils.getNowDate());
         template.setCreateBy(currentUsername());
@@ -44,6 +45,7 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
         if (template.getTemplateId() == null || template.getVersion() == null) {
             throw new ServiceException("缺少模板ID或版本号");
         }
+        checkCodeConflict(template.getTemplateCode(), template.getTemplateId());
         template.setStatus(null);
         template.setUpdateTime(DateUtils.getNowDate());
         template.setUpdateBy(currentUsername());
@@ -52,6 +54,19 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
             throw new ServiceException("模板已被其他用户更新，请刷新后重试");
         }
         return rows;
+    }
+
+    /**
+     * 模板编码前置查重:template_code 上的唯一索引覆盖全部行(含软删),
+     * 不拦截会让重复插入以"系统未知错误"形式抛出原始 DuplicateKeyException
+     */
+    private void checkCodeConflict(String templateCode, Long excludeId) {
+        if (templateCode == null || templateCode.isEmpty()) {
+            return;
+        }
+        if (collectTemplateMapper.countTemplateCodeConflict(templateCode, excludeId) > 0) {
+            throw new ServiceException("模板编码已存在(已删除模板的编码同样占用),请更换编码");
+        }
     }
 
     @Override
