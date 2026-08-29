@@ -30,6 +30,9 @@ public class CollectData extends BaseEntity {
     private String submitBy;
     @Excel(name = "提交时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date submitTime;
+    /** 导出备注列：仅用于导出汇总表展示（如“内容过大未导出”），不映射数据库字段 */
+    @Excel(name = "备注")
+    private String exportNote;
 
     public Long getDataId() { return dataId; }
     public void setDataId(Long dataId) { this.dataId = dataId; }
@@ -55,6 +58,8 @@ public class CollectData extends BaseEntity {
     public void setSubmitBy(String submitBy) { this.submitBy = submitBy; }
     public Date getSubmitTime() { return submitTime; }
     public void setSubmitTime(Date submitTime) { this.submitTime = submitTime; }
+    public String getExportNote() { return exportNote; }
+    public void setExportNote(String exportNote) { this.exportNote = exportNote; }
 
     @Override
     public String toString() { return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
