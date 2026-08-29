@@ -25,17 +25,19 @@ let _colLocation = colLocation
 const luckysheetBase = ((document.querySelector('script[src*="luckysheet.umd.js"]') || {}).src || '/luckysheet/luckysheet.umd.js')
     .replace(/[^/]*$/, '')
 
+// 第三方依赖已本地化到 dist/expendPlugins/chart/lib/（源文件在 src/expendPlugins/chart/lib/，
+// 由 gulp copyStaticExpendPlugins 随构建拷贝），离线/内网环境不再依赖公网 CDN
 const dependScripts = [
-    'https://cdn.jsdelivr.net/npm/vue@2.6.11',
-    'https://unpkg.com/vuex@3.4.0',
-    'https://cdn.bootcdn.net/ajax/libs/element-ui/2.13.2/index.js',
-    'https://cdn.bootcdn.net/ajax/libs/echarts/4.8.0/echarts.min.js',
+    luckysheetBase + 'expendPlugins/chart/lib/vue.min.js',
+    luckysheetBase + 'expendPlugins/chart/lib/vuex.min.js',
+    luckysheetBase + 'expendPlugins/chart/lib/element-ui/index.js',
+    luckysheetBase + 'expendPlugins/chart/lib/echarts.min.js',
     luckysheetBase + 'expendPlugins/chart/chartmix.umd.min.js',
     // 'http://26.26.26.1:8000/chartmix.umd.js'
 ]
 
 const dependLinks = [
-    'https://cdn.bootcdn.net/ajax/libs/element-ui/2.13.2/theme-chalk/index.css',
+    luckysheetBase + 'expendPlugins/chart/lib/element-ui/theme-chalk/index.css',
     luckysheetBase + 'expendPlugins/chart/chartmix.css',
     // 'http://26.26.26.1:8000/chartmix.css'
 ]
@@ -91,12 +93,14 @@ function chart(data, isDemo) {
 
         // Initialize the rendering chart
         for (let i = 0; i < data.length; i++) {
+            if (!data[i] || typeof data[i] !== 'object') continue
             // if (data[i].status == '1') {
                 renderCharts(data[i].chart, isDemo)
             // }
         }
 
         for (let i = 0; i < data.length; i++) {
+            if (!data[i] || typeof data[i] !== 'object') continue
             if (data[i].status == '1') {
                 renderChartShow(data[i].index)
             }
@@ -118,6 +122,10 @@ function renderCharts(chartLists, isDemo) {
 
     for (let i = 0; i < chartLists.length; i++) {
         let chart = chartLists[i]
+
+        // 多 Sheet 工作簿中非活动 Sheet 的 chart 数组可能含 undefined/null 空位，
+        // 跳过单个空位，避免中断本 Sheet 全部图表渲染并向外抛 pageerror
+        if (!chart || typeof chart !== 'object') continue;
 
         if (isDemo) {
             chartInfo.chartparam.insertToStore({ chart_id: chart.chart_id, chartOptions: chart.chartOptions })
@@ -145,10 +153,17 @@ function renderCharts(chartLists, isDemo) {
 
 
         let chart_json
-        chart_json = chartInfo.chartparam.getChartJson(chart.chart_id)
-
-        chartInfo.chartparam.renderChart({ chart_id: chart.chart_id, chartOptions: chart_json })
-        chartInfo.currentChart = chart_json
+        try {
+            // store 中未注册的图表(如历史数据残留)会让 getChartJson/renderChart 抛错,
+            // 单个图表失败只跳过自身,不中断同工作簿其余图表渲染
+            chart_json = chartInfo.chartparam.getChartJson(chart.chart_id)
+            if (!chart_json) continue;
+            chartInfo.chartparam.renderChart({ chart_id: chart.chart_id, chartOptions: chart_json })
+            chartInfo.currentChart = chart_json
+        } catch (e) {
+            console.warn('[luckysheet] skip chart ' + chart.chart_id + ':', e.message)
+            continue;
+        }
 
         //处理区域高亮框参数，当前页中，只有当前的图表的needRangShow为true,其他为false
         showNeedRangeShow(chart_id);
@@ -1368,7 +1383,9 @@ function delChart(chart_id) {
 
     // delete storage
     let sheetFile = chartInfo.luckysheetfile[getSheetIndex(chartInfo.currentSheetIndex)]
-    let index = sheetFile.chart.findIndex(item => item.chart_id == chart_id)
+    if (!sheetFile || !Array.isArray(sheetFile.chart)) return
+    let index = sheetFile.chart.findIndex(item => item && item.chart_id == chart_id)
+    if (index === -1) return
     sheetFile.chart.splice(index, 1)
     // api call
     chartInfo.deleteChart(chart_id)
@@ -1380,13 +1397,20 @@ function showNeedRangeShow(chart_id) {
     let chartLists = chartInfo.luckysheetfile[getSheetIndex(chartInfo.currentSheetIndex)].chart;
 
     for (let chartId in chartLists) {
-        // if (chartLists[chartId].sheetIndex == chartInfo.currentSheetIndex) {
+        let chart = chartLists[chartId]
+        if (!chart || typeof chart !== 'object') continue
+        // if (chart.sheetIndex == chartInfo.currentSheetIndex) {
         //当前sheet的图表先设置为false
-        chartLists[chartId].needRangeShow = false
-        if (chartLists[chartId].chart_id == chart_id) {
-            chartLists[chartId].needRangeShow = true;
+        chart.needRangeShow = false
+        if (chart.chart_id == chart_id) {
+            chart.needRangeShow = true;
 
-            chartInfo.currentChart = chartInfo.getChartJson(chart_id)
+            try {
+                chartInfo.currentChart = chartInfo.getChartJson(chart_id)
+            } catch (e) {
+                // 图表不在 store 中(历史残留)时跳过,避免 pageerror 中断同函数后续图表
+                return;
+            }
         }
         // }
 
@@ -1399,9 +1423,11 @@ function showNeedRangeShow(chart_id) {
 function hideAllNeedRangeShow() {
     let chartLists = chartInfo.luckysheetfile[getSheetIndex(chartInfo.currentSheetIndex)].chart;
     for (let chartId in chartLists) {
-        // if (chartLists[chartId].sheetIndex == chartInfo.currentSheetIndex) {
+        let chart = chartLists[chartId]
+        if (!chart || typeof chart !== 'object') continue
+        // if (chart.sheetIndex == chartInfo.currentSheetIndex) {
         //当前sheet的图表设置为false
-        chartLists[chartId].needRangeShow = false
+        chart.needRangeShow = false
         // }
 
     }
@@ -1514,6 +1540,7 @@ function renderChartShow(index) {
             const chartLists = file.chart || [];
 
             chartLists.forEach((chart) => {
+                if (!chart || typeof chart !== 'object') return
                 chart.isShow = true;
                 $('#' + chart.chart_id + '_c').show();
 
@@ -1522,7 +1549,12 @@ function renderChartShow(index) {
                 if (chart.needRangeShow == true) {
                     //一个sheet页只有一个图表高亮显示,//重要！因为在store了做了存储，所以能在此处找到对应图表设置显示隐藏
                     //操作DOM当前图表选择区域高亮
-                    chartInfo.currentChart = chartInfo.getChartJson(chart.chart_id)
+                    try {
+                        chartInfo.currentChart = chartInfo.getChartJson(chart.chart_id)
+                    } catch (e) {
+                        // 图表不在 store 中(历史残留)时跳过,避免 pageerror
+                        return;
+                    }
                     selectRangeBorderShow(chart.chart_id)
                 }
 
@@ -1535,6 +1567,7 @@ function renderChartShow(index) {
             const chartLists = file.chart || [];
 
             chartLists.forEach((chart) => {
+                if (!chart || typeof chart !== 'object') return
                 chart.isShow = false;
                 $('#' + chart.chart_id + '_c').hide();
             })
