@@ -192,7 +192,7 @@ mysql> SOURCE sql/ry_20260417.sql;
 mysql> SOURCE sql/quartz.sql;
 mysql> SOURCE sql/allinone_biz.sql;
 mysql> SOURCE sql/jimureport.mysql5.7.create.sql;
-mysql> SOURCE sql/allinone_biz_update.sql;   -- work_report 系列表，缺它报表功能不可用
+mysql> SOURCE sql/allinone_biz_update.sql;   -- 业务增量（collect 字段演进、异步导出任务表），必须执行
 mysql> SOURCE sql/allinone_menu.sql;         -- 业务菜单，缺它前端无业务入口
 
 # 2. 设置必需的环境变量（配置文件中无默认值，缺失会启动失败）
@@ -243,7 +243,6 @@ npm run dev
 | 文档 | 说明 |
 |------|------|
 | **[使用手册](doc/使用手册.md)** | 面向业务用户的完整操作手册:登录、填报模板设计、在线填报、草稿与提交、报表查看,含全流程截图、权限速查与常见问题 FAQ |
-| [报表集成指南](doc/REPORT_INTEGRATION_GUIDE.md) | JimuReport/JimuBI 集成配置、数据源与票据鉴权说明 |
 | [SQL 执行顺序](doc/SQL_EXECUTION_ORDER.md) | 初始化脚本的执行顺序与逐条说明 |
 | [浏览器交互回归报告](doc/浏览器交互回归报告_2026-08-29.md) | 关键链路浏览器级回归验证记录(含已知限制) |
 
@@ -355,7 +354,7 @@ server {
 | 2 | sql/quartz.sql | Quartz | 定时任务表 |
 | 3 | sql/allinone_biz.sql | 本项目 | AllinOne 业务表（collect_*/report_*） |
 | 4 | sql/jimureport.mysql5.7.create.sql | 本项目 | JimuReport + JimuBI 全部表（48 张，含已脱敏示例数据） |
-| 5 | sql/allinone_biz_update.sql | 本项目 | work_report / work_report_sheet / work_report_cell / work_report_sheet_permission 增量表（**必须执行**，否则报表管理功能全部 500） |
+| 5 | sql/allinone_biz_update.sql | 本项目 | 业务增量：collect_data_cell/collect_field_mapping 补 sheet_index 并重建唯一键、collect_export_task 异步导出任务表、WorkReport 下线菜单清理（**必须执行**） |
 | 6 | sql/allinone_menu.sql | 本项目 | 业务菜单与按钮权限（**必须执行**，否则前端无业务菜单入口） |
 
 > 完整执行顺序与逐条说明见 [doc/SQL_EXECUTION_ORDER.md](doc/SQL_EXECUTION_ORDER.md)。

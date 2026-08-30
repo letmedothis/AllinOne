@@ -12,7 +12,7 @@
 | 2 | `quartz.sql` | Quartz 定时任务表 | 1 |
 | 3 | `allinone_biz.sql` | AllinOne 业务表 (collect_*, report_*) | 1 |
 | 4 | `jimureport.mysql5.7.create.sql` | JimuReport 积木报表表 | 1 |
-| 5 | `allinone_biz_update.sql` | 报表管理系统增量 (work_report*) | 1, 3 |
+| 5 | `allinone_biz_update.sql` | 业务增量 (collect_* 字段演进、导出任务表、WorkReport 下线清理) | 1, 3 |
 | 6 | `allinone_menu.sql` | AllinOne 业务菜单与权限种子数据 (sys_menu) | 1 |
 
 ---
@@ -45,18 +45,20 @@
 ### 4. jimureport.mysql5.7.create.sql — JimuReport
 积木报表引擎所需表 (jimu_*)
 
-### 5. allinone_biz_update.sql — 报表管理系统增量
-| 表名 | 说明 | 功能 |
-|------|------|------|
-| `work_report` | 报表主表 | 报表管理容器 |
-| `work_report_sheet` | Sheet 管理表 | 多 Sheet 支持 |
-| `work_report_cell` | 单元格数据表 | 大规模数据优化 |
-| `work_report_sheet_permission` | 显式权限分配表 | 双层权限模型 |
+### 5. allinone_biz_update.sql — 业务增量（幂等，可重复执行）
+| 内容 | 说明 |
+|------|------|
+| `collect_data_cell` / `collect_field_mapping` 补 `sheet_index` 并重建唯一键 | 多 Sheet 支持 |
+| `collect_export_task` 异步导出任务表 | 大导出后台生成，前端轮询下载 |
+| WorkReport 下线清理 | 删除 sys_menu 中已下线的 WorkReport 菜单/按钮；`work_report*` 数据表默认保留，确认弃用后可手动执行脚本内注释的 DROP |
+
+> WorkReport（work_report*，原"报表管理"多用户表格编辑器）已于 2026-08-30 下线（设计落地计划清单 4.3 选项B）。
+> 全新安装不再创建其表与菜单；存量库升级时本文件会自动移除其菜单，历史代码快照见 tag `archive/workreport-20260830`。
 
 ### 6. allinone_menu.sql — 业务菜单与权限种子
 | 内容 | 说明 |
 |------|------|
-| `业务管理` / `报表中心` 目录及子菜单 | collect/report/work_report 各功能页面菜单 |
+| `业务管理` / `报表中心` 目录及子菜单 | 填报/报表各功能页面菜单 |
 | 按钮权限（`collect:*` / `report:*`） | 与后端 `@PreAuthorize` 权限字符串一一对应 |
 | 隐藏路由 | 编辑/详情/查看/大屏等跳转页路由 |
 
@@ -104,19 +106,15 @@ mysql -u root -p allinone < sql/allinone_menu.sql
 ```
 sys_dept ──────┐
 sys_user ──────┤
-sys_role ──────┼── work_report (user_id, dept_id)
+sys_role ──────┼── collect_data (template_id, dept_id, submit_by)
 sys_menu ──────┘       │
-                        ├── work_report_sheet (report_id, user_id, dept_id)
-                        │       │
-                        │       ├── work_report_cell (sheet_id)
-                        │       │
-                        │       └── work_report_sheet_permission (sheet_id)
-                        │               │
-                        │               ├── perm_type='role' → sys_role
-                        │               ├── perm_type='dept' → sys_dept
-                        │               └── perm_type='user' → sys_user
-                        │
-collect_template ───────┘ (现有数据填报体系，独立于 work_report*)
+                       ├── collect_data_cell (data_id, template_id)
+                       │
+                       └── collect_export_task (create_by → sys_user)
+
+collect_category ── collect_template ──┘ (分类 → 模板 → 填报数据)
+
+report_category ── report_config ── jimu_report / onl_drag_page (弱引用)
 ```
 
 ---
@@ -132,10 +130,11 @@ mysql -u root -p allinone < sql/allinone_menu.sql
 
 ### 验证表是否创建成功
 ```sql
-SHOW TABLES LIKE 'work_report%';
--- 预期输出:
--- work_report
--- work_report_cell
--- work_report_sheet
--- work_report_sheet_permission
+SHOW TABLES LIKE 'collect%';
+-- 预期输出包含:
+-- collect_category / collect_template / collect_data
+-- collect_data_cell / collect_field_mapping / collect_export_task
+
+-- WorkReport 下线确认（应返回空）:
+SELECT menu_id, menu_name FROM sys_menu WHERE menu_id IN (2005, 2013, 2033, 2034, 2035, 2036, 2037);
 ```

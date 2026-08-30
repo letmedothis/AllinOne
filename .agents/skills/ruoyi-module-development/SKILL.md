@@ -10,7 +10,7 @@ Apply the repository's existing patterns instead of generic RuoYi examples. Insp
 ## Project boundaries
 
 - Java 17 and Spring Boot 3.5.x are defined by the root `pom.xml`.
-- Business collection and WorkReport code belongs in `allinone-collect`.
+- Business collection code belongs in `allinone-collect`. (The legacy WorkReport implementation was decommissioned on 2026-08-30; history under tag `archive/workreport-20260830`.)
 - Report configuration code belongs in `allinone-report`.
 - Shared primitives belong in `allinone-common`; security and Redis integration belong in `allinone-framework`.
 - HTTP entry points are assembled by `allinone-admin`.

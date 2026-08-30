@@ -10,7 +10,7 @@ This repository maintains a local Luckysheet 2.1.13 fork. The main frontend cons
 ## Integration map
 
 - Fork source and build: `allinone-luckysheet`.
-- Main editor: `allinone-typescript/src/views/collect/report/editor.vue`.
+- Main integration component: `allinone-typescript/src/components/CollectSheet/index.vue` (the former multi-user editor `views/collect/report/editor.vue` and the WorkReport backend were decommissioned on 2026-08-30; history under tag `archive/workreport-20260830`).
 - Collection edit and submit flows: `allinone-typescript/src/views/collect/data`.
 - Workbook persistence and snapshot extraction: `CollectDataServiceImpl` in `allinone-collect`.
 - Cell snapshot Mapper: `CollectDataCellMapper.java` and its XML.

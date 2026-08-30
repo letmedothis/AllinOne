@@ -19,7 +19,6 @@ INSERT IGNORE INTO sys_menu VALUES
 (2002, '填报分类', 2000, 1, 'category', 'collect/category/index', '', 'CollectCategory', 1, 0, 'C', '0', '0', 'collect:category:list', 'list', 'admin', sysdate(), '', NULL, '填报分类菜单'),
 (2003, '填报模板', 2000, 2, 'template', 'collect/template/index', '', 'CollectTemplate', 1, 0, 'C', '0', '0', 'collect:template:list', 'form', 'admin', sysdate(), '', NULL, '填报模板菜单'),
 (2004, '填报数据', 2000, 3, 'data', 'collect/data/index', '', 'CollectData', 1, 0, 'C', '0', '0', 'collect:data:list', 'clipboard', 'admin', sysdate(), '', NULL, '填报数据菜单'),
-(2005, '报表管理', 2000, 4, 'report', 'collect/report/index', '', 'WorkReport', 1, 0, 'C', '0', '0', 'collect:report:list', 'chart', 'admin', sysdate(), '', NULL, '报表管理菜单'),
 (2050, '字段映射', 2000, 5, 'mapping', 'collect/mapping/index', '', 'CollectFieldMapping', 1, 0, 'C', '0', '0', '', 'excel', 'admin', sysdate(), '', NULL, '字段映射菜单（Tier 3 数据回写配置）');
 
 -- ------------------------------------------------------------
@@ -36,7 +35,6 @@ INSERT IGNORE INTO sys_menu VALUES
 (2010, '填报数据编辑', 2000, 10, 'data/edit', 'collect/data/edit', '', 'CollectDataEdit', 1, 0, 'C', '1', '0', 'collect:data:query,collect:data:edit', '#', 'admin', sysdate(), '', NULL, '填报数据编辑页(隐藏)'),
 (2011, '填报数据详情', 2000, 11, 'data/detail', 'collect/data/detail', '', 'CollectDataDetail', 1, 0, 'C', '1', '0', 'collect:data:query', '#', 'admin', sysdate(), '', NULL, '填报数据详情页(隐藏)'),
 (2012, '填报模板编辑', 2000, 12, 'template/edit', 'collect/template/edit', '', 'CollectTemplateEdit', 1, 0, 'C', '1', '0', 'collect:template:edit', '#', 'admin', sysdate(), '', NULL, '填报模板编辑页(隐藏)'),
-(2013, '报表编辑器', 2000, 13, 'report-editor/index/:id', 'collect/report/editor', '', 'WorkReportEditor', 1, 0, 'C', '1', '0', 'collect:report:query,collect:report:edit', '#', 'admin', sysdate(), '', NULL, '报表编辑器(隐藏)'),
 (2014, '报表查看', 2001, 10, 'view', 'report/view/index', '', 'ReportView', 1, 0, 'C', '1', '0', 'report:config:query', '#', 'admin', sysdate(), '', NULL, '报表查看页(隐藏)'),
 (2015, '大屏查看', 2001, 11, 'dashboard', 'report/dashboard/index', '', 'ReportDashboard', 1, 0, 'C', '1', '0', 'report:config:query', '#', 'admin', sysdate(), '', NULL, '大屏查看页(隐藏)'),
 (2016, '报表配置独立编辑', 2001, 12, 'config/edit', 'report/config/edit', '', 'ReportConfigEdit', 1, 0, 'C', '1', '0', 'report:config:edit', '#', 'admin', sysdate(), '', NULL, '报表配置独立编辑页(隐藏)');
@@ -68,16 +66,6 @@ INSERT IGNORE INTO sys_menu VALUES
 (2030, '数据修改', 2004, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:data:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2031, '数据删除', 2004, 5, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:data:remove', '#', 'admin', sysdate(), '', NULL, ''),
 (2032, '数据导出', 2004, 6, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:data:export', '#', 'admin', sysdate(), '', NULL, '');
-
--- ------------------------------------------------------------
--- 报表管理按钮权限
--- ------------------------------------------------------------
-INSERT IGNORE INTO sys_menu VALUES
-(2033, '报表查询', 2005, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:query', '#', 'admin', sysdate(), '', NULL, ''),
-(2034, '报表新增', 2005, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:add', '#', 'admin', sysdate(), '', NULL, ''),
-(2035, '报表修改', 2005, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:edit', '#', 'admin', sysdate(), '', NULL, ''),
-(2036, '报表删除', 2005, 5, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:remove', '#', 'admin', sysdate(), '', NULL, ''),
-(2037, '报表导出', 2005, 6, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:report:export', '#', 'admin', sysdate(), '', NULL, '');
 
 -- ------------------------------------------------------------
 -- 字段映射按钮权限
