@@ -38,6 +38,7 @@ import 'luckysheet/dist/plugins/css/pluginsCss.css'
 import 'luckysheet/dist/plugins/plugins.css'
 import 'luckysheet/dist/css/luckysheet.css'
 import { loadLuckysheet } from '@/utils/luckysheetLoader'
+import { uploadSheetImage } from '@/api/collect/upload'
 
 const props = defineProps({
   /** 表格数据（JSON字符串或对象） */
@@ -103,6 +104,9 @@ async function initSheet(initialData: string | Record<string, any> | null = prop
       // 图表插件（chartmix）依赖约 1.8MB 的 vue2/element-ui/echarts 本地库：
       // 仅在可编辑、或工作簿本身包含图表（只读时需要渲染）时才加载
       plugins: props.readonly && !workbookHasCharts(initialData) ? [] : ['chart'],
+      // 图片上传（fork imageCtrl 原生支持）：插入/粘贴图片时上传到服务器，
+      // 单元格/工作簿仅保存 URL，避免 base64 把 form_data 撑爆（设计 02 §1.9）
+      uploadImage: props.readonly ? undefined : uploadSheetImage,
       myFolderUrl: '',
       hook: {
         cellUpdated: (cell: any, r: number, c: number) => {
@@ -152,7 +156,7 @@ function workbookHasCharts(data: string | Record<string, any> | null): boolean {
 }
 
 /** 获取当前表格数据 */
-function getData(): any {
+function getSheetData(): any {
   const luckysheet = (window as any).luckysheet
   if (!luckysheet) return null
   const sheets = luckysheet.getAllSheets()
@@ -194,13 +198,13 @@ function handleSheetChange() {
   if (changeDebounceTimer !== null) window.clearTimeout(changeDebounceTimer)
   changeDebounceTimer = window.setTimeout(() => {
     changeDebounceTimer = null
-    emit('change', getData())
+    emit('change', getSheetData())
   }, 300)
 }
 
 /** 保存操作 */
 function handleSave() {
-  const data = getData()
+  const data = getSheetData()
   emit('save', data)
 }
 
@@ -239,7 +243,7 @@ onUnmounted(() => {
 
 /** 暴露方法给父组件 */
 defineExpose({
-  getData,
+  getSheetData,
   loadData
 })
 </script>

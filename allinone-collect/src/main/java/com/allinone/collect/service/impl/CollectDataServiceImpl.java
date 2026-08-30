@@ -1,15 +1,21 @@
 package com.allinone.collect.service.impl;
 
+import com.allinone.collect.constant.CollectErrorCode;
 import com.allinone.common.utils.DateUtils;
+import com.allinone.common.utils.DictUtils;
 import com.allinone.common.utils.SecurityUtils;
 import com.allinone.common.utils.StringUtils;
 import com.allinone.common.utils.uuid.IdUtils;
 import com.allinone.common.exception.ServiceException;
+import com.allinone.common.core.domain.entity.SysDictData;
+import com.allinone.common.core.domain.entity.SysRole;
 import com.allinone.common.utils.poi.ExcelUtil;
 import com.allinone.collect.domain.CollectData;
 import com.allinone.collect.domain.CollectDataCell;
+import com.allinone.collect.domain.CollectTemplate;
 import com.allinone.collect.mapper.CollectDataMapper;
 import com.allinone.collect.mapper.CollectDataCellMapper;
+import com.allinone.collect.mapper.CollectTemplateMapper;
 import com.allinone.collect.service.ICollectDataService;
 import com.allinone.collect.service.IDataWriteBackService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +33,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -41,8 +48,8 @@ public class CollectDataServiceImpl implements ICollectDataService {
 
     /** 导出汇总表工作表名 */
     private static final String EXPORT_SUMMARY_SHEET_NAME = "填报记录";
-    /** 单次导出的记录数上限，防止一次性构建过多工作表拖垮内存 */
-    private static final int EXPORT_MAX_RECORDS = 200;
+    /** 单次导出的记录数上限（总体设计 §1.5：单次导出上限 10 万行） */
+    private static final int EXPORT_MAX_RECORDS = 100_000;
     /** 单条记录单元格快照数上限，超过则跳过该记录的工作表并在汇总表备注说明 */
     private static final int EXPORT_MAX_CELLS_PER_RECORD = 50000;
     /** POI 限制的工作表名最大长度 */
@@ -50,6 +57,9 @@ public class CollectDataServiceImpl implements ICollectDataService {
 
     @Autowired
     private CollectDataMapper collectDataMapper;
+
+    @Autowired
+    private CollectTemplateMapper collectTemplateMapper;
 
     @Autowired(required = false)
     private IDataWriteBackService dataWriteBackService;
@@ -60,7 +70,10 @@ public class CollectDataServiceImpl implements ICollectDataService {
     @Override
     public List<CollectData> selectCollectDataList(CollectData data) {
         if (!currentUserIsAdmin()) {
-            data.setCreateBy(currentUsername());
+            String scopeSql = buildDataScopeSql();
+            if (scopeSql != null) {
+                data.getParams().put("dataScopeSql", scopeSql);
+            }
         }
         return collectDataMapper.selectCollectDataList(data);
     }
@@ -75,12 +88,21 @@ public class CollectDataServiceImpl implements ICollectDataService {
     @Override
     @Transactional
     public int insertCollectData(CollectData data) {
+        // 错误码 1001/1002：模板必须存在且已发布才能新建填报（下架后不能再新增填报）
+        CollectTemplate template = collectTemplateMapper.selectCollectTemplateById(data.getTemplateId());
+        if (template == null) {
+            throw new ServiceException("填报模板不存在或已删除", CollectErrorCode.TEMPLATE_NOT_FOUND);
+        }
+        if (!"1".equals(template.getStatus())) {
+            throw new ServiceException("模板未发布，暂时不能填报", CollectErrorCode.TEMPLATE_NOT_PUBLISHED);
+        }
         data.setDataId(IdUtils.nextLongId());
         data.setCreateTime(DateUtils.getNowDate());
         data.setCreateBy(currentUsername());
         data.setBizStatus("draft");
         data.setVersion(1);
         data.setDeptId(currentDeptId());
+        data.setTemplateVersion(template.getVersion());
         data.setSubmitBy(null);
         data.setSubmitTime(null);
         return collectDataMapper.insertCollectData(data);
@@ -100,7 +122,7 @@ public class CollectDataServiceImpl implements ICollectDataService {
         data.setUpdateBy(currentUsername());
         int rows = collectDataMapper.updateCollectData(data);
         if (rows == 0) {
-            throw new ServiceException("填报数据已被其他用户修改，请刷新后重试");
+            throw new ServiceException("填报数据已被其他用户修改，请刷新后重试", CollectErrorCode.DATA_VERSION_CONFLICT);
         }
         return rows;
     }
@@ -111,9 +133,15 @@ public class CollectDataServiceImpl implements ICollectDataService {
         CollectData data = collectDataMapper.selectCollectDataById(dataId);
         requireOwner(data);
         requireDraft(data);
+        CollectTemplate template = collectTemplateMapper.selectCollectTemplateById(data.getTemplateId());
+        if (template == null) {
+            throw new ServiceException("填报模板不存在或已删除", CollectErrorCode.TEMPLATE_NOT_FOUND);
+        }
 
         // Tier 2: 解析表单 JSON 写入 collect_data_cell（供 JimuReport SQL 查询）
         List<CollectDataCell> cells = parseLuckysheetJson(data.getFormData());
+        // 提交时按模板数据验证规则兜底校验（必填/字典合法性），防止绕过前端直接调 API
+        validateCellRules(cells, template.getTemplateJson());
         // collect_data_cell 是 form_data 的完整查询快照，不是只追加变更的日志。
         // 先清理旧快照，确保前端已删除或清空的单元格不会在报表查询中残留。
         collectDataCellMapper.deleteCollectDataCellByDataId(dataId);
@@ -139,9 +167,10 @@ public class CollectDataServiceImpl implements ICollectDataService {
         data.setSubmitBy(currentUsername());
         data.setSubmitTime(DateUtils.getNowDate());
         data.setUpdateTime(DateUtils.getNowDate());
+        data.setTemplateVersion(template.getVersion());
         int rows = collectDataMapper.updateCollectDataStatus(data);
         if (rows == 0) {
-            throw new ServiceException("填报状态已变化，请刷新后重试");
+            throw new ServiceException("填报状态已变化，请刷新后重试", CollectErrorCode.DATA_VERSION_CONFLICT);
         }
         return rows;
     }
@@ -177,8 +206,8 @@ public class CollectDataServiceImpl implements ICollectDataService {
     @Override
     public SXSSFWorkbook exportWorkbook(CollectData query) {
         List<CollectData> list = selectCollectDataList(query);
-        if (list.size() > EXPORT_MAX_RECORDS) {
-            throw new ServiceException("导出数据过多，请缩小筛选范围");
+        if (list.size() > exportMaxRecords()) {
+            throw new ServiceException("导出数据超过单次上限（10 万条），请缩小筛选范围或改用异步导出");
         }
 
         // 先按 data_id 计数再决定加载哪些快照，避免把超额快照整体载入内存后才拒绝
@@ -209,7 +238,7 @@ public class CollectDataServiceImpl implements ICollectDataService {
                     // 已在汇总表“备注”列说明，不生成工作表
                     continue;
                 }
-                // 逐记录加载快照：内存上界为单条记录（≤5 万格），即使 200 条大记录也不会同时驻留
+                // 逐记录加载快照：内存上界为单条记录（≤5 万格），即使批量记录也不会同时驻留
                 List<CollectDataCell> cells = collectDataCellMapper.selectCollectDataCellByDataId(record.getDataId());
                 if (cells.isEmpty()) {
                     continue;
@@ -225,6 +254,11 @@ public class CollectDataServiceImpl implements ICollectDataService {
                 wb.dispose();
             }
         }
+    }
+
+    /** 单次导出记录数上限；独立成方法便于测试场景收窄 */
+    protected int exportMaxRecords() {
+        return EXPORT_MAX_RECORDS;
     }
 
     /** 按填报记录统计单元格快照数：data_id → 行数 */
@@ -378,8 +412,193 @@ public class CollectDataServiceImpl implements ICollectDataService {
 
     private void requireDraft(CollectData data) {
         if (!"draft".equals(data.getBizStatus())) {
-            throw new ServiceException("已提交的数据不能再次修改或提交");
+            throw new ServiceException("已提交的数据不能再次修改或提交", CollectErrorCode.DATA_STATUS_NOT_EDITABLE);
         }
+    }
+
+    /**
+     * 部门级数据权限（功能模块设计 §1.7）：按当前用户各角色的数据范围生成过滤 SQL，
+     * 供 Mapper 以 ${params.dataScopeSql} 拼接（OR 语义，与 RuoYi @DataScope 一致）。
+     * collect_data 无 user_id 列，“仅本人”用 create_by 表达；任一角色为“全部”时返回 null 表示不过滤。
+     * 内容全部来自服务端角色元数据与转义后的当前用户名，非用户输入。
+     */
+    protected String buildDataScopeSql() {
+        Long deptId = currentDeptId();
+        String username = currentUsername().replace("'", "''");
+        StringBuilder scope = new StringBuilder();
+        List<SysRole> roles = currentUserRoles();
+        if (roles != null) {
+            for (SysRole role : roles) {
+                if (role == null || role.getDataScope() == null) {
+                    continue;
+                }
+                switch (role.getDataScope()) {
+                    case "1":
+                        // 全部数据权限
+                        return null;
+                    case "2":
+                        if (role.getRoleId() != null) {
+                            scope.append(" OR cd.dept_id IN (SELECT dept_id FROM sys_role_dept WHERE role_id = ")
+                                    .append(role.getRoleId()).append(')');
+                        }
+                        break;
+                    case "3":
+                        if (deptId != null) {
+                            scope.append(" OR cd.dept_id = ").append(deptId);
+                        }
+                        break;
+                    case "4":
+                        if (deptId != null) {
+                            scope.append(" OR cd.dept_id IN (SELECT dept_id FROM sys_dept WHERE dept_id = ")
+                                    .append(deptId).append(" OR FIND_IN_SET(").append(deptId).append(", ancestors))");
+                        }
+                        break;
+                    case "5":
+                        scope.append(" OR cd.create_by = '").append(username).append('\'');
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        if (scope.length() == 0) {
+            // 无角色或角色均未配置数据范围时兜底为“仅本人”，避免默认越权全量可见
+            scope.append(" OR cd.create_by = '").append(username).append('\'');
+        }
+        return "(" + scope.substring(4) + ")";
+    }
+
+    /**
+     * 提交校验（功能模块设计 §1.5 前后端双重校验的后端兜底）：
+     * 依据模板 dataVerification 中的标记校验必填（collectRequired）与字典/下拉合法性（collectDict 或 Luckysheet 原生 dropdown）。
+     * 规则解析失败时降级跳过，不阻断提交（结构合法性已由 parseLuckysheetJson 保证）。
+     */
+    protected void validateCellRules(List<CollectDataCell> cells, String templateJson) {
+        Map<String, CellRule> rules = extractCellRules(templateJson);
+        if (rules.isEmpty()) {
+            return;
+        }
+        Map<String, String> cellTexts = new HashMap<>();
+        for (CollectDataCell cell : cells) {
+            cellTexts.put(cell.getSheetIndex() + "!" + cell.getRowIndex() + "_" + cell.getColIndex(), cell.getCellText());
+        }
+        List<String> errors = new ArrayList<>();
+        for (Map.Entry<String, CellRule> entry : rules.entrySet()) {
+            CellRule rule = entry.getValue();
+            String text = cellTexts.get(entry.getKey());
+            String trimmed = text == null ? "" : text.trim();
+            if (rule.required && trimmed.isEmpty()) {
+                errors.add(rule.location + "为必填项");
+                continue;
+            }
+            if (trimmed.isEmpty() || rule.allowedValues == null) {
+                continue;
+            }
+            if (!rule.allowedValues.contains(trimmed)) {
+                errors.add(rule.location + "的值“" + StringUtils.abbreviate(trimmed, 20) + "”不在可选范围内");
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new ServiceException("提交校验未通过：" + String.join("；", errors));
+        }
+    }
+
+    /**
+     * 从模板工作簿 JSON 提取单元格验证规则：key 为 "sheetIndex!row,col"。
+     * collectDict 指向 RuoYi 字典类型（合法值 = 字典标签 + 键值），value1 为 Luckysheet 原生下拉选项。
+     */
+    @SuppressWarnings("unchecked")
+    protected Map<String, CellRule> extractCellRules(String templateJson) {
+        Map<String, CellRule> rules = new HashMap<>();
+        if (templateJson == null || templateJson.isEmpty()) {
+            return rules;
+        }
+        try {
+            List<Map<String, Object>> root = MAPPER.readValue(templateJson, List.class);
+            if (root.isEmpty() || !(root.get(0) instanceof Map) || root.get(0).containsKey("r") || root.get(0).containsKey("c")) {
+                // 平铺单元格格式不携带 dataVerification，直接跳过
+                return rules;
+            }
+            for (int sheetIndex = 0; sheetIndex < root.size(); sheetIndex++) {
+                Map<String, Object> sheet = root.get(sheetIndex);
+                if (!(sheet.get("dataVerification") instanceof Map)) {
+                    continue;
+                }
+                String sheetName = sheet.get("name") instanceof String s && !s.isBlank() ? s : ("工作表" + (sheetIndex + 1));
+                Map<String, Object> verifications = (Map<String, Object>) sheet.get("dataVerification");
+                for (Map.Entry<String, Object> entry : verifications.entrySet()) {
+                    if (!(entry.getValue() instanceof Map)) {
+                        continue;
+                    }
+                    Map<String, Object> conf = (Map<String, Object>) entry.getValue();
+                    boolean required = Boolean.TRUE.equals(conf.get("collectRequired"));
+                    String dictType = conf.get("collectDict") instanceof String s && !s.isBlank() ? s : null;
+                    String type = conf.get("type") instanceof String s ? s : null;
+                    if (!required && dictType == null && !"dropdown".equals(type)) {
+                        continue;
+                    }
+                    // Luckysheet dataVerification 键格式为 "r_c"（见 fork dataVerificationCtrl）
+                    String[] rc = entry.getKey().split("_");
+                    if (rc.length != 2) {
+                        continue;
+                    }
+                    CellRule rule = new CellRule();
+                    rule.required = required;
+                    rule.location = sheetName + " " + toCellRef(Integer.parseInt(rc[0].trim()), Integer.parseInt(rc[1].trim()));
+                    Set<String> allowed = new LinkedHashSet<>();
+                    if (dictType != null) {
+                        appendDictValues(allowed, dictType);
+                    }
+                    if ("dropdown".equals(type) && conf.get("value1") instanceof String v1) {
+                        for (String option : v1.split(",")) {
+                            if (!option.isBlank()) {
+                                allowed.add(option.trim());
+                            }
+                        }
+                    }
+                    rule.allowedValues = allowed.isEmpty() ? null : allowed;
+                    rules.put(sheetIndex + "!" + entry.getKey(), rule);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("解析模板数据验证规则失败，本次提交跳过字段校验: {}", e.getMessage());
+        }
+        return rules;
+    }
+
+    /** 0-based 行列号转 Excel 风格引用（如 B3），用于校验错误提示定位 */
+    private String toCellRef(int row, int col) {
+        StringBuilder colRef = new StringBuilder();
+        int c = col;
+        do {
+            colRef.insert(0, (char) ('A' + c % 26));
+            c = c / 26 - 1;
+        } while (c >= 0);
+        return colRef + String.valueOf(row + 1);
+    }
+
+    /** 字典合法值 = 标签 + 键值；字典缓存不可用时返回空集（该单元格仅保留必填校验） */
+    protected void appendDictValues(Set<String> allowed, String dictType) {
+        try {
+            List<SysDictData> dictData = DictUtils.getDictCache(dictType);
+            if (dictData == null) {
+                return;
+            }
+            for (SysDictData d : dictData) {
+                if (StringUtils.isNotBlank(d.getDictLabel())) {
+                    allowed.add(d.getDictLabel().trim());
+                }
+                if (StringUtils.isNotBlank(d.getDictValue())) {
+                    allowed.add(d.getDictValue().trim());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("读取字典 {} 缓存失败，跳过取值校验: {}", dictType, e.getMessage());
+        }
+    }
+
+    protected List<SysRole> currentUserRoles() {
+        return SecurityUtils.getLoginUser().getUser().getRoles();
     }
 
     protected String currentUsername() {
@@ -392,5 +611,13 @@ public class CollectDataServiceImpl implements ICollectDataService {
 
     protected boolean currentUserIsAdmin() {
         return SecurityUtils.getLoginUser().getUser().isAdmin();
+    }
+
+    /** 模板单元格验证规则（提交校验用） */
+    protected static final class CellRule {
+        boolean required;
+        String location;
+        /** 合法值集合；null 表示不校验取值（仅必填） */
+        Set<String> allowedValues;
     }
 }

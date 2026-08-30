@@ -26,6 +26,11 @@
         delete from collect_data_cell where data_id = #{dataId}
     </delete>
 
+    <delete id="deleteCollectDataCellByDataIds">
+        delete from collect_data_cell where data_id in
+        <foreach item="dataId" collection="dataIds" open="(" separator="," close=")">#{dataId}</foreach>
+    </delete>
+
     <insert id="batchUpsert" parameterType="CollectDataCell">
         insert into collect_data_cell (cell_id, data_id, template_id, sheet_index, row_index, col_index, cell_text, cell_value, cell_numeric_value, cell_type, cell_format, is_formula, formula_expr, del_flag, create_by, create_time)
         values

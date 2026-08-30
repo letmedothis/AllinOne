@@ -1,9 +1,13 @@
 package com.allinone.collect.service.impl;
 
+import com.allinone.collect.constant.CollectErrorCode;
 import com.allinone.collect.domain.CollectData;
 import com.allinone.collect.domain.CollectDataCell;
+import com.allinone.collect.domain.CollectTemplate;
 import com.allinone.collect.mapper.CollectDataCellMapper;
 import com.allinone.collect.mapper.CollectDataMapper;
+import com.allinone.collect.mapper.CollectTemplateMapper;
+import com.allinone.common.core.domain.entity.SysRole;
 import com.allinone.common.exception.ServiceException;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -36,6 +40,7 @@ class CollectDataServiceImplTest {
 
     private final CollectDataMapper dataMapper = mock(CollectDataMapper.class);
     private final CollectDataCellMapper cellMapper = mock(CollectDataCellMapper.class);
+    private final CollectTemplateMapper templateMapper = mock(CollectTemplateMapper.class);
     private TestableCollectDataService service;
 
     @BeforeEach
@@ -43,6 +48,7 @@ class CollectDataServiceImplTest {
         service = new TestableCollectDataService();
         ReflectionTestUtils.setField(service, "collectDataMapper", dataMapper);
         ReflectionTestUtils.setField(service, "collectDataCellMapper", cellMapper);
+        ReflectionTestUtils.setField(service, "collectTemplateMapper", templateMapper);
     }
 
     @Test
@@ -52,6 +58,7 @@ class CollectDataServiceImplTest {
         data.setFormData("[]");
         data.setDeptId(999L);
         data.setSubmitBy("mallory");
+        when(templateMapper.selectCollectTemplateById(7L)).thenReturn(publishedTemplate(3));
         when(dataMapper.insertCollectData(data)).thenReturn(1);
 
         service.insertCollectData(data);
@@ -61,8 +68,31 @@ class CollectDataServiceImplTest {
         assertThat(data.getVersion()).isEqualTo(1);
         assertThat(data.getCreateBy()).isEqualTo("alice");
         assertThat(data.getDeptId()).isEqualTo(10L);
+        assertThat(data.getTemplateVersion()).isEqualTo(3);
         assertThat(data.getSubmitBy()).isNull();
         assertThat(data.getSubmitTime()).isNull();
+    }
+
+    @Test
+    void insertRejectsMissingTemplateWith1001() {
+        CollectData data = new CollectData();
+        data.setTemplateId(7L);
+        when(templateMapper.selectCollectTemplateById(7L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.insertCollectData(data))
+            .isInstanceOfSatisfying(ServiceException.class, e -> assertThat(e.getCode()).isEqualTo(CollectErrorCode.TEMPLATE_NOT_FOUND));
+        verify(dataMapper, never()).insertCollectData(any());
+    }
+
+    @Test
+    void insertRejectsUnpublishedTemplateWith1002() {
+        CollectData data = new CollectData();
+        data.setTemplateId(7L);
+        when(templateMapper.selectCollectTemplateById(7L)).thenReturn(unpublishedTemplate());
+
+        assertThatThrownBy(() -> service.insertCollectData(data))
+            .isInstanceOfSatisfying(ServiceException.class, e -> assertThat(e.getCode()).isEqualTo(CollectErrorCode.TEMPLATE_NOT_PUBLISHED));
+        verify(dataMapper, never()).insertCollectData(any());
     }
 
     @Test
@@ -85,6 +115,7 @@ class CollectDataServiceImplTest {
         CollectData data = draftOwnedByAlice();
         data.setFormData("[{\"celldata\":[{\"r\":0,\"c\":0,\"v\":{\"v\":\"x\",\"m\":\"x\"}}]}]");
         when(dataMapper.selectCollectDataById(1L)).thenReturn(data);
+        when(templateMapper.selectCollectTemplateById(7L)).thenReturn(publishedTemplate(2));
         doThrow(new IllegalStateException("database unavailable")).when(cellMapper).batchUpsert(any());
 
         assertThatThrownBy(() -> service.submitData(1L)).isInstanceOf(IllegalStateException.class);
@@ -97,6 +128,7 @@ class CollectDataServiceImplTest {
         CollectData data = draftOwnedByAlice();
         data.setFormData("[]");
         when(dataMapper.selectCollectDataById(1L)).thenReturn(data);
+        when(templateMapper.selectCollectTemplateById(7L)).thenReturn(publishedTemplate(2));
         when(dataMapper.updateCollectDataStatus(data)).thenReturn(1);
 
         service.submitData(1L);
@@ -205,7 +237,7 @@ class CollectDataServiceImplTest {
 
         assertThatThrownBy(() -> service.exportWorkbook(query))
             .isInstanceOf(ServiceException.class)
-            .hasMessageContaining("导出数据过多");
+            .hasMessageContaining("导出数据超过单次上限");
         verify(cellMapper, never()).selectCollectDataCellByDataId(any());
     }
 
@@ -318,7 +350,88 @@ class CollectDataServiceImplTest {
         return data;
     }
 
+    @Test
+    void dataScopeFallsBackToSelfOnlyWhenNoRoles() {
+        assertThat(service.buildDataScopeSql()).isEqualTo("(cd.create_by = 'alice')");
+    }
+
+    @Test
+    void dataScopeSkipsFilterForAllScopeRole() {
+        SysRole all = new SysRole();
+        all.setDataScope("1");
+        assertThat(serviceWithRoles(List.of(all)).buildDataScopeSql()).isNull();
+    }
+
+    @Test
+    void dataScopeBuildsDeptConditionFromRoleScope() {
+        SysRole deptOnly = new SysRole();
+        deptOnly.setDataScope("3");
+        assertThat(serviceWithRoles(List.of(deptOnly)).buildDataScopeSql()).isEqualTo("(cd.dept_id = 10)");
+
+        SysRole selfOnly = new SysRole();
+        selfOnly.setDataScope("5");
+        assertThat(serviceWithRoles(List.of(selfOnly)).buildDataScopeSql()).isEqualTo("(cd.create_by = 'alice')");
+    }
+
+    @Test
+    void submitValidatesRequiredAndDropdownRulesFromTemplate() {
+        CollectData data = draftOwnedByAlice();
+        // 模板：B2 必填 + C2 下拉（选项 甲/乙），填报数据 B2 留空、C2 填“丙”
+        data.setFormData("[{\"celldata\":[{\"r\":1,\"c\":2,\"v\":{\"v\":\"丙\",\"m\":\"丙\"}}]}]");
+        String templateJson = "[{\"name\":\"Sheet1\",\"dataVerification\":{"
+            + "\"1_1\":{\"type\":\"dropdown\",\"collectRequired\":true},"
+            + "\"1_2\":{\"type\":\"dropdown\",\"value1\":\"甲,乙\"}}}]";
+        CollectTemplate template = publishedTemplate(2);
+        template.setTemplateJson(templateJson);
+        when(dataMapper.selectCollectDataById(1L)).thenReturn(data);
+        when(templateMapper.selectCollectTemplateById(7L)).thenReturn(template);
+
+        assertThatThrownBy(() -> service.submitData(1L))
+            .isInstanceOf(ServiceException.class)
+            .hasMessageContaining("提交校验未通过")
+            .hasMessageContaining("B2为必填项")
+            .hasMessageContaining("C2");
+        verify(dataMapper, never()).updateCollectDataStatus(any());
+    }
+
+    private CollectTemplate publishedTemplate(int version) {
+        CollectTemplate template = new CollectTemplate();
+        template.setTemplateId(7L);
+        template.setStatus("1");
+        template.setVersion(version);
+        return template;
+    }
+
+    private CollectTemplate unpublishedTemplate() {
+        CollectTemplate template = new CollectTemplate();
+        template.setTemplateId(7L);
+        template.setStatus("2");
+        template.setVersion(1);
+        return template;
+    }
+
+    private TestableCollectDataService serviceWithRoles(List<SysRole> roles) {
+        TestableCollectDataService withRoles = new TestableCollectDataService();
+        withRoles.roles = roles;
+        ReflectionTestUtils.setField(withRoles, "collectDataMapper", dataMapper);
+        ReflectionTestUtils.setField(withRoles, "collectDataCellMapper", cellMapper);
+        ReflectionTestUtils.setField(withRoles, "collectTemplateMapper", templateMapper);
+        return withRoles;
+    }
+
     private static final class TestableCollectDataService extends CollectDataServiceImpl {
+        List<SysRole> roles = List.of();
+
+        @Override
+        protected int exportMaxRecords() {
+            return 200;
+        }
+
+        @Override
+        protected List<SysRole> currentUserRoles() {
+            return roles;
+        }
+
         @Override
         protected String currentUsername() {
             return "alice";

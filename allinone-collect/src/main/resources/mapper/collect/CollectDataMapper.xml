@@ -13,6 +13,7 @@
         <result property="flowInstanceId" column="flow_instance_id"/>
         <result property="dataCode" column="data_code"/>
         <result property="version" column="version"/>
+        <result property="templateVersion" column="template_version"/>
         <result property="submitBy" column="submit_by"/>
         <result property="submitTime" column="submit_time"/>
         <result property="remark" column="remark"/>
@@ -24,7 +25,7 @@
 
     <sql id="selectCollectDataVo">
         select cd.data_id, cd.template_id, ct.template_name, ct.template_code, cd.biz_status, cd.dept_id,
-               cd.data_code, cd.version, cd.submit_by, cd.submit_time, cd.remark, cd.del_flag,
+               cd.data_code, cd.version, cd.template_version, cd.submit_by, cd.submit_time, cd.remark, cd.del_flag,
                cd.create_by, cd.create_time, cd.update_by, cd.update_time
         from collect_data cd left join collect_template ct on ct.template_id = cd.template_id
     </sql>
@@ -37,20 +38,22 @@
         <if test="bizStatus != null and bizStatus != ''"> and cd.biz_status = #{bizStatus}</if>
         <if test="submitBy != null and submitBy != ''"> and cd.submit_by = #{submitBy}</if>
         <if test="createBy != null and createBy != ''"> and cd.create_by = #{createBy}</if>
+        <!-- 部门级数据权限：CollectDataServiceImpl.buildDataScopeSql 按角色数据范围生成，OR 语义 -->
+        <if test="params.dataScopeSql != null and params.dataScopeSql != ''"> and ${params.dataScopeSql}</if>
         order by cd.create_time desc
     </select>
 
     <select id="selectCollectDataById" parameterType="Long" resultMap="CollectDataResult">
         select cd.data_id, cd.template_id, ct.template_name, ct.template_code, cd.form_data, cd.biz_status,
-               cd.dept_id, cd.data_code, cd.version, cd.submit_by, cd.submit_time, cd.remark, cd.del_flag,
+               cd.dept_id, cd.data_code, cd.version, cd.template_version, cd.submit_by, cd.submit_time, cd.remark, cd.del_flag,
                cd.create_by, cd.create_time, cd.update_by, cd.update_time
         from collect_data cd left join collect_template ct on ct.template_id = cd.template_id
         where cd.data_id = #{dataId} and cd.del_flag = '0'
     </select>
 
     <insert id="insertCollectData" parameterType="CollectData">
-        insert into collect_data (data_id, template_id, form_data, biz_status, dept_id, data_code, version, remark, del_flag, create_by, create_time, submit_by)
-        values (#{dataId}, #{templateId}, #{formData}, #{bizStatus}, #{deptId}, #{dataCode}, #{version}, #{remark}, '0', #{createBy}, #{createTime}, #{submitBy})
+        insert into collect_data (data_id, template_id, form_data, biz_status, dept_id, data_code, version, template_version, remark, del_flag, create_by, create_time, submit_by)
+        values (#{dataId}, #{templateId}, #{formData}, #{bizStatus}, #{deptId}, #{dataCode}, #{version}, #{templateVersion}, #{remark}, '0', #{createBy}, #{createTime}, #{submitBy})
     </insert>
 
     <update id="updateCollectData" parameterType="CollectData">
@@ -68,7 +71,7 @@
 
     <update id="updateCollectDataStatus" parameterType="CollectData">
         update collect_data set biz_status = #{bizStatus}, submit_by = #{submitBy}, submit_time = #{submitTime},
-            version = version + 1, update_time = #{updateTime}
+            version = version + 1, template_version = #{templateVersion}, update_time = #{updateTime}
         where data_id = #{dataId} and version = #{version} and biz_status = 'draft' and del_flag = '0'
     </update>
 
@@ -80,6 +83,20 @@
     <update id="deleteCollectDataByIds" parameterType="Long">
         update collect_data set del_flag = '2' where biz_status = 'draft' and del_flag = '0' and data_id in
         <foreach item="dataId" collection="array" open="(" separator="," close=")">#{dataId}</foreach>
+    </update>
+
+    <select id="selectDraftDataIdsByTemplateIds" resultType="Long">
+        select data_id from collect_data
+        where template_id in
+        <foreach item="templateId" collection="templateIds" open="(" separator="," close=")">#{templateId}</foreach>
+        and biz_status = 'draft' and del_flag = '0'
+    </select>
+
+    <update id="deleteDraftDataByTemplateIds">
+        update collect_data set del_flag = '2'
+        where template_id in
+        <foreach item="templateId" collection="templateIds" open="(" separator="," close=")">#{templateId}</foreach>
+        and biz_status = 'draft' and del_flag = '0'
     </update>
 
 </mapper>

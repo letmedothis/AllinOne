@@ -272,6 +272,10 @@ import 'luckysheet/dist/plugins/css/pluginsCss.css'
 
 ## 6. Pinia Store 设计
 
+> 勘误（2026-08-30）：实施过程中发现 store 层与页面直调 API 双轨并存徒增维护成本，
+> 实际架构为页面直调 API 封装（`src/api/**`），本节设计的 useCollectStore/useReportStore 未被采用，
+> 对应代码（store/modules/collect.ts、report.ts）已移除。
+
 ### 6.1 useCollectStore（填报模块）
 
 ```

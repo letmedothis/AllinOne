@@ -52,3 +52,11 @@ export function publishTemplate(id: number, status: '1' | '2'): Promise<AjaxResu
     data: { status }
   })
 }
+
+/** 复制填报模板：克隆为未发布新模板（名称加“-副本”，编码重新生成） */
+export function copyTemplate(id: number): Promise<AjaxResult<CollectTemplate>> {
+  return request({
+    url: '/collect/template/' + id + '/copy',
+    method: 'post'
+  })
+}

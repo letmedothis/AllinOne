@@ -96,10 +96,13 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="260" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="320" class-name="small-padding fixed-width">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleEditConfig(scope.row)" v-hasPermi="['collect:template:edit']">
             设计
+          </el-button>
+          <el-button link type="primary" icon="CopyDocument" @click="handleCopy(scope.row)" v-hasPermi="['collect:template:add']">
+            复制
           </el-button>
           <el-button link type="primary" icon="View" @click="handlePreview(scope.row)" v-hasPermi="['collect:template:query']">
             预览
@@ -167,14 +170,12 @@
 
 <script setup lang="ts" name="CollectTemplate">
 import type { CollectTemplate, CollectTemplateQueryParams } from '@/types/api/collect/template'
-import { listTemplate, getTemplate, delTemplate, addTemplate, updateTemplate, publishTemplate } from '@/api/collect/template'
+import { listTemplate, getTemplate, delTemplate, addTemplate, updateTemplate, publishTemplate, copyTemplate } from '@/api/collect/template'
 import { listCategory } from '@/api/collect/category'
-import useCollectStore from '@/store/modules/collect'
 import { useRouter } from 'vue-router'
 
 const { proxy } = getCurrentInstance()!
 const router = useRouter()
-const store = useCollectStore()
 
 const { collect_template_status } = useDict('collect_template_status')
 
@@ -326,6 +327,20 @@ function handleEditConfig(row: CollectTemplate) {
 /** 预览模板 */
 function handlePreview(row: CollectTemplate) {
   router.push({ path: '/collect/template/edit', query: { id: row.templateId, readonly: '1' } })
+}
+
+/** 复制模板：克隆为未发布新模板，成功后直接进入编辑页 */
+function handleCopy(row: CollectTemplate) {
+  proxy.$modal.confirm('是否复制模板"' + row.templateName + '"？将生成未发布的副本。').then(() => {
+    return copyTemplate(row.templateId!)
+  }).then((response: any) => {
+    proxy.$modal.msgSuccess('复制成功')
+    getList()
+    const copy = response?.data
+    if (copy?.templateId) {
+      router.push({ path: '/collect/template/edit', query: { id: copy.templateId } })
+    }
+  }).catch(() => {})
 }
 
 /** 发布/下架 */

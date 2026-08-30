@@ -10,5 +10,8 @@ public interface ReportCategoryMapper {
     int updateReportCategory(ReportCategory category);
     int deleteReportCategoryById(Long categoryId);
     int countReportConfigByCategoryId(Long categoryId);
+
+    /** 统计所选分类下仍存在的子分类数（删除保护） */
+    int countCategoryChildByCategoryIds(Long[] categoryIds);
 }
 

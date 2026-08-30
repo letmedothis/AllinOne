@@ -89,3 +89,16 @@ DELETE FROM sys_menu WHERE menu_id IN (2005, 2013, 2033, 2034, 2035, 2036, 2037)
 -- DROP TABLE IF EXISTS `work_report_cell`;
 -- DROP TABLE IF EXISTS `work_report_sheet`;
 -- DROP TABLE IF EXISTS `work_report`;
+
+-- -----------------------------------------------------------
+-- Phase 5: collect_data 增加模板版本快照列（记录填报/提交时所用的模板版本）
+-- -----------------------------------------------------------
+SET @add_template_version_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_data' AND COLUMN_NAME = 'template_version') = 0,
+  'ALTER TABLE `collect_data` ADD COLUMN `template_version` int(8) DEFAULT NULL COMMENT ''填报/提交时模板版本快照'' AFTER `version`',
+  'SELECT 1'
+);
+PREPARE add_template_version_stmt FROM @add_template_version_sql;
+EXECUTE add_template_version_stmt;
+DEALLOCATE PREPARE add_template_version_stmt;

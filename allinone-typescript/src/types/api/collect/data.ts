@@ -19,6 +19,8 @@ export interface CollectData extends BaseEntity {
   deptId?: number
   dataCode?: string
   version?: number
+  /** 填报/提交时所用模板版本快照 */
+  templateVersion?: number
   submitBy?: string
   submitTime?: string
 }

@@ -10,5 +10,12 @@ public interface ICollectTemplateService {
     int updateCollectTemplate(CollectTemplate template);
     int updateStatus(Long templateId, String status);
     int deleteCollectTemplateByIds(Long[] templateIds);
+
+    /**
+     * 复制模板：克隆定义与 Luckysheet JSON 为未发布新模板（名称加“-副本”，编码重新生成，版本从 1 计数）
+     *
+     * @return 新建的模板记录
+     */
+    CollectTemplate copyTemplate(Long templateId);
 }
 

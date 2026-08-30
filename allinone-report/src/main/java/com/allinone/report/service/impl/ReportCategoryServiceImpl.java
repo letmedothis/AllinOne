@@ -44,6 +44,10 @@ public class ReportCategoryServiceImpl implements IReportCategoryService {
 
     @Override
     public int deleteReportCategoryByIds(Long[] categoryIds) {
+        // 删除保护：存在子分类时先删子分类，避免树断裂
+        if (reportCategoryMapper.countCategoryChildByCategoryIds(categoryIds) > 0) {
+            throw new ServiceException("所选分类下存在子分类，请先删除子分类");
+        }
         int count = 0;
         for (Long id : categoryIds) {
             if (reportCategoryMapper.countReportConfigByCategoryId(id) > 0) {

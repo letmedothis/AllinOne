@@ -26,6 +26,8 @@ public class CollectData extends BaseEntity {
     @Excel(name = "业务编码")
     private String dataCode;
     private Integer version;
+    /** 填报/提交时所用模板版本快照 */
+    private Integer templateVersion;
     @Excel(name = "提交人")
     private String submitBy;
     @Excel(name = "提交时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
@@ -54,6 +56,8 @@ public class CollectData extends BaseEntity {
     public void setDataCode(String dataCode) { this.dataCode = dataCode; }
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
+    public Integer getTemplateVersion() { return templateVersion; }
+    public void setTemplateVersion(Integer templateVersion) { this.templateVersion = templateVersion; }
     public String getSubmitBy() { return submitBy; }
     public void setSubmitBy(String submitBy) { this.submitBy = submitBy; }
     public Date getSubmitTime() { return submitTime; }

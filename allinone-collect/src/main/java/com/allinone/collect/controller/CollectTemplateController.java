@@ -67,6 +67,16 @@ public class CollectTemplateController extends BaseController {
         return toAjax(collectTemplateService.deleteCollectTemplateByIds(templateIds));
     }
 
+    /**
+     * 复制模板：克隆为未发布新模板，前端复制后一般直接跳转编辑页
+     */
+    @PreAuthorize("@ss.hasPermi('collect:template:add')")
+    @Log(title = "填报模板", businessType = BusinessType.INSERT)
+    @PostMapping("/{templateId}/copy")
+    public AjaxResult copy(@PathVariable Long templateId) {
+        return success(collectTemplateService.copyTemplate(templateId));
+    }
+
     @PreAuthorize("@ss.hasPermi('collect:template:edit')")
     @Log(title = "填报模板", businessType = BusinessType.UPDATE)
     @PostMapping("/{templateId}/publish")

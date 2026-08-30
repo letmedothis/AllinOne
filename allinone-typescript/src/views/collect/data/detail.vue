@@ -26,6 +26,7 @@
           </el-descriptions-item>
           <el-descriptions-item label="模板名称">{{ detail.templateName }}</el-descriptions-item>
           <el-descriptions-item label="模板编码">{{ detail.templateCode }}</el-descriptions-item>
+          <el-descriptions-item label="模板版本">{{ detail.templateVersion ? 'v' + detail.templateVersion : '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建人">{{ detail.createBy }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ parseTime(detail.createTime) }}</el-descriptions-item>
           <el-descriptions-item label="提交时间">{{ parseTime(detail.submitTime) || '-' }}</el-descriptions-item>

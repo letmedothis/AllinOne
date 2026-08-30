@@ -88,7 +88,6 @@ function loadReport() {
 
 /** iframe加载完成 */
 function onLoad(iframe: HTMLIFrameElement) {
-  console.log('报表加载完成')
 }
 
 /** 刷新 */

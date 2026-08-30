@@ -32,6 +32,18 @@
         <el-space>
           <el-button size="small" icon="Back" @click="handleBack">返回</el-button>
           <el-button size="small" icon="Refresh" @click="handleRefresh">刷新</el-button>
+          <el-select
+            v-model="refreshInterval"
+            size="small"
+            style="width: 110px"
+            :teleported="false"
+            @visible-change="showToolbarTemporarily"
+          >
+            <el-option label="不自动刷新" :value="0" />
+            <el-option label="每 30 秒" :value="30" />
+            <el-option label="每 60 秒" :value="60" />
+            <el-option label="每 5 分钟" :value="300" />
+          </el-select>
           <el-button size="small" icon="FullScreen" @click="handleFullscreen">
             {{ isFullscreen ? '退出全屏' : '全屏' }}
           </el-button>
@@ -58,6 +70,12 @@ const src = ref<string>('')
 const showToolbar = ref<boolean>(true)
 const isFullscreen = ref<boolean>(false)
 let hideToolbarTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 自动刷新间隔（秒），0 = 关闭；设计 06 §2.6 定时刷新 */
+const refreshInterval = ref<number>(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+/** 最近一次成功加载的引擎访问 URL（自动刷新时重新取票重建 src） */
+let dashboardUrl = ''
 
 /**
  * 拼接 iframe 地址：后端返回引擎访问路径，此处先向服务端换取一次性票据（ticket）拼到 URL。
@@ -99,6 +117,7 @@ function loadDashboard() {
       error.value = '该大屏未配置引擎ID，无法加载'
       return
     }
+    dashboardUrl = data.url
     src.value = await buildSrc(data.url)
   }).catch((e: any) => {
     error.value = e.message || '加载大屏信息失败'
@@ -109,7 +128,6 @@ function loadDashboard() {
 
 /** iframe加载完成 */
 function onLoad(iframe: HTMLIFrameElement) {
-  console.log('大屏加载完成')
   // 3秒后自动隐藏工具栏
   autoHideToolbar()
 }
@@ -135,6 +153,34 @@ function handleRefresh() {
   }
   showToolbarTemporarily()
 }
+
+/** 自动刷新：重新取票重建 src（ticket 一次性，直接 reload 会鉴权失败） */
+async function refreshDashboard() {
+  if (!dashboardUrl) return
+  try {
+    src.value = await buildSrc(dashboardUrl)
+  } catch (e) {
+    console.error('自动刷新取票失败', e)
+  }
+}
+
+/** 套用刷新间隔设置 */
+function applyRefreshInterval(seconds: number) {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+  if (seconds > 0) {
+    refreshTimer = setInterval(() => {
+      refreshDashboard()
+    }, seconds * 1000)
+  }
+}
+
+watch(refreshInterval, (val) => {
+  applyRefreshInterval(val)
+  showToolbarTemporarily()
+})
 
 /** 切换全屏 */
 function handleFullscreen() {
@@ -182,6 +228,7 @@ onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('mousemove', onMouseMove)
   if (hideToolbarTimer) clearTimeout(hideToolbarTimer)
+  if (refreshTimer) clearInterval(refreshTimer)
   if (isFullscreen.value) {
     document.exitFullscreen()
   }

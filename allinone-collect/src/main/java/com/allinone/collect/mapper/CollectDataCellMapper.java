@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface CollectDataCellMapper {
     int deleteCollectDataCellByDataId(Long dataId);
+    int deleteCollectDataCellByDataIds(@Param("dataIds") List<Long> dataIds);
     int batchUpsert(List<CollectDataCell> cells);
     List<CollectDataCell> selectCollectDataCellByDataId(Long dataId);
     /**

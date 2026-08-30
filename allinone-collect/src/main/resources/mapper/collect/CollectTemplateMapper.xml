@@ -79,6 +79,8 @@
     <update id="updateCollectTemplateStatus" parameterType="CollectTemplate">
         update collect_template set status = #{status}, update_time = #{updateTime}
         <if test="updateBy != null">, update_by = #{updateBy}</if>
+        <!-- 发布（status=1）时版本号递增，下架不动版本 -->
+        <if test='status == "1"'>, version = version + 1</if>
         where template_id = #{templateId} and del_flag = '0'
     </update>
 

@@ -9,16 +9,16 @@
 -- 顶层目录
 -- ------------------------------------------------------------
 INSERT IGNORE INTO sys_menu VALUES
-(2000, '业务管理', 0, 1, 'collect', NULL, '', 'BusinessManage', 1, 0, 'M', '0', '0', '', 'example', 'admin', sysdate(), '', NULL, '填报/报表业务目录'),
-(2001, '报表中心', 0, 2, 'report', NULL, '', 'ReportCenter', 1, 0, 'M', '0', '0', '', 'component', 'admin', sysdate(), '', NULL, '报表配置/查看目录');
+(2000, '数据填报', 0, 1, 'collect', NULL, '', 'BusinessManage', 1, 0, 'M', '0', '0', '', 'example', 'admin', sysdate(), '', NULL, '数据填报目录'),
+(2001, '报表管理', 0, 2, 'report', NULL, '', 'ReportCenter', 1, 0, 'M', '0', '0', '', 'component', 'admin', sysdate(), '', NULL, '报表配置/查看/大屏目录');
 
 -- ------------------------------------------------------------
 -- 业务管理子菜单
 -- ------------------------------------------------------------
 INSERT IGNORE INTO sys_menu VALUES
-(2002, '填报分类', 2000, 1, 'category', 'collect/category/index', '', 'CollectCategory', 1, 0, 'C', '0', '0', 'collect:category:list', 'list', 'admin', sysdate(), '', NULL, '填报分类菜单'),
+(2002, '分类管理', 2000, 1, 'category', 'collect/category/index', '', 'CollectCategory', 1, 0, 'C', '0', '0', 'collect:category:list', 'list', 'admin', sysdate(), '', NULL, '分类管理菜单'),
 (2003, '填报模板', 2000, 2, 'template', 'collect/template/index', '', 'CollectTemplate', 1, 0, 'C', '0', '0', 'collect:template:list', 'form', 'admin', sysdate(), '', NULL, '填报模板菜单'),
-(2004, '填报数据', 2000, 3, 'data', 'collect/data/index', '', 'CollectData', 1, 0, 'C', '0', '0', 'collect:data:list', 'clipboard', 'admin', sysdate(), '', NULL, '填报数据菜单'),
+(2004, '我的填报', 2000, 3, 'data', 'collect/data/index', '', 'CollectData', 1, 0, 'C', '0', '0', 'collect:data:list', 'clipboard', 'admin', sysdate(), '', NULL, '我的填报菜单'),
 (2050, '字段映射', 2000, 5, 'mapping', 'collect/mapping/index', '', 'CollectFieldMapping', 1, 0, 'C', '0', '0', '', 'excel', 'admin', sysdate(), '', NULL, '字段映射菜单（Tier 3 数据回写配置）');
 
 -- ------------------------------------------------------------
@@ -26,7 +26,8 @@ INSERT IGNORE INTO sys_menu VALUES
 -- ------------------------------------------------------------
 INSERT IGNORE INTO sys_menu VALUES
 (2006, '报表配置', 2001, 1, 'config', 'report/config/index', '', 'ReportConfig', 1, 0, 'C', '0', '0', 'report:config:list', 'documentation', 'admin', sysdate(), '', NULL, '报表配置菜单'),
-(2007, '报表分类', 2001, 2, 'category', 'report/category/index', '', 'ReportCategory', 1, 0, 'C', '0', '0', 'report:category:list', 'tree', 'admin', sysdate(), '', NULL, '报表分类菜单');
+(2007, '报表分类', 2001, 2, 'category', 'report/category/index', '', 'ReportCategory', 1, 0, 'C', '0', '0', 'report:category:list', 'tree', 'admin', sysdate(), '', NULL, '报表分类菜单'),
+(2017, '大屏管理', 2001, 3, 'dashboardList', 'report/dashboard/list', '', 'ReportDashboardList', 1, 0, 'C', '0', '0', 'report:config:list', 'monitor', 'admin', sysdate(), '', NULL, '大屏卡片列表菜单');
 
 -- ------------------------------------------------------------
 -- 隐藏路由（供页面跳转使用，不在侧边栏显示）

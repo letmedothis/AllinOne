@@ -85,6 +85,17 @@
 
     <!-- Luckysheet 填报区域 -->
     <el-card v-if="templateId" shadow="never" class="sheet-card">
+      <template #header>
+        <div class="sheet-card-header">
+          <span>填报内容</span>
+          <el-button
+            v-if="submitStatus !== 'submitted'"
+            size="small"
+            icon="Upload"
+            @click="triggerImportExcel"
+          >导入 Excel</el-button>
+        </div>
+      </template>
       <CollectSheet
         v-if="sheetKey"
         :key="sheetKey"
@@ -95,6 +106,13 @@
         @touch="onSheetTouch"
         @change="onSheetChange"
         @save="onSheetSave"
+      />
+      <input
+        ref="importInputRef"
+        type="file"
+        accept=".xlsx, .xls"
+        style="display: none"
+        @change="handleImportExcel"
       />
     </el-card>
   </div>
@@ -257,6 +275,94 @@ function onSheetSave(data: any) {
   form.value.formData = typeof data === 'string' ? data : JSON.stringify(data)
 }
 
+/** ===== Excel 导入 ===== */
+
+/** 导入单表行列上限，防止超大文件把工作簿撑爆 */
+const IMPORT_MAX_ROWS = 500
+const IMPORT_MAX_COLS = 50
+
+const importInputRef = ref<HTMLInputElement | null>(null)
+const importing = ref<boolean>(false)
+
+function triggerImportExcel() {
+  importInputRef.value?.click()
+}
+
+/**
+ * 本地解析 Excel 并写入当前工作簿的第一个工作表（自 A1 起，仅覆盖网格内的单元格）。
+ * 客户端解析避免新增后端导入面；导入后走既有 loadData 通道重建表格。
+ */
+async function handleImportExcel(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // 允许重复选择同一文件：先清空 value
+  input.value = ''
+  if (!file) return
+  if (importing.value) return
+
+  importing.value = true
+  try {
+    const XLSX = await import('xlsx')
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+    if (!worksheet) {
+      proxy.$modal.msgError('Excel 文件中没有工作表')
+      return
+    }
+    // raw:false 取格式化后的显示文本；defval 填充空单元格保证行对齐
+    const grid: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' })
+    if (!grid.length) {
+      proxy.$modal.msgError('Excel 文件中没有数据')
+      return
+    }
+    const applyRows = grid.slice(0, IMPORT_MAX_ROWS).map((row: any[]) =>
+      (row.length ? row : ['']).slice(0, IMPORT_MAX_COLS).map((cell: any) => (cell == null ? '' : String(cell)))
+    )
+    const truncated = grid.length > IMPORT_MAX_ROWS || applyRows.some((row: string[]) => row.length > IMPORT_MAX_COLS)
+
+    const maxCol = Math.max(...applyRows.map((row: string[]) => row.length))
+    const confirmed = await proxy.$modal.confirm(
+      `将从 Excel 导入 ${applyRows.length} 行 × ${maxCol} 列到第一个工作表（自 A1 起，覆盖原有内容）${truncated ? '，超出部分将被截断' : ''}。是否继续？`
+    ).then(() => true).catch(() => false)
+    if (!confirmed) return
+
+    const sheets = sheetRef.value?.getSheetData()
+    if (!Array.isArray(sheets) || !sheets.length) {
+      proxy.$modal.msgError('表格尚未初始化完成，请稍后重试')
+      return
+    }
+    const target = { ...sheets[0] }
+    const cellMap = new Map<string, any>()
+    for (const cellData of (target.celldata as any[]) ?? []) {
+      cellMap.set(`${cellData.r}_${cellData.c}`, cellData)
+    }
+    applyRows.forEach((row: string[], r: number) => {
+      row.forEach((value: string, c: number) => {
+        if (value === '') return
+        const key = `${r}_${c}`
+        const existing = cellMap.get(key)
+        const v = { ...(existing?.v ?? {}) }
+        v.v = value
+        v.m = value
+        cellMap.set(key, { r, c, v })
+      })
+    })
+    target.celldata = Array.from(cellMap.values())
+    // data 网格由 celldata 重建，避免旧 data 覆盖导入内容
+    delete target.data
+
+    const merged = [...sheets]
+    merged[0] = target
+    await sheetRef.value?.loadData(JSON.stringify(merged))
+    proxy.$modal.msgSuccess(`已导入 ${applyRows.length} 行数据`)
+  } catch (e: any) {
+    proxy.$modal.msgError('导入 Excel 失败：' + (e?.message || '文件解析异常'))
+    console.error('导入Excel失败:', e)
+  } finally {
+    importing.value = false
+  }
+}
+
 /** 手动保存草稿（带成功/失败提示） */
 function handleSaveDraft() {
   return saveDraft(false)
@@ -282,7 +388,7 @@ async function saveDraft(silent = false) {
   try {
     // 从Luckysheet获取数据
     if (sheetRef.value) {
-      const sheetData = sheetRef.value.getData()
+      const sheetData = sheetRef.value.getSheetData()
       form.value.formData = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
     }
     // 注意：不要在前端设置 bizStatus —— 后端 insert 强制 'draft'、update 忽略该字段
@@ -375,7 +481,7 @@ async function handleSubmit() {
     try {
       // 保存数据
       if (sheetRef.value) {
-        const sheetData = sheetRef.value.getData()
+        const sheetData = sheetRef.value.getSheetData()
         form.value.formData = typeof sheetData === 'string' ? sheetData : JSON.stringify(sheetData)
       }
 
@@ -435,6 +541,12 @@ onUnmounted(() => {
 <style scoped>
 .sheet-card {
   min-height: 600px;
+}
+
+.sheet-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .template-code {

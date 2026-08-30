@@ -67,6 +67,7 @@ create table collect_data (
   flow_instance_id varchar(64)     default null               comment '关联流程实例ID（V2.0）',
   data_code        varchar(64)     default null               comment '业务编码',
   version          int(8)          default 1                  comment '乐观锁版本号',
+  template_version int(8)          default null               comment '填报/提交时模板版本快照',
   submit_by        varchar(64)     default null               comment '提交人',
   submit_time      datetime                                   comment '提交时间',
   remark           varchar(2000)   default null               comment '备注（驳回原因等）',

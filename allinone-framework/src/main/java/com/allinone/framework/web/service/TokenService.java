@@ -24,7 +24,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import com.allinone.framework.security.AuthzVersionService;
 
@@ -37,21 +36,6 @@ import com.allinone.framework.security.AuthzVersionService;
 public class TokenService
 {
     private static final Logger log = LoggerFactory.getLogger(TokenService.class);
-
-    private static final String JIMUREPORT_PATH = "/jmreport";
-
-    private static final String JIMUBI_PATH = "/jimubi";
-
-    private static final String DRAG_PATH = "/drag";
-
-    private static final String ADMIN_TOKEN_COOKIE = "Admin-Token";
-
-    /**
-     * iframe 内嵌的第三方引擎路径集合。这些路径由浏览器直接导航（无法附加自定义请求头），
-     * 因此允许从 URL 参数与同源 Cookie 读取令牌，且已纳入 Security 匿名白名单，
-     * 最终鉴权交由 JimuReportTokenService 内部完成。
-     */
-    private static final String[] EMBEDDED_ENGINE_PATHS = { JIMUREPORT_PATH, JIMUBI_PATH, DRAG_PATH };
 
     // 令牌自定义标识
     @Value("${token.header}")
@@ -322,41 +306,19 @@ public class TokenService
     }
 
     /**
-     * 获取请求token
+     * 获取请求token：仅接受请求头（Authorization / X-Access-Token）。
+     * 报表/大屏 iframe 一律通过一次性 ticket 换取 JWT（JimuReportTokenService），
+     * 不再支持 URL token 参数与 Cookie 通道，避免令牌经 URL/会话扩散。
      *
      * @param request
      * @return token
      */
     private String getToken(HttpServletRequest request)
     {
-        return getToken(request, isJimuReportRequest(request));
-    }
-
-    /**
-     * 为 JimuReport/JimuBI 拦截器解析令牌。浏览器直接访问或 iframe 加载报表/大屏时无法附加
-     * Authorization 请求头，因此只在该集成边界允许读取 URL 参数 token 与同源 Admin-Token Cookie。
-     * 其他业务接口仍只接受请求头令牌，避免把 URL/Cookie 认证扩散到整个无 CSRF 会话。
-     */
-    public String getJimuReportToken(HttpServletRequest request)
-    {
-        return getToken(request, true);
-    }
-
-    private String getToken(HttpServletRequest request, boolean allowEmbeddedToken)
-    {
         String token = request.getHeader(header);
         if (StringUtils.isEmpty(token))
         {
             token = request.getHeader("X-Access-Token");
-        }
-        if (StringUtils.isEmpty(token) && allowEmbeddedToken)
-        {
-            // iframe 导航时由前端把令牌拼在 URL query 上（如 /jmreport/view/xx?token=xxx）
-            token = request.getParameter("token");
-        }
-        if (StringUtils.isEmpty(token) && allowEmbeddedToken)
-        {
-            token = getCookieValue(request, ADMIN_TOKEN_COOKIE);
         }
         if (StringUtils.isNotEmpty(token) && token.startsWith(Constants.TOKEN_PREFIX))
         {
@@ -365,39 +327,13 @@ public class TokenService
         return token;
     }
 
-    private boolean isJimuReportRequest(HttpServletRequest request)
+    /**
+     * JimuReport/JimuBI 引擎集成边界专用：只从请求头提取令牌。
+     * 引擎在首次 ticket 校验后会将 JWT 放入 X-Access-Token 头随后续请求回传。
+     */
+    public String getHeaderToken(HttpServletRequest request)
     {
-        String requestUri = request.getRequestURI();
-        String contextPath = request.getContextPath();
-        if (StringUtils.isNotEmpty(contextPath) && requestUri.startsWith(contextPath))
-        {
-            requestUri = requestUri.substring(contextPath.length());
-        }
-        for (String enginePath : EMBEDDED_ENGINE_PATHS)
-        {
-            if (enginePath.equals(requestUri) || requestUri.startsWith(enginePath + "/"))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String getCookieValue(HttpServletRequest request, String cookieName)
-    {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null)
-        {
-            return null;
-        }
-        for (Cookie cookie : cookies)
-        {
-            if (cookieName.equals(cookie.getName()))
-            {
-                return cookie.getValue();
-            }
-        }
-        return null;
+        return getToken(request);
     }
 
     private String getTokenKey(String uuid)

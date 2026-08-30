@@ -49,6 +49,12 @@
         update report_category set del_flag = '2' where category_id = #{categoryId}
     </update>
 
+    <select id="countCategoryChildByCategoryIds" parameterType="Long" resultType="int">
+        select count(1) from report_category
+        where del_flag = '0' and parent_id in
+        <foreach item="categoryId" collection="array" open="(" separator="," close=")">#{categoryId}</foreach>
+    </select>
+
     <select id="countReportConfigByCategoryId" parameterType="Long" resultType="int">
         select count(1) from report_config where category_id = #{categoryId} and del_flag = '0'
     </select>

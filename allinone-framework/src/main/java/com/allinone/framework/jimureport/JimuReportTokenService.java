@@ -47,8 +47,9 @@ public class JimuReportTokenService implements JmReportTokenServiceI {
             return null;
         }
         
-        // 否则使用原有的token获取逻辑
-        return tokenService.getJimuReportToken(request);
+        // 非 ticket 请求（引擎首次换取后的内部调用）仅从请求头取令牌；
+        // URL token 参数与 Cookie 旧通道已关闭（设计落地计划 1.3）
+        return tokenService.getHeaderToken(request);
     }
 
     /**

@@ -66,6 +66,12 @@
         <foreach item="categoryId" collection="array" open="(" separator="," close=")">#{categoryId}</foreach>
     </update>
 
+    <select id="countCategoryChildByCategoryIds" parameterType="Long" resultType="int">
+        select count(1) from collect_category
+        where del_flag = '0' and parent_id in
+        <foreach item="categoryId" collection="array" open="(" separator="," close=")">#{categoryId}</foreach>
+    </select>
+
     <select id="countTemplateByCategoryIds" parameterType="Long" resultType="int">
         select count(1) from collect_template
         where category_id in
