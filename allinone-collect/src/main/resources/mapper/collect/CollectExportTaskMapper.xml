@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.collect.mapper.CollectExportTaskMapper">
+
+    <resultMap type="CollectExportTask" id="CollectExportTaskResult">
+        <result property="taskId"     column="task_id"     />
+        <result property="taskName"   column="task_name"   />
+        <result property="queryJson"  column="query_json"  />
+        <result property="status"     column="status"      />
+        <result property="fileName"   column="file_name"   />
+        <result property="errorMsg"   column="error_msg"   />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+        <result property="finishTime" column="finish_time" />
+    </resultMap>
+
+    <sql id="selectCollectExportTaskVo">
+        select task_id, task_name, query_json, status, file_name, error_msg,
+               create_by, create_time, update_time, finish_time
+        from collect_export_task
+    </sql>
+
+    <select id="selectCollectExportTaskById" parameterType="Long" resultMap="CollectExportTaskResult">
+        <include refid="selectCollectExportTaskVo"/>
+        where task_id = #{taskId}
+    </select>
+
+    <select id="selectCollectExportTaskList" parameterType="CollectExportTask" resultMap="CollectExportTaskResult">
+        <include refid="selectCollectExportTaskVo"/>
+        <where>
+            <if test="status != null and status != ''"> and status = #{status}</if>
+            <if test="createBy != null and createBy != ''"> and create_by = #{createBy}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <insert id="insertCollectExportTask" parameterType="CollectExportTask">
+        insert into collect_export_task
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="taskId != null">task_id,</if>
+            <if test="taskName != null">task_name,</if>
+            <if test="queryJson != null">query_json,</if>
+            <if test="status != null">status,</if>
+            <if test="fileName != null">file_name,</if>
+            <if test="errorMsg != null">error_msg,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="finishTime != null">finish_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="taskId != null">#{taskId},</if>
+            <if test="taskName != null">#{taskName},</if>
+            <if test="queryJson != null">#{queryJson},</if>
+            <if test="status != null">#{status},</if>
+            <if test="fileName != null">#{fileName},</if>
+            <if test="errorMsg != null">#{errorMsg},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="finishTime != null">#{finishTime},</if>
+        </trim>
+    </insert>
+
+    <update id="updateCollectExportTask" parameterType="CollectExportTask">
+        update collect_export_task
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="errorMsg != null">error_msg = #{errorMsg},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+        </trim>
+        where task_id = #{taskId}
+    </update>
+</mapper>

@@ -166,3 +166,22 @@ SET @add_sheet_version_sql = IF(
 PREPARE add_sheet_version_stmt FROM @add_sheet_version_sql;
 EXECUTE add_sheet_version_stmt;
 DEALLOCATE PREPARE add_sheet_version_stmt;
+
+-- -----------------------------------------------------------
+-- Phase 10: 新增填报数据异步导出任务表（大导出后台生成，前端轮询下载）
+-- CREATE TABLE IF NOT EXISTS 天然幂等。
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `collect_export_task` (
+  `task_id` bigint(20) NOT NULL COMMENT '任务ID',
+  `task_name` varchar(100) DEFAULT NULL COMMENT '任务名称',
+  `query_json` longtext DEFAULT NULL COMMENT '导出筛选条件(JSON)',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '状态: pending排队|running导出中|success成功|failed失败',
+  `file_name` varchar(255) DEFAULT NULL COMMENT '生成的导出文件名（位于下载目录）',
+  `error_msg` varchar(500) DEFAULT NULL COMMENT '失败原因',
+  `create_by` varchar(64) DEFAULT NULL COMMENT '创建者',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  `finish_time` datetime DEFAULT NULL COMMENT '完成时间',
+  PRIMARY KEY (`task_id`),
+  KEY `idx_cet_create_by` (`create_by`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='填报数据异步导出任务';

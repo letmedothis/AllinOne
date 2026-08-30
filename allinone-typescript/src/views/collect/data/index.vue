@@ -128,16 +128,23 @@
       v-model:limit="queryParams.pageSize"
       @pagination="getList"
     />
+
+    <!-- 异步导出任务列表 -->
+    <ExportTaskDialog ref="exportTaskDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts" name="CollectData">
 import type { CollectData, CollectDataQueryParams } from '@/types/api/collect/data'
 import { listData, delData } from '@/api/collect/data'
+import { createExportTask } from '@/api/collect/exportTask'
+import ExportTaskDialog from './ExportTaskDialog.vue'
 import { useRouter } from 'vue-router'
 
 const { proxy } = getCurrentInstance()!
 const router = useRouter()
+
+const exportTaskDialogRef = ref<InstanceType<typeof ExportTaskDialog> | null>(null)
 
 const dataList = ref<CollectData[]>([])
 const loading = ref<boolean>(true)
@@ -217,11 +224,17 @@ function handleDelete(row: CollectData) {
   }).catch(() => {})
 }
 
-/** 导出 */
-function handleExport() {
-  proxy.download('collect/data/export', {
-    ...queryParams.value
-  }, `collect_data_${new Date().getTime()}.xlsx`)
+/** 导出（异步任务）：创建任务后打开任务列表跟踪进度，完成后在列表中下载 */
+async function handleExport() {
+  // 分页参数与导出无关，不带入任务条件
+  const { pageNum, pageSize, ...exportQuery } = queryParams.value
+  try {
+    await createExportTask(exportQuery)
+  } catch {
+    return
+  }
+  proxy.$modal.msgSuccess('导出任务已创建，完成后可在任务列表下载')
+  exportTaskDialogRef.value?.open()
 }
 
 getList()
