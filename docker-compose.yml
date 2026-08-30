@@ -14,6 +14,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: allinone
+      # 可选：admin 初始密码的 BCrypt 哈希；未设置时 admin 保持停用（见 docker/README.md）
+      ADMIN_PASSWORD_BCRYPT: ${ADMIN_PASSWORD_BCRYPT:-}
       TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4

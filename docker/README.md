@@ -11,7 +11,36 @@ git clone <本仓库> allinone && cd allinone
 scripts/docker-deploy.sh        # Windows: scripts\docker-deploy.bat
 ```
 
-看到 `部署完成 ✔` 后访问 `http://localhost/`（端口可在 `.env` 的 `HTTP_PORT` 调整），使用默认账号 **admin / admin123** 登录，**登录后立即修改密码**。
+看到 `部署完成 ✔` 后访问 `http://localhost/`（端口可在 `.env` 的 `HTTP_PORT` 调整）。**管理员账号默认停用**（本项目公开 SQL 不携带默认密码，admin/admin123 不可用），启用方式见下节。
+
+## 管理员账号启用（重要）
+
+启用方式二选一：
+
+**方式一（推荐）：首次启动前在 `.env` 声明密码哈希**
+
+```bash
+# 1. 生成本地密码的 BCrypt 哈希（任选其一）：
+python3 -c "import bcrypt;print(bcrypt.hashpw(b'你的密码', bcrypt.gensalt()).decode())"
+# 或：htpasswd -bnBC 10 "" '你的密码' | tr -d ':\n'
+# 或使用任意 BCrypt 工具（$2a$/$2b$/$2y$ 前缀均可）
+
+# 2. 写入 .env（须在数据库首次初始化前）：
+echo "ADMIN_PASSWORD_BCRYPT=<上一步的哈希>" >> .env
+
+# 3. 正常执行部署，数据卷首次初始化时会以该哈希启用 admin
+scripts/docker-deploy.sh
+```
+
+**方式二：部署后手动启用**
+
+```bash
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" allinone -e \
+  "UPDATE sys_user SET password='\''<BCrypt哈希>'\'', status='\''0'\'' WHERE user_name='\''admin'\'';"'
+```
+
+> ⚠️ `ADMIN_PASSWORD_BCRYPT` 只在**数据卷首次初始化**时生效（`docker-entrypoint-initdb.d` 仅执行一次）。
+> 已初始化过的环境请用方式二；登录后请立即在「个人中心」修改密码。
 
 脚本做了三件事：
 
@@ -42,7 +71,7 @@ docker compose ps       # 等待 backend 状态为 healthy
 
 - **后端**：`docker/Dockerfile.backend` Maven 多阶段构建，先拷各模块 pom 做依赖层缓存，再整体打包，产物 `allinone-admin/target/allinone-admin.jar`；运行镜像装了 curl 仅用于健康检查，非 root 用户运行。`allinone-luckysheet` 是纯 Node 工程，不参与 Maven 打包。
 - **前端**：`docker/Dockerfile.frontend` 复刻 `scripts/build-frontend.sh` 顺序——先在容器内构建 Luckysheet（`npm run build`），再构建应用（`npm run build:prod`）；vite 插件收尾时自动把 Luckysheet 产物拷进 `dist/luckysheet/`。构建阶段使用 `node:20-bookworm-slim`（glibc）而非 alpine，因为 vite/esbuild 的平台二进制只锁了 linux-x64 变体。
-- **数据库初始化**仅在全空数据卷首次启动时执行一次；之后再启动不会重复导入。
+- **数据库初始化**仅在全空数据卷首次启动时执行一次；之后再启动不会重复导入。导入会话自动放宽 `sql_mode`（JimuReport 历史示例数据含超长列/零日期写法，MySQL 8 默认严格模式会中断初始化；仅导入连接受影响，不影响运行期数据库行为）。
 
 ## 常用运维
 

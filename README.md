@@ -20,7 +20,7 @@
 
 | 能力 | 技术方案 | 用途 |
 |------|---------|------|
-| 📊 **数据收集** | Luckysheet 在线电子表格 | 类 Excel 的在线数据填报、采集、协同编辑 |
+| 📊 **数据收集** | Luckysheet 在线电子表格 | 类 Excel 的在线数据填报、采集、Excel 导入 |
 | 📈 **报表展示** | JimuReport 积木报表 | 复杂报表设计、打印、套打、多 Sheet 报表 |
 | 📉 **数据可视化** | JimuBI + ECharts | 数据大屏、仪表盘、图表分析、自助 BI |
 
@@ -59,12 +59,14 @@
 
 | 功能 | 说明 |
 |------|------|
-| 在线表格编辑 | 类 Excel 的全功能电子表格 |
-| 数据填报模板 | 自定义模板的数据在线填报 |
-| 数据回写 | 填报数据直接写入业务数据库 |
-| 公式与计算 | 支持 Excel 公式自动计算 |
-| 导入/导出 | Excel 文件导入、导出 |
-| 多 Sheet 管理 | 多标签页数据组织 |
+| 在线表格编辑 | 类 Excel 的全功能电子表格（公式、样式、多 Sheet、冻结） |
+| 填报模板管理 | 分类组织、发布/下架、版本递增、模板复制、只读预览 |
+| 在线填报 | 30 秒草稿自动保存、提交锁定、字典下拉绑定、图片上传（存 URL） |
+| Excel 导入 | 本地解析 Excel 写入填报表格（500 行 × 50 列） |
+| 数据校验 | 提交时按模板配置校验必填与下拉/字典取值 |
+| 字段映射回写 | 填报数据按映射配置回写业务表（Tier 3） |
+| 数据导出 | 异步导出任务（后台生成、前端轮询下载），单次上限 10 万条 |
+| 数据权限 | 填报数据按角色数据范围隔离（本人/本部门/部门及以下等） |
 
 ### 第三层：报表分析（JimuReport + JimuBI）
 
@@ -144,8 +146,9 @@ allinone
 ├── allinone-collect            # 数据填报模块（独立子模块）
 │   └── src/main/java/com/allinone/collect
 │       ├── controller          # 填报控制器
-│       ├── domain              # 填报领域模型（5 张表）
+│       ├── domain              # 填报领域模型（collect_* 共 6 张表）
 │       ├── mapper              # 填报 Mapper
+│       ├── task                # 导出文件清理等定时任务
 │       └── service             # 填报业务逻辑
 ├── allinone-report             # 报表配置模块（独立子模块）
 │   └── src/main/java/com/allinone/report
@@ -153,6 +156,7 @@ allinone
 │       ├── domain              # 报表领域模型（2 张表）
 │       ├── mapper              # 报表 Mapper
 │       └── service             # 报表业务逻辑
+├── allinone-luckysheet         # Luckysheet 本地源码 fork（构建产物被前端引用）
 ├── allinone-typescript         # 前端项目（Vue 3 + TypeScript）
 │   ├── src
 │   │   ├── api                 # API 调用封装
@@ -163,7 +167,8 @@ allinone
 │   │   └── views               # 页面组件
 │   └── vite.config.ts          # Vite 构建配置
 ├── sql                         # SQL 脚本
-├── bin                         # 部署脚本
+├── scripts                     # 构建/部署/审计脚本（.sh 与 .bat 成对提供）
+├── docker                      # Docker 部署（Dockerfile/nginx/init 脚本）
 └── doc                         # 项目文档
 ```
 
@@ -287,7 +292,8 @@ Vue 3 和 Element Plus 的通用用法以官方文档为准；未集成的 Warm-
 ```bash
 # 一键部署：自动生成含随机密钥的 .env，构建镜像并启动，等待就绪
 scripts/docker-deploy.sh    # Windows: scripts\docker-deploy.bat
-# 访问 http://localhost/ ，默认账号 admin/admin123
+# 访问 http://localhost/ ；admin 账号默认停用（公开 SQL 不携带默认密码），
+# 首次启动前在 .env 设置 ADMIN_PASSWORD_BCRYPT 即可自动启用，方法见 docker/README.md
 ```
 
 一键拉起 MySQL + Redis + 后端 + 前端(Nginx)，数据库首次启动自动初始化，无需本机安装 Maven/Node。详见 [docker/README.md](docker/README.md)。
@@ -354,7 +360,7 @@ server {
 | 2 | sql/quartz.sql | Quartz | 定时任务表 |
 | 3 | sql/allinone_biz.sql | 本项目 | AllinOne 业务表（collect_*/report_*） |
 | 4 | sql/jimureport.mysql5.7.create.sql | 本项目 | JimuReport + JimuBI 全部表（48 张，含已脱敏示例数据） |
-| 5 | sql/allinone_biz_update.sql | 本项目 | 业务增量：collect_data_cell/collect_field_mapping 补 sheet_index 并重建唯一键、collect_export_task 异步导出任务表、WorkReport 下线菜单清理（**必须执行**） |
+| 5 | sql/allinone_biz_update.sql | 本项目 | 业务增量：cell/mapping 补 sheet_index 并重建唯一键、collect_data 补 template_version、collect_export_task 异步导出任务表、WorkReport 下线菜单清理（**必须执行**） |
 | 6 | sql/allinone_menu.sql | 本项目 | 业务菜单与按钮权限（**必须执行**，否则前端无业务菜单入口） |
 
 > 完整执行顺序与逐条说明见 [doc/SQL_EXECUTION_ORDER.md](doc/SQL_EXECUTION_ORDER.md)。

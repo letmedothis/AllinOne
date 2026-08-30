@@ -55,7 +55,11 @@ while [ "$i" -lt 48 ]; do
             log "部署完成 ✔"
             echo ""
             echo "  访问地址：http://localhost:${port}/"
-            echo "  默认账号：admin / admin123（登录后请立即修改）"
+            if grep -qE '^ADMIN_PASSWORD_BCRYPT=.+' .env; then
+                echo "  登录账号：admin（密码为你在 .env ADMIN_PASSWORD_BCRYPT 中设置的密码，登录后请立即修改）"
+            else
+                echo "  ⚠ admin 账号当前为停用状态（未设置 ADMIN_PASSWORD_BCRYPT），启用方法见 docker/README.md"
+            fi
             echo "  常用命令：docker compose ps | logs -f backend | down"
             echo ""
             exit 0
