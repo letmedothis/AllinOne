@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 import type { AjaxResult, TableDataInfo } from '@/types'
-import type { ApprovalTask, Invoice, PurchaseOrder, Supplier, SupplierOption } from '@/types/api/supply'
+import type { ApprovalTask, Invoice, PurchaseOrder, Supplier, SupplierOption, WorkflowCandidateOption, WorkflowDeploymentRequest, WorkflowDesign, WorkflowInstanceDetail, WorkflowProcessDefinition, WorkflowTask } from '@/types/api/supply'
 
 export function listSuppliers(query: Record<string, unknown>): Promise<TableDataInfo<Supplier[]>> { return request({ url: '/supply/suppliers/list', method: 'get', params: query }) }
 export function getSupplier(id: string): Promise<AjaxResult<Supplier>> { return request({ url: `/supply/suppliers/${id}`, method: 'get' }) }
@@ -37,3 +37,15 @@ export function restoreInvoice(documentId: string | number, reason: string) { re
 export function deleteDraftDocument(documentId: string | number) { return request({ url: `/supply/documents/${documentId}`, method: 'delete' }) }
 export function listWorkflowConfigs(): Promise<AjaxResult<any[]>> { return request({ url: '/supply/config/workflows', method: 'get' }) }
 export function saveWorkflowConfig(data: Record<string, unknown>): Promise<AjaxResult> { return request({ url: '/supply/config/workflows', method: 'put', data }) }
+export function listWorkflowDefinitions(): Promise<AjaxResult<WorkflowProcessDefinition[]>> { return request({ url: '/supply/workflow/definitions', method: 'get' }) }
+export function deployWorkflowDefinition(data: WorkflowDeploymentRequest): Promise<AjaxResult<WorkflowProcessDefinition>> { return request({ url: '/supply/workflow/definitions/deploy', method: 'post', data }) }
+export function getWorkflowDefinitionXml(id: string): Promise<AjaxResult<string>> { return request({ url: `/supply/workflow/definitions/${encodeURIComponent(id)}/xml`, method: 'get' }) }
+export function changeWorkflowDefinitionState(id: string, suspended: boolean): Promise<AjaxResult> { return request({ url: `/supply/workflow/definitions/${encodeURIComponent(id)}/state`, method: 'put', data: { suspended } }) }
+export function listWorkflowCandidates(): Promise<AjaxResult<WorkflowCandidateOption[]>> { return request({ url: '/supply/workflow/candidates', method: 'get' }) }
+export function getWorkflowDesign(processKey: string): Promise<AjaxResult<WorkflowDesign>> { return request({ url: `/supply/workflow/designs/${processKey}`, method: 'get' }) }
+export function saveWorkflowDraft(data: WorkflowDesign): Promise<AjaxResult<WorkflowDesign>> { return request({ url: '/supply/workflow/designs/save', method: 'post', data }) }
+export function publishWorkflowDesign(data: WorkflowDesign): Promise<AjaxResult<WorkflowProcessDefinition>> { return request({ url: '/supply/workflow/designs/publish', method: 'post', data }) }
+export function listMyWorkflowTasks(): Promise<AjaxResult<WorkflowTask[]>> { return request({ url: '/supply/workflow/tasks/mine', method: 'get' }) }
+export function completeWorkflowTask(taskId: string, data: { action: 'APPROVE' | 'REJECT'; comment?: string }): Promise<AjaxResult> { return request({ url: `/supply/workflow/tasks/${taskId}/complete`, method: 'post', data }) }
+export function listMyStartedWorkflowInstances(): Promise<AjaxResult<WorkflowInstanceDetail[]>> { return request({ url: '/supply/workflow/instances/mine', method: 'get' }) }
+export function getWorkflowInstanceDetail(instanceId: string): Promise<AjaxResult<WorkflowInstanceDetail>> { return request({ url: `/supply/workflow/instances/${encodeURIComponent(instanceId)}`, method: 'get' }) }

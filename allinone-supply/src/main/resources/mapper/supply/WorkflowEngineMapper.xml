@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.WorkflowEngineMapper">
+    <resultMap id="DesignResult" type="com.allinone.supply.domain.WorkflowDesign">
+        <id property="id" column="id"/><result property="processKey" column="process_key"/><result property="name" column="name"/>
+        <result property="bpmnXml" column="bpmn_xml"/><result property="status" column="status"/><result property="revision" column="revision"/>
+        <result property="publishedDefinitionId" column="published_definition_id"/><result property="publishedVersion" column="published_version"/>
+        <result property="createBy" column="create_by"/><result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/><result property="updateTime" column="update_time"/><result property="publishedAt" column="published_at"/>
+    </resultMap>
+    <resultMap id="CandidateResult" type="com.allinone.supply.domain.WorkflowCandidateOption">
+        <result property="type" column="type"/><result property="value" column="value"/><result property="label" column="label"/><result property="description" column="description"/>
+    </resultMap>
+    <resultMap id="ActionResult" type="com.allinone.supply.domain.WorkflowActionLog">
+        <id property="id" column="id"/><result property="processInstanceId" column="process_instance_id"/><result property="taskId" column="task_id"/>
+        <result property="taskDefinitionKey" column="task_definition_key"/><result property="action" column="action"/><result property="comment" column="comment"/>
+        <result property="actorId" column="actor_id"/><result property="actorName" column="actor_name"/><result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="selectDesignByProcessKey" resultMap="DesignResult">select id,process_key,name,bpmn_xml,status,revision,published_definition_id,published_version,create_by,create_time,update_by,update_time,published_at from workflow_designs where process_key=#{processKey}</select>
+    <insert id="insertDesign">insert into workflow_designs(id,process_key,name,bpmn_xml,status,revision,create_by,create_time,update_by,update_time) values(#{id},#{processKey},#{name},#{bpmnXml},'DRAFT',0,#{createBy},#{createTime},#{updateBy},#{updateTime})</insert>
+    <update id="updateDesignDraft">update workflow_designs set name=#{name},bpmn_xml=#{bpmnXml},status='DRAFT',revision=revision+1,update_by=#{updateBy},update_time=#{updateTime} where id=#{id} and process_key=#{processKey} and revision=#{revision}</update>
+    <update id="updateDesignPublished">update workflow_designs set status='PUBLISHED',published_definition_id=#{definitionId},published_version=#{version},revision=revision+1,update_by=#{updateBy},update_time=#{publishedAt},published_at=#{publishedAt} where id=#{id} and revision=#{revision}</update>
+
+    <select id="selectUserOptions" resultMap="CandidateResult">select 'USER' type,cast(u.user_id as char) value,coalesce(nullif(u.nick_name,''),u.user_name) label,concat(u.user_name,' · ',coalesce(d.dept_name,'未分配部门')) description from sys_user u left join sys_dept d on d.dept_id=u.dept_id where u.status='0' and u.del_flag='0' order by u.user_id</select>
+    <select id="selectRoleOptions" resultMap="CandidateResult">select 'ROLE' type,r.role_key value,r.role_name label,concat('角色标识：',r.role_key) description from sys_role r where r.status='0' and r.del_flag='0' order by r.role_sort,r.role_id</select>
+    <select id="selectDepartmentLeaderOptions" resultMap="CandidateResult">select 'DEPT_LEADER' type,cast(d.dept_id as char) value,d.dept_name label,concat('负责人：',coalesce(nullif(u.nick_name,''),u.user_name)) description from sys_dept d join sys_user u on u.user_name=d.leader and u.status='0' and u.del_flag='0' where d.status='0' and d.del_flag='0' and d.leader is not null and d.leader&lt;&gt;'' order by d.order_num,d.dept_id</select>
+    <select id="countActiveUser" resultType="int">select count(1) from sys_user where cast(user_id as char)=#{userId} and status='0' and del_flag='0'</select>
+    <select id="countActiveRole" resultType="int">select count(1) from sys_role where role_key=#{roleKey} and status='0' and del_flag='0'</select>
+    <select id="selectLeaderUserIdByDeptId" resultType="String">select cast(u.user_id as char) from sys_dept d join sys_user u on u.user_name=d.leader and u.status='0' and u.del_flag='0' where cast(d.dept_id as char)=#{deptId} and d.status='0' and d.del_flag='0' limit 1</select>
+    <select id="selectInitiatorLeaderUserId" resultType="String">select cast(leader.user_id as char) from sys_user initiator join sys_dept d on d.dept_id=initiator.dept_id join sys_user leader on leader.user_name=d.leader and leader.status='0' and leader.del_flag='0' where initiator.user_id=#{userId} and initiator.status='0' and initiator.del_flag='0' and d.status='0' and d.del_flag='0' limit 1</select>
+    <select id="selectUserRoleKeys" resultType="String">select distinct r.role_key from sys_user_role ur join sys_role r on r.role_id=ur.role_id where ur.user_id=#{userId} and r.status='0' and r.del_flag='0'</select>
+    <select id="selectUserDisplayName" resultType="String">select coalesce(nullif(nick_name,''),user_name) from sys_user where cast(user_id as char)=#{userId} limit 1</select>
+    <select id="selectDocumentCreatorId" resultType="Long">select creator_id from documents where id=#{documentId} and deleted='0'</select>
+    <insert id="insertActionLog">insert into workflow_action_logs(id,process_instance_id,task_id,task_definition_key,action,comment,actor_id,actor_name,created_at) values(#{id},#{processInstanceId},#{taskId},#{taskDefinitionKey},#{action},#{comment},#{actorId},#{actorName},#{createdAt})</insert>
+    <select id="selectActionLogs" resultMap="ActionResult">select id,process_instance_id,task_id,task_definition_key,action,comment,actor_id,actor_name,created_at from workflow_action_logs where process_instance_id=#{processInstanceId} order by created_at,id</select>
+</mapper>

@@ -162,6 +162,12 @@ allinone:
 minidao:
   base-package: org.jeecg.modules.jmreport.desreport.dao*,org.jeecg.modules.jmreport.ai.tablemeta.dao*,org.jeecg.modules.drag.dao*
 
+# Flowable 在首次启动时创建 ACT_* 引擎表；生产初始化完成后可设置
+# FLOWABLE_DATABASE_SCHEMA_UPDATE=false，避免运行期变更引擎表结构。
+flowable:
+  database-schema-update: ${FLOWABLE_DATABASE_SCHEMA_UPDATE:true}
+  async-executor-activate: true
+
 # 防止XSS攻击
 xss:
   # 过滤开关
