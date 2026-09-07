@@ -2,63 +2,144 @@ package com.allinone.supply.service;
 
 import com.allinone.common.exception.ServiceException;
 import com.allinone.supply.domain.ParsedInvoice;
-import java.util.LinkedHashSet;
+import com.allinone.supply.domain.ParsedInvoiceLine;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * 数电票(蓝字)XML 适配器骨架。
+ * 数电票(蓝字)XML 解析 —— 已按脱敏真实票样校准
+ * (测试夹具 allinone-supply/src/test/resources/invoices/digital-invoice-01.fixture.xml)。
  *
- * 真实税务 schema 待用户提供脱敏票样后校准(见 doc/M3_数电票解析_契约.md §4/§6)；
- * 当前仅做识别与结构诊断——结构不匹配时返回可操作错误,不返回未经确认的字段映射,
- * 避免把演示/臆测结果当作真实解析结果。
+ * 结构(名称均按 local-name 匹配,兼容命名空间前缀):
+ * <pre>
+ * EInvoice
+ * ├ Header: EIid(20位), InherentLabel/GeneralOrSpecialVAT/LabelName(发票类型) …
+ * ├ EInvoiceData
+ * │   ├ SellerInformation: SellerIdNum/SellerName …
+ * │   ├ BuyerInformation:  BuyerIdNum/BuyerName …
+ * │   ├ BasicInformation:  TotalAmWithoutTax / TotalTaxAm / TotalTax-includedAmount / RequestTime
+ * │   └ IssuItemInformation+(多行): ItemName/SpecMod/MeaUnits/Quantity/UnPrice/Amount/TaxRate/ComTaxAm …
+ * └ TaxSupervisionInfo: InvoiceNumber(20位)/IssueTime(YYYY-MM-DD)
+ * </pre>
+ * 解析结果仅作回填与人工核对(契约 doc/M3_数电票解析_契约.md),不代表税务验真。
  */
 public final class DigitalInvoiceXmlParser {
-    /** 待真实票样确认的期望元素(语义字段,按公共知识预置,回填映射时替换)。 */
-    private static final List<String> EXPECTED = List.of(
-            "InvoiceNumber", "InvoiceType", "IssueDate",
-            "SellerName", "SellerTaxId", "BuyerName", "BuyerTaxId",
-            "Amount", "TaxAmount", "TotalAmount");
 
     private DigitalInvoiceXmlParser() {
     }
 
     public static ParsedInvoice parse(Document doc) {
-        Set<String> present = elementNames(doc);
-        List<String> missing = EXPECTED.stream().filter(name -> !containsName(present, name)).collect(Collectors.toList());
-        String names = present.stream().limit(60).collect(Collectors.joining(", "));
-        String message = "已识别为数电票(蓝字)XML,但字段结构未匹配当前登记的 schema"
-                + (missing.isEmpty() ? "。" : "，缺少期望元素：[" + String.join("、", missing) + "]。")
-                + " 文件中出现的元素：[" + names + (present.size() > 60 ? ", …]" : "]")
-                + "。请提供真实数电票 XML 以校准映射(见 doc/M3_数电票解析_契约.md §4/§6)。";
-        throw new ServiceException(message);
+        Element root = doc.getDocumentElement();
+        ParsedInvoice result = new ParsedInvoice();
+        String number = DigitInvoiceNumbers.normalize(firstText(doc, "InvoiceNumber"));
+        DigitInvoiceNumbers.require20Digits(number, "发票号码");
+        result.setInvoiceNumber(number);
+        result.setInvoiceType(resolveInvoiceType(doc));
+        result.setIssueDate(resolveIssueDate(doc));
+
+        result.setSellerName(firstText(doc, "SellerName"));
+        result.setSellerTaxId(firstText(doc, "SellerIdNum"));
+        result.setBuyerName(firstText(doc, "BuyerName"));
+        result.setBuyerTaxId(firstText(doc, "BuyerIdNum"));
+        result.setAmount(firstText(doc, "TotalAmWithoutTax"));
+        result.setTaxAmount(firstText(doc, "TotalTaxAm"));
+        result.setTotalAmount(firstText(doc, "TotalTax-includedAmount"));
+
+        List<Element> items = elementsByLocalName(root, "IssuItemInformation");
+        if (items.isEmpty()) throw new ServiceException("XML 中没有开票明细(IssuItemInformation)");
+        for (Element item : items) {
+            ParsedInvoiceLine line = new ParsedInvoiceLine();
+            line.setName(textIn(item, "ItemName"));
+            line.setSpecification(textIn(item, "SpecMod"));
+            line.setUnit(textIn(item, "MeaUnits"));
+            line.setQuantity(textIn(item, "Quantity"));
+            line.setUnitPrice(textIn(item, "UnPrice"));
+            line.setTaxRate(textIn(item, "TaxRate"));
+            line.setAmount(textIn(item, "Amount"));
+            line.setTaxAmount(textIn(item, "ComTaxAm"));
+            result.getLines().add(line);
+        }
+
+        require(result.getInvoiceType(), "发票类型");
+        require(result.getIssueDate(), "开票日期");
+        require(result.getSellerName(), "销售方名称");
+        require(result.getSellerTaxId(), "销售方统一社会信用代码");
+        require(result.getBuyerName(), "购买方名称");
+        require(result.getBuyerTaxId(), "购买方统一社会信用代码");
+        for (ParsedInvoiceLine line : result.getLines()) {
+            require(line.getName(), "明细/商品名称");
+            require(line.getUnit(), "明细/单位");
+            require(line.getQuantity(), "明细/数量");
+            require(line.getUnitPrice(), "明细/单价");
+            require(line.getTaxRate(), "明细/税率");
+        }
+        return result;
     }
 
-    private static Set<String> elementNames(Document doc) {
-        Set<String> set = new LinkedHashSet<>();
+    /** 发票类型:取 GeneralOrSpecialVAT(专/普)标签,缺失回退 EInvoiceType,再缺省"数电票"。 */
+    private static String resolveInvoiceType(Document doc) {
+        Element general = firstByLocalName(doc, "GeneralOrSpecialVAT");
+        String value = general == null ? null : textIn(general, "LabelName");
+        if (value == null || value.isBlank()) {
+            Element type = firstByLocalName(doc, "EInvoiceType");
+            value = type == null ? null : textIn(type, "LabelName");
+        }
+        return (value == null || value.isBlank()) ? "数电票" : value.trim();
+    }
+
+    private static String resolveIssueDate(Document doc) {
+        String issueTime = firstText(doc, "IssueTime");
+        if (issueTime != null && !issueTime.isBlank()) return issueTime.trim();
+        String requestTime = firstText(doc, "RequestTime");
+        return requestTime == null || requestTime.length() < 10 ? requestTime : requestTime.substring(0, 10);
+    }
+
+    // ---- 按 local-name 查找的通用工具(容忍命名空间前缀) ----
+
+    private static String firstText(Document doc, String localName) {
+        Element element = firstByLocalName(doc, localName);
+        return element == null ? null : element.getTextContent().trim();
+    }
+
+    private static Element firstByLocalName(Document doc, String localName) {
         NodeList all = doc.getElementsByTagName("*");
         for (int i = 0; i < all.getLength(); i++) {
             Node node = all.item(i);
-            if (node instanceof Element element) {
-                set.add(localName(element));
-            }
+            if (node instanceof Element element && localName(element).equals(localName)) return element;
         }
-        return set;
+        return null;
     }
 
-    private static boolean containsName(Set<String> names, String expected) {
-        return names.contains(expected) || names.contains(expected.toLowerCase(Locale.ROOT));
+    private static List<Element> elementsByLocalName(Element root, String localName) {
+        List<Element> found = new ArrayList<>();
+        NodeList all = root.getElementsByTagName("*");
+        for (int i = 0; i < all.getLength(); i++) {
+            Node node = all.item(i);
+            if (node instanceof Element element && localName(element).equals(localName)) found.add(element);
+        }
+        return found;
+    }
+
+    private static String textIn(Element parent, String localName) {
+        NodeList all = parent.getElementsByTagName("*");
+        for (int i = 0; i < all.getLength(); i++) {
+            Node node = all.item(i);
+            if (node instanceof Element element && localName(element).equals(localName)) return element.getTextContent().trim();
+        }
+        return null;
     }
 
     private static String localName(Element element) {
         String tag = element.getTagName();
         int idx = tag.indexOf(':');
         return idx >= 0 ? tag.substring(idx + 1) : tag;
+    }
+
+    private static void require(String value, String field) {
+        if (value == null || value.isBlank()) throw new ServiceException("数电票 XML 字段不能为空：" + field);
     }
 }

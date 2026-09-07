@@ -1,0 +1,83 @@
+<EInvoice>
+  <Header>
+    <EIid>20260000000000000001</EIid>
+    <EInvoiceTag>SWEI3200</EInvoiceTag>
+    <Version>0.37</Version>
+    <InherentLabel>
+      <InIssuType>
+        <LabelCode>Y</LabelCode>
+        <LabelName>是否蓝字发票标志</LabelName>
+      </InIssuType>
+      <EInvoiceType>
+        <LabelCode>01</LabelCode>
+        <LabelName>电子发票</LabelName>
+      </EInvoiceType>
+      <GeneralOrSpecialVAT>
+        <LabelCode>01</LabelCode>
+        <LabelName>增值税专用发票</LabelName>
+      </GeneralOrSpecialVAT>
+      <TaxpayerType>
+        <LabelCode>1</LabelCode>
+        <LabelName>一般纳税人</LabelName>
+      </TaxpayerType>
+    </InherentLabel>
+    <UndefinedLabel />
+  </Header>
+  <EInvoiceData>
+    <SellerInformation>
+      <SellerIdNum>DEMOSELLERDEMO0001</SellerIdNum>
+      <SellerName>演示销售方有限公司</SellerName>
+      <SellerAddr>演示省演示市演示路1号</SellerAddr>
+      <SellerTelNum>13800000000</SellerTelNum>
+      <SellerBankName>演示银行股份有限公司演示支行</SellerBankName>
+      <SellerBankAccNum>6222000000000000001</SellerBankAccNum>
+    </SellerInformation>
+    <BuyerInformation>
+      <BuyerIdNum>DEMOBUYERDEMO0001</BuyerIdNum>
+      <BuyerName>演示购买方有限公司</BuyerName>
+      <BuyerTelNum>13800000001</BuyerTelNum>
+      <BuyerAddr>演示省演示市演示路2号</BuyerAddr>
+      <BuyerBankName>演示银行股份有限公司演示支行</BuyerBankName>
+      <BuyerBankAccNum>6222000000000000002</BuyerBankAccNum>
+    </BuyerInformation>
+    <BasicInformation>
+      <TotalAmWithoutTax>29726.85</TotalAmWithoutTax>
+      <TotalTaxAm>3864.49</TotalTaxAm>
+      <TotalTax-includedAmount>33591.34</TotalTax-includedAmount>
+      <TotalTax-includedAmountInChinese>叁万叁仟伍佰玖拾壹圆叁角肆分</TotalTax-includedAmountInChinese>
+      <Drawer>演示开票人</Drawer>
+      <RequestTime>2026-09-07 11:20:43</RequestTime>
+    </BasicInformation>
+    <IssuItemInformation>
+      <ItemName>*塑料制品*低温真空袋</ItemName>
+      <SpecMod>320*420*0.1</SpecMod>
+      <MeaUnits>只</MeaUnits>
+      <Quantity>69982</Quantity>
+      <UnPrice>0.4247785081524</UnPrice>
+      <Amount>29726.85</Amount>
+      <TaxRate>0.13</TaxRate>
+      <ComTaxAm>3864.49</ComTaxAm>
+      <TotaltaxIncludedAmount>33591.34</TotaltaxIncludedAmount>
+      <TaxClassificationCode>0000000000000000000</TaxClassificationCode>
+    </IssuItemInformation>
+    <SpecificInformation />
+    <AdditionalInformation />
+  </EInvoiceData>
+  <SellerAuthentication>
+    <AuthenticationMethods>01</AuthenticationMethods>
+  </SellerAuthentication>
+  <TaxSupervisionInfo>
+    <InvoiceNumber>20260000000000000001</InvoiceNumber>
+    <IssueTime>2026-09-07</IssueTime>
+    <TaxBureauCode>00000000000</TaxBureauCode>
+    <TaxBureauName>演示税务局</TaxBureauName>
+  </TaxSupervisionInfo>
+  <TaxBureauSignature>
+    <Reference URI="/Einvoice/Header|/Einvoice/EinvoiceData|/Einvoice/SellerAuthentication|/Einvoice/TaxSupervisionInfo|/Einvoice/TaxBureauSignature/SignatureTime" />
+    <SignatureAlgorithm>1.2.156.10197.1.501</SignatureAlgorithm>
+    <SignatureFormat>DETACH</SignatureFormat>
+    <SignatureTime>2026-09-07 19:02:23</SignatureTime>
+    <SignatureValue>SIGNATURE_MASKED</SignatureValue>
+    <KeyInfo />
+  </TaxBureauSignature>
+</EInvoice>

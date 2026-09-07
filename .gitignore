@@ -66,3 +66,8 @@ nbdist/
 /runtime/
 /logs/
 
+# 数电票真实票样（含真实信息，不入库；入库请提供 .fixture.xml 掩码副本）
+/allinone-supply/src/test/resources/invoices/digital-invoice-01.xml
+/allinone-supply/src/test/resources/invoices/digital-invoice-*.xml
+!/allinone-supply/src/test/resources/invoices/*.fixture.xml
+
