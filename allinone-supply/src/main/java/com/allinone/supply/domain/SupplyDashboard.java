@@ -1,0 +1,4 @@
+package com.allinone.supply.domain;
+public class SupplyDashboard { private Long validOrderCents; private Long approvedInvoiceCents; private Long pendingInvoiceCents; private Integer receiptCount; private Integer pendingTaskCount;
+ public Long getValidOrderCents(){return validOrderCents;} public void setValidOrderCents(Long v){validOrderCents=v;} public Long getApprovedInvoiceCents(){return approvedInvoiceCents;} public void setApprovedInvoiceCents(Long v){approvedInvoiceCents=v;} public Long getPendingInvoiceCents(){return pendingInvoiceCents;} public void setPendingInvoiceCents(Long v){pendingInvoiceCents=v;} public Integer getReceiptCount(){return receiptCount;} public void setReceiptCount(Integer v){receiptCount=v;} public Integer getPendingTaskCount(){return pendingTaskCount;} public void setPendingTaskCount(Integer v){pendingTaskCount=v;}
+}

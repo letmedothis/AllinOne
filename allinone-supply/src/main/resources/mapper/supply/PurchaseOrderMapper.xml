@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.PurchaseOrderMapper">
+    <resultMap id="OrderResult" type="com.allinone.supply.domain.PurchaseOrder">
+        <id property="documentId" column="document_id"/><result property="number" column="number"/><result property="creatorId" column="creator_id"/>
+        <result property="creationKey" column="creation_key"/><result property="approvalStatus" column="approval_status"/><result property="currentNode" column="current_node"/>
+        <result property="currentVersion" column="current_version"/><result property="revision" column="revision"/><result property="supplierId" column="supplier_id"/>
+        <result property="supplierName" column="supplier_name"/><result property="buyerId" column="buyer_id"/><result property="expectedDate" column="expected_date"/>
+        <result property="currency" column="currency"/><result property="amountCents" column="amount_cents"/><result property="taxCents" column="tax_cents"/><result property="totalCents" column="total_cents"/>
+        <result property="remark" column="remark"/><result property="createTime" column="create_time"/><result property="updateTime" column="update_time"/>
+    </resultMap>
+    <resultMap id="LineResult" type="com.allinone.supply.domain.PurchaseOrderLine">
+        <id property="id" column="id"/><result property="orderId" column="order_id"/><result property="lineNo" column="line_no"/>
+        <result property="name" column="name"/><result property="specification" column="specification"/><result property="unit" column="unit"/>
+        <result property="quantity" column="quantity_q4"/><result property="price" column="price_p6"/><result property="rate" column="rate_r4"/>
+        <result property="amountCents" column="amount_cents"/><result property="taxCents" column="tax_cents"/><result property="totalCents" column="total_cents"/>
+    </resultMap>
+    <resultMap id="ConfigResult" type="com.allinone.supply.domain.WorkflowConfig">
+        <id property="id" column="id"/><result property="flowType" column="flow_type"/><result property="version" column="version"/>
+        <result property="supervisorCandidates" column="supervisor_candidates"/><result property="financeCandidates" column="finance_candidates"/>
+    </resultMap>
+    <sql id="orderColumns">d.id document_id,d.number,d.creator_id,d.creation_key,d.approval_status,d.current_node,d.current_version,d.revision,
+        p.supplier_id,s.name supplier_name,p.buyer_id,p.expected_date,p.currency,p.amount_cents,p.tax_cents,p.total_cents,d.create_time,d.update_time</sql>
+    <select id="selectPurchaseOrderList" parameterType="com.allinone.supply.domain.PurchaseOrder" resultMap="OrderResult">
+        select <include refid="orderColumns"/> from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id
+        where d.type='PURCHASE_ORDER' and d.deleted='0'
+        <if test="params.currentUserId != null">and (#{params.supplyGlobal}=true or d.creator_id=#{params.currentUserId} or p.buyer_id=#{params.currentUserId})</if>
+        <if test="supplierId != null">and p.supplier_id=#{supplierId}</if><if test="buyerId != null">and p.buyer_id=#{buyerId}</if>
+        <if test="approvalStatus != null and approvalStatus != ''">and d.approval_status=#{approvalStatus}</if>
+        <if test="number != null and number != ''">and d.number like concat('%',#{number},'%')</if> order by d.update_time desc
+    </select>
+    <select id="selectPurchaseOrderById" parameterType="Long" resultMap="OrderResult">
+        select <include refid="orderColumns"/> from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id
+        where d.id=#{documentId} and d.type='PURCHASE_ORDER' and d.deleted='0'
+    </select>
+    <select id="selectLinesByOrderId" parameterType="Long" resultMap="LineResult">select * from purchase_order_lines where order_id=#{orderId} and is_current='1' order by line_no</select>
+    <select id="selectApprovedSupplierCount" parameterType="Long" resultType="int">select count(1) from documents where id=#{supplierId} and type='SUPPLIER' and approval_status='APPROVED' and deleted='0'</select>
+    <select id="selectEligibleBuyerCount" parameterType="Long" resultType="int">select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id where u.user_id=#{buyerId} and u.status='0' and r.status='0' and r.role_key='purchaser'</select>
+    <select id="selectEligibleSupervisorCount" resultType="int">select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id where u.user_id=#{userId} and u.user_id&lt;&gt;#{excludeId} and u.status='0' and r.status='0' and r.role_key in('supervisor','purchasing_supervisor','purchase_supervisor')</select>
+    <insert id="insertDocument" parameterType="com.allinone.supply.domain.PurchaseOrder">insert into documents(id,type,number,creator_id,creation_key,approval_status,current_version,revision,deleted,create_time,update_time) values(#{documentId},'PURCHASE_ORDER',#{number},#{creatorId},#{creationKey},#{approvalStatus},#{currentVersion},#{revision},'0',#{createTime},#{updateTime})</insert>
+    <insert id="insertOrder" parameterType="com.allinone.supply.domain.PurchaseOrder">insert into purchase_orders(document_id,supplier_id,buyer_id,expected_date,currency,amount_cents,tax_cents,total_cents,remark) values(#{documentId},#{supplierId},#{buyerId},#{expectedDate},#{currency},#{amountCents},#{taxCents},#{totalCents},#{remark})</insert>
+    <insert id="insertLine" parameterType="com.allinone.supply.domain.PurchaseOrderLine">insert into purchase_order_lines(id,order_id,line_no,is_current,name,specification,unit,quantity_q4,price_p6,rate_r4,amount_cents,tax_cents,total_cents) values(#{id},#{orderId},#{lineNo},'1',#{name},#{specification},#{unit},#{quantity},#{price},#{rate},#{amountCents},#{taxCents},#{totalCents})</insert>
+    <update id="deleteLines" parameterType="Long">update purchase_order_lines set is_current='0' where order_id=#{orderId} and is_current='1'</update>
+    <update id="updateOrder" parameterType="com.allinone.supply.domain.PurchaseOrder">update purchase_orders p join documents d on d.id=p.document_id set p.supplier_id=#{supplierId},p.buyer_id=#{buyerId},p.expected_date=#{expectedDate},p.amount_cents=#{amountCents},p.tax_cents=#{taxCents},p.total_cents=#{totalCents},p.remark=#{remark},d.revision=d.revision+1,d.update_time=#{updateTime} where p.document_id=#{documentId} and d.revision=#{revision} and d.approval_status in('DRAFT','RETURNED') and d.deleted='0'</update>
+    <update id="updateDocument">update documents set approval_status=#{approvalStatus},current_node=#{currentNode},current_version=#{currentVersion},revision=revision+1,update_time=#{updateTime} where id=#{documentId} and revision=#{revision} and approval_status in('DRAFT','RETURNED') and deleted='0'</update>
+    <insert id="insertSequence">insert ignore into number_sequences(document_type,business_date,next_value) values('PURCHASE_ORDER',#{businessDate},1)</insert>
+    <update id="incrementSequence">update number_sequences set next_value=next_value+1 where document_type='PURCHASE_ORDER' and business_date=#{businessDate}</update>
+    <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type='PURCHASE_ORDER' and business_date=#{businessDate}</select>
+    <select id="selectLatestConfig" parameterType="String" resultMap="ConfigResult">select id,flow_type,version,supervisor_candidates,finance_candidates from workflow_configs where flow_type=#{flowType} order by version desc limit 1</select>
+    <insert id="insertVersion">insert into document_versions(id,document_id,version_no,snapshot_json,content_hash,submitted_by,submitted_at) values(#{id},#{documentId},#{versionNo},#{snapshotJson},#{contentHash},#{submittedBy},#{submittedAt})</insert>
+    <insert id="insertVersionAttachments">insert into version_attachments(version_id,file_id,name_snapshot,sha256) select #{versionId},f.id,f.original_name,f.sha256 from document_attachments a join attachment_files f on f.id=a.file_id where a.document_id=#{documentId}</insert>
+    <insert id="insertWorkflow">insert into workflow_instances(id,document_id,version_id,config_version,status,started_at) values(#{id},#{documentId},#{versionId},#{configVersion},'RUNNING',#{startedAt})</insert>
+    <insert id="insertTask">insert into workflow_tasks(id,instance_id,node,sequence_no,assignee_id,status) values(#{id},#{instanceId},'SUPERVISOR',1,#{assigneeId},'PENDING')</insert>
+    <insert id="insertAudit">insert into audit_events(id,document_id,version_id,actor_id,actor_snapshot,action,created_at) values(#{id},#{documentId},#{versionId},#{actorId},#{actorSnapshot},#{action},#{createdAt})</insert>
+</mapper>

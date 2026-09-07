@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.ReceiptMapper">
+  <resultMap id="LineBalance" type="com.allinone.supply.domain.ReceiptLine"><id property="orderLineId" column="order_line_id"/><result property="itemSnapshot" column="item_snapshot"/><result property="orderQuantity" column="order_quantity"/><result property="receivedQuantity" column="received_quantity"/><result property="remainingQuantity" column="remaining_quantity"/></resultMap>
+  <select id="selectApprovedOrderCount" parameterType="Long" resultType="int">select count(1) from documents where id=#{orderId} and type='PURCHASE_ORDER' and approval_status='APPROVED' and deleted='0'</select>
+  <select id="selectEnabledWarehouseCount" parameterType="Long" resultType="int">select count(1) from warehouses where id=#{warehouseId} and enabled='1'</select>
+  <select id="selectOrderLineBalances" parameterType="Long" resultMap="LineBalance">
+    select l.id order_line_id,l.name item_snapshot,l.quantity_q4 order_quantity,coalesce(sum(r.quantity_q4),0) received_quantity,
+      l.quantity_q4-coalesce(sum(r.quantity_q4),0) remaining_quantity
+    from purchase_order_lines l left join receipt_lines r on r.order_line_id=l.id
+    where l.order_id=#{orderId} and l.is_current='1' group by l.id,l.name,l.quantity_q4 order by l.line_no for update
+  </select>
+  <insert id="insertSequence">insert ignore into number_sequences(document_type,business_date,next_value) values('RECEIPT',#{businessDate},1)</insert>
+  <update id="incrementSequence">update number_sequences set next_value=next_value+1 where document_type='RECEIPT' and business_date=#{businessDate}</update>
+  <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type='RECEIPT' and business_date=#{businessDate}</select>
+  <insert id="insertDocument">insert into documents(id,type,number,creator_id,creation_key,approval_status,current_version,revision,deleted,create_time,update_time) values(#{documentId},'RECEIPT',#{number},#{confirmedBy},concat('RECEIPT-',#{documentId}),'',0,0,'0',#{createTime},#{createTime})</insert>
+  <insert id="insertReceipt">insert into receipts(document_id,order_id,warehouse_id,business_date,confirmed_by,confirmed_at,remark) values(#{documentId},#{orderId},#{warehouseId},#{businessDate},#{confirmedBy},#{confirmedAt},#{remark})</insert>
+  <insert id="insertLine">insert into receipt_lines(id,receipt_id,order_line_id,quantity_q4,item_snapshot) values(#{id},#{receiptId},#{orderLineId},#{quantity},#{itemSnapshot})</insert>
+  <insert id="insertVersion">insert into document_versions(id,document_id,version_no,snapshot_json,content_hash,submitted_by,submitted_at) values(#{id},#{documentId},1,#{snapshotJson},#{contentHash},#{submittedBy},#{submittedAt})</insert>
+  <update id="updateDocumentVersion">update documents set current_version=1,revision=revision+1,update_time=now() where id=#{documentId} and type='RECEIPT' and current_version=0 and deleted='0'</update>
+  <insert id="insertAudit">insert into audit_events(id,document_id,version_id,actor_id,actor_snapshot,action,created_at) values(#{id},#{documentId},#{versionId},#{actorId},#{actorSnapshot},#{action},#{createdAt})</insert>
+</mapper>

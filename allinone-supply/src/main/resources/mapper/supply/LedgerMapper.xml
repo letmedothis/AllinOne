@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.LedgerMapper">
+  <resultMap id="Ledger" type="com.allinone.supply.domain.LedgerRow">
+    <id property="orderId" column="order_id"/><result property="orderNumber" column="order_number"/><result property="supplierName" column="supplier_name"/>
+    <result property="totalCents" column="total_cents"/><result property="receivedQuantity" column="received_quantity"/>
+    <result property="approvedInvoiceCents" column="approved_invoice_cents"/><result property="pendingInvoiceCents" column="pending_invoice_cents"/>
+    <result property="approvalStatus" column="approval_status"/>
+  </resultMap>
+  <select id="selectCombined" resultMap="Ledger">
+    select d.id order_id,d.number order_number,s.name supplier_name,p.total_cents,d.approval_status,
+      coalesce((select sum(rl.quantity_q4) from receipts r join receipt_lines rl on rl.receipt_id=r.document_id where r.order_id=d.id),0) received_quantity,
+      coalesce((select sum(i.total_cents) from invoices i join documents idoc on idoc.id=i.document_id where i.order_id=d.id and idoc.approval_status='APPROVED'),0) approved_invoice_cents,
+      coalesce((select sum(i.total_cents) from invoices i join documents idoc on idoc.id=i.document_id where i.order_id=d.id and idoc.approval_status='IN_REVIEW'),0) pending_invoice_cents
+    from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id
+    where d.type='PURCHASE_ORDER' and d.deleted='0' and (#{admin}=true or d.creator_id=#{userId} or p.buyer_id=#{userId})
+    <if test="number != null and number != ''">and d.number like concat('%',#{number},'%')</if>
+    <if test="supplierName != null and supplierName != ''">and s.name like concat('%',#{supplierName},'%')</if>
+    <if test="approvalStatus != null and approvalStatus != ''">and d.approval_status=#{approvalStatus}</if>
+    order by d.update_time desc
+  </select>
+</mapper>

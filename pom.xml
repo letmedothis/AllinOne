@@ -321,6 +321,7 @@
     <module>allinone-collect</module>
     <module>allinone-report</module>
 <module>allinone-common</module>
+    <module>allinone-supply</module>
     </modules>
     <packaging>pom</packaging>
 

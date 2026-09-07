@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.SupplierMapper">
+    <resultMap id="SupplierResult" type="com.allinone.supply.domain.Supplier">
+        <id property="documentId" column="document_id"/>
+        <result property="number" column="number"/>
+        <result property="creatorId" column="creator_id"/>
+        <result property="creationKey" column="creation_key"/>
+        <result property="approvalStatus" column="approval_status"/>
+        <result property="currentNode" column="current_node"/>
+        <result property="currentVersion" column="current_version"/>
+        <result property="revision" column="revision"/>
+        <result property="name" column="name"/>
+        <result property="taxId" column="tax_id"/>
+        <result property="dedupKey" column="dedup_key"/>
+        <result property="contact" column="contact"/>
+        <result property="phone" column="phone"/>
+        <result property="address" column="address"/>
+        <result property="bankName" column="bank_name"/>
+        <result property="accountName" column="account_name"/>
+        <result property="bankAccount" column="bank_account"/>
+        <result property="attachmentPaths" column="attachment_paths"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="supplierColumns">
+        d.id document_id, d.number, d.creator_id, d.creation_key, d.approval_status, d.current_node,
+        d.current_version, d.revision, s.name, s.tax_id, s.dedup_key, s.contact, s.phone, s.address,
+        s.bank_name, s.account_name, s.bank_account, s.attachment_paths, s.remark, d.create_time, d.update_time,
+        u.user_name create_by, u.user_name update_by
+    </sql>
+
+    <select id="selectSupplierList" parameterType="com.allinone.supply.domain.Supplier" resultMap="SupplierResult">
+        select <include refid="supplierColumns"/>
+        from documents d join suppliers s on s.document_id = d.id
+        left join sys_user u on u.user_id = d.creator_id
+        where d.type = 'SUPPLIER' and d.deleted = '0'
+        <if test="params.currentUserId != null">and (#{params.supplyGlobal} = true or d.creator_id = #{params.currentUserId} or exists (select 1 from purchase_orders po join documents pod on pod.id=po.document_id where po.supplier_id=d.id and po.buyer_id=#{params.currentUserId} and pod.deleted='0'))</if>
+        <if test="name != null and name != ''">and s.name like concat('%', #{name}, '%')</if>
+        <if test="taxId != null and taxId != ''">and s.tax_id like concat('%', #{taxId}, '%')</if>
+        <if test="number != null and number != ''">and d.number like concat('%', #{number}, '%')</if>
+        <if test="approvalStatus != null and approvalStatus != ''">and d.approval_status = #{approvalStatus}</if>
+        order by d.update_time desc
+    </select>
+
+    <select id="selectSupplierById" parameterType="Long" resultMap="SupplierResult">
+        select <include refid="supplierColumns"/>
+        from documents d join suppliers s on s.document_id = d.id
+        left join sys_user u on u.user_id = d.creator_id
+        where d.id = #{documentId} and d.type = 'SUPPLIER' and d.deleted = '0'
+    </select>
+
+    <insert id="insertDocument" parameterType="com.allinone.supply.domain.Supplier">
+        insert into documents (id, type, number, creator_id, creation_key, approval_status, current_version, revision, deleted, create_time, update_time)
+        values (#{documentId}, 'SUPPLIER', #{number}, #{creatorId}, #{creationKey}, #{approvalStatus}, #{currentVersion}, #{revision}, '0', #{createTime}, #{updateTime})
+    </insert>
+
+    <insert id="insertSupplier" parameterType="com.allinone.supply.domain.Supplier">
+        insert into suppliers (document_id, name, tax_id, dedup_key, contact, phone, address, bank_name, account_name, bank_account, attachment_paths, remark)
+        values (#{documentId}, #{name}, #{taxId}, #{dedupKey}, #{contact}, #{phone}, #{address}, #{bankName}, #{accountName}, #{bankAccount}, #{attachmentPaths}, #{remark})
+    </insert>
+
+    <update id="updateSupplier" parameterType="com.allinone.supply.domain.Supplier">
+        update suppliers s join documents d on d.id = s.document_id
+        set s.name = #{name}, s.tax_id = #{taxId}, s.dedup_key = #{dedupKey}, s.contact = #{contact}, s.phone = #{phone},
+            s.address = #{address}, s.bank_name = #{bankName}, s.account_name = #{accountName}, s.bank_account = #{bankAccount}, s.attachment_paths = #{attachmentPaths}, s.remark = #{remark},
+            d.revision = d.revision + 1, d.update_time = #{updateTime}
+        where s.document_id = #{documentId} and d.revision = #{revision} and d.approval_status in ('DRAFT', 'RETURNED') and d.deleted = '0'
+    </update>
+
+    <update id="updateDocument" parameterType="com.allinone.supply.domain.Supplier">
+        update documents set approval_status = #{approvalStatus}, current_node = #{currentNode}, current_version = #{currentVersion},
+            revision = revision + 1, update_time = #{updateTime}
+        where id = #{documentId} and revision = #{revision} and approval_status in ('DRAFT', 'RETURNED') and deleted = '0'
+    </update>
+
+    <insert id="insertSequence">
+        insert ignore into number_sequences (document_type, business_date, next_value) values (#{type}, #{businessDate}, 1)
+    </insert>
+    <update id="incrementSequence">
+        update number_sequences set next_value = next_value + 1 where document_type = #{type} and business_date = #{businessDate}
+    </update>
+    <select id="selectSequence" resultType="Integer">
+        select next_value from number_sequences where document_type = #{type} and business_date = #{businessDate}
+    </select>
+
+    <select id="selectLatestConfig" resultMap="WorkflowConfigResult">
+        select id, flow_type, version, supervisor_candidates, finance_candidates
+        from workflow_configs where flow_type = #{flowType} order by version desc limit 1
+    </select>
+    <select id="selectEligibleSupervisorCount" resultType="int">select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id where u.user_id=#{userId} and u.user_id&lt;&gt;#{excludeId} and u.status='0' and r.status='0' and r.role_key in('supervisor','purchasing_supervisor','purchase_supervisor')</select>
+    <select id="countAttachments" resultType="int">select count(1) from document_attachments where document_id=#{documentId}</select>
+    <resultMap id="WorkflowConfigResult" type="com.allinone.supply.domain.WorkflowConfig">
+        <id property="id" column="id"/><result property="flowType" column="flow_type"/>
+        <result property="version" column="version"/><result property="supervisorCandidates" column="supervisor_candidates"/>
+        <result property="financeCandidates" column="finance_candidates"/>
+    </resultMap>
+
+    <insert id="insertVersion">
+        insert into document_versions (id, document_id, version_no, snapshot_json, content_hash, submitted_by, submitted_at)
+        values (#{id}, #{documentId}, #{versionNo}, #{snapshotJson}, #{contentHash}, #{submittedBy}, #{submittedAt})
+    </insert>
+    <insert id="insertVersionAttachments">insert into version_attachments(version_id,file_id,name_snapshot,sha256) select #{versionId},f.id,f.original_name,f.sha256 from document_attachments a join attachment_files f on f.id=a.file_id where a.document_id=#{documentId}</insert>
+    <insert id="insertWorkflow">
+        insert into workflow_instances (id, document_id, version_id, config_version, status, started_at)
+        values (#{id}, #{documentId}, #{versionId}, #{configVersion}, 'RUNNING', #{startedAt})
+    </insert>
+    <insert id="insertTask">
+        insert into workflow_tasks (id, instance_id, node, sequence_no, assignee_id, status)
+        values (#{id}, #{instanceId}, 'SUPERVISOR', 1, #{assigneeId}, 'PENDING')
+    </insert>
+    <insert id="insertAudit">
+        insert into audit_events (id, document_id, version_id, actor_id, actor_snapshot, action, reason, changes_json, created_at)
+        values (#{id}, #{documentId}, #{versionId}, #{actorId}, #{actorSnapshot}, #{action}, #{reason}, #{changesJson}, #{createdAt})
+    </insert>
+</mapper>

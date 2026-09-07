@@ -1,0 +1,3 @@
+package com.allinone.supply.controller;
+import com.allinone.common.core.controller.BaseController; import com.allinone.common.core.domain.AjaxResult; import com.allinone.supply.service.ISupplyDashboardService; import org.springframework.beans.factory.annotation.Autowired; import org.springframework.security.access.prepost.PreAuthorize; import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/supply/dashboard") public class SupplyDashboardController extends BaseController { @Autowired private ISupplyDashboardService service; @PreAuthorize("@ss.hasPermi('supply:dashboard:view')") @GetMapping public AjaxResult summary(){return success(service.summary());} }

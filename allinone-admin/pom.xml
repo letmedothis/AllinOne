@@ -68,6 +68,13 @@
             <version>${allinone.version}</version>
         </dependency>
 
+        <!-- 供应链采购审批与票据台账 -->
+        <dependency>
+            <groupId>com.allinone</groupId>
+            <artifactId>allinone-supply</artifactId>
+            <version>${allinone.version}</version>
+        </dependency>
+
         <!-- JimuReport 积木报表（Spring Boot 3.x 版本），版本由根 pom dependencyManagement 统一管理 -->
         <dependency>
             <groupId>org.jeecgframework.jimureport</groupId>

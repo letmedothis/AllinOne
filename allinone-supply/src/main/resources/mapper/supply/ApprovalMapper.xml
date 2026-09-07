@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.ApprovalMapper">
+    <resultMap id="TaskResult" type="com.allinone.supply.domain.ApprovalTask">
+        <id property="taskId" column="task_id"/><result property="instanceId" column="instance_id"/><result property="documentId" column="document_id"/><result property="versionId" column="version_id"/><result property="submitterId" column="submitter_id"/>
+        <result property="documentType" column="document_type"/><result property="documentNumber" column="document_number"/><result property="node" column="node"/>
+        <result property="assigneeId" column="assignee_id"/><result property="submitterName" column="submitter_name"/><result property="versionNo" column="version_no"/>
+        <result property="status" column="task_status"/><result property="revision" column="task_revision"/><result property="documentRevision" column="document_revision"/><result property="submittedAt" column="submitted_at"/><result property="comment" column="comment"/>
+    </resultMap>
+    <sql id="taskColumns">t.id task_id,t.instance_id,i.document_id,i.version_id,d.type document_type,d.number document_number,d.revision document_revision,t.node,t.assignee_id,
+        u.user_name submitter_name,v.submitted_by submitter_id,v.version_no,t.status task_status,t.revision task_revision,v.submitted_at,t.comment</sql>
+    <select id="selectPendingTasks" parameterType="Long" resultMap="TaskResult">select <include refid="taskColumns"/> from workflow_tasks t join workflow_instances i on i.id=t.instance_id join documents d on d.id=i.document_id join document_versions v on v.id=i.version_id left join sys_user u on u.user_id=v.submitted_by where t.assignee_id=#{assigneeId} and t.status='PENDING' and i.status='RUNNING' and d.approval_status='IN_REVIEW' and d.current_node=t.node and d.deleted='0' order by v.submitted_at desc</select>
+    <select id="selectTask" parameterType="Long" resultMap="TaskResult">select <include refid="taskColumns"/> from workflow_tasks t join workflow_instances i on i.id=t.instance_id join documents d on d.id=i.document_id join document_versions v on v.id=i.version_id left join sys_user u on u.user_id=v.submitted_by where t.id=#{taskId} and i.status='RUNNING' and d.approval_status='IN_REVIEW' and d.current_node=t.node and d.deleted='0'</select>
+    <update id="completeTask">update workflow_tasks set status='COMPLETED',decision=#{decision},comment=#{comment},acted_by=#{actorId},acted_at=#{actedAt},revision=revision+1 where id=#{taskId} and revision=#{revision} and assignee_id=#{actorId} and status='PENDING'</update>
+    <update id="updateDocument">update documents set approval_status=#{status},current_node=#{currentNode},revision=revision+1,update_time=#{updateTime} where id=#{documentId} and revision=#{revision} and approval_status='IN_REVIEW' and current_node=#{expectedNode} and deleted='0'</update>
+    <update id="cancelPendingTasks">update workflow_tasks set status='CANCELLED',revision=revision+1 where instance_id=#{instanceId} and status='PENDING'</update>
+    <update id="updateWorkflow">update workflow_instances set status=#{status},finished_at=#{finishedAt} where id=#{instanceId} and status='RUNNING'</update>
+    <insert id="insertTask">insert into workflow_tasks(id,instance_id,node,sequence_no,assignee_id,status) values(#{id},#{instanceId},#{node},#{sequenceNo},#{assigneeId},'PENDING')</insert>
+    <select id="selectFinanceCandidates" resultType="String">select c.finance_candidates from workflow_instances i join workflow_configs c on c.version=i.config_version where i.id=#{instanceId} and c.flow_type='INVOICE_APPROVAL'</select>
+    <select id="selectEligibleFinanceCount" resultType="int">select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id where u.user_id=#{userId} and u.user_id&lt;&gt;#{submitterId} and u.user_id&lt;&gt;#{purchaseId} and u.status='0' and r.status='0' and r.role_key='finance'</select>
+    <update id="confirmInvoiceAllocations">update invoice_allocations set state='CONFIRMED' where invoice_id=#{documentId} and state='RESERVED'</update>
+    <update id="releaseInvoiceAllocations">update invoice_allocations set state='RELEASED' where invoice_id=#{documentId} and state='RESERVED'</update>
+    <insert id="insertAudit">insert into audit_events(id,document_id,version_id,actor_id,actor_snapshot,action,reason,created_at) values(#{id},#{documentId},#{versionId},#{actorId},#{actorSnapshot},#{action},#{reason},#{createdAt})</insert>
+</mapper>

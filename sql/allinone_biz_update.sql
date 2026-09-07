@@ -102,3 +102,234 @@ SET @add_template_version_sql = IF(
 PREPARE add_template_version_stmt FROM @add_template_version_sql;
 EXECUTE add_template_version_stmt;
 DEALLOCATE PREPARE add_template_version_stmt;
+
+-- -----------------------------------------------------------
+-- Phase 6: 供应链采购审批基础表（V1.0）
+-- 说明：与 allinone_biz.sql 的全新安装定义保持一致；后续阶段继续追加明细、附件、发票和台账表。
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS company_profile (
+  id bigint(20) NOT NULL, name varchar(200) NOT NULL, tax_id varchar(32) NOT NULL,
+  timezone varchar(64) NOT NULL DEFAULT 'Asia/Shanghai', currency char(3) NOT NULL DEFAULT 'CNY',
+  revision int(11) NOT NULL DEFAULT 1, create_time datetime NOT NULL, update_time datetime NOT NULL,
+  PRIMARY KEY (id), UNIQUE KEY uk_sc_company_tax (tax_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链公司配置';
+
+CREATE TABLE IF NOT EXISTS warehouses (
+  id bigint(20) NOT NULL, name varchar(100) NOT NULL, enabled char(1) NOT NULL DEFAULT '1',
+  create_by varchar(64) DEFAULT '', create_time datetime, update_by varchar(64) DEFAULT '', update_time datetime,
+  PRIMARY KEY (id), UNIQUE KEY uk_sc_warehouse_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链仓库';
+
+CREATE TABLE IF NOT EXISTS number_sequences (
+  document_type varchar(32) NOT NULL, business_date date NOT NULL, next_value int(11) NOT NULL DEFAULT 1,
+  PRIMARY KEY (document_type, business_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链单号序列';
+
+CREATE TABLE IF NOT EXISTS documents (
+  id bigint(20) NOT NULL, type varchar(32) NOT NULL, number varchar(64) NOT NULL, creator_id bigint(20) NOT NULL,
+  creation_key varchar(80) NOT NULL, approval_status varchar(20) NOT NULL DEFAULT 'DRAFT', current_node varchar(20),
+  current_version int(11) NOT NULL DEFAULT 0, revision int(11) NOT NULL DEFAULT 0, deleted char(1) NOT NULL DEFAULT '0',
+  create_time datetime NOT NULL, update_time datetime NOT NULL, PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_document_number (number), UNIQUE KEY uk_sc_document_creation (creator_id, creation_key),
+  KEY idx_sc_document_type_status (type, approval_status, update_time), KEY idx_sc_document_creator (creator_id, update_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链公共单据';
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  document_id bigint(20) NOT NULL, name varchar(200) NOT NULL, tax_id varchar(32) NOT NULL, dedup_key varchar(32) NOT NULL,
+  contact varchar(100) NOT NULL, phone varchar(50) NOT NULL, address varchar(500) NOT NULL, bank_name varchar(200) NOT NULL,
+  account_name varchar(200) NOT NULL, bank_account varchar(100) NOT NULL, attachment_paths varchar(4000), remark varchar(2000), PRIMARY KEY (document_id),
+  UNIQUE KEY uk_sc_supplier_dedup (dedup_key), KEY idx_sc_supplier_tax (tax_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链供应商准入';
+
+SET @add_supplier_attachment_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'suppliers' AND COLUMN_NAME = 'attachment_paths') = 0,
+  'ALTER TABLE suppliers ADD COLUMN attachment_paths varchar(4000) DEFAULT NULL AFTER bank_account',
+  'SELECT 1'
+);
+PREPARE add_supplier_attachment_stmt FROM @add_supplier_attachment_sql;
+EXECUTE add_supplier_attachment_stmt;
+DEALLOCATE PREPARE add_supplier_attachment_stmt;
+
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  document_id bigint(20) NOT NULL, supplier_id bigint(20) NOT NULL, buyer_id bigint(20) NOT NULL, expected_date date,
+  currency char(3) NOT NULL DEFAULT 'CNY', amount_cents bigint(20) NOT NULL DEFAULT 0, tax_cents bigint(20) NOT NULL DEFAULT 0,
+  total_cents bigint(20) NOT NULL DEFAULT 0, remark varchar(2000), PRIMARY KEY (document_id),
+  KEY idx_sc_po_supplier (supplier_id), KEY idx_sc_po_buyer (buyer_id), KEY idx_sc_po_expected (expected_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购订单';
+
+CREATE TABLE IF NOT EXISTS purchase_order_lines (
+  id bigint(20) NOT NULL, order_id bigint(20) NOT NULL, line_no int(11) NOT NULL, is_current char(1) NOT NULL DEFAULT '1',
+  name varchar(200) NOT NULL, specification varchar(500), unit varchar(32) NOT NULL, quantity_q4 decimal(20,4) NOT NULL,
+  price_p6 decimal(20,6) NOT NULL, rate_r4 decimal(20,4) NOT NULL DEFAULT 0, amount_cents bigint(20) NOT NULL DEFAULT 0,
+  tax_cents bigint(20) NOT NULL DEFAULT 0, total_cents bigint(20) NOT NULL DEFAULT 0, PRIMARY KEY (id),
+  KEY idx_sc_po_line_current (order_id, line_no, is_current), KEY idx_sc_po_line_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购订单明细';
+
+SET @drop_sc_po_line_unique_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'purchase_order_lines' AND INDEX_NAME = 'uk_sc_po_line') > 0,
+  'ALTER TABLE purchase_order_lines DROP INDEX uk_sc_po_line', 'SELECT 1'
+);
+PREPARE drop_sc_po_line_unique_stmt FROM @drop_sc_po_line_unique_sql;
+EXECUTE drop_sc_po_line_unique_stmt;
+DEALLOCATE PREPARE drop_sc_po_line_unique_stmt;
+
+CREATE TABLE IF NOT EXISTS workflow_configs (
+  id bigint(20) NOT NULL, flow_type varchar(32) NOT NULL, version int(11) NOT NULL,
+  supervisor_candidates varchar(2000), finance_candidates varchar(2000), updated_by bigint(20), updated_at datetime,
+  PRIMARY KEY (id), UNIQUE KEY uk_sc_flow_config (flow_type, version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='固定审批流配置';
+
+CREATE TABLE IF NOT EXISTS attachment_files (
+  id bigint(20) NOT NULL, original_name varchar(255) NOT NULL, storage_path varchar(1000) NOT NULL,
+  media_type varchar(100), size_bytes bigint(20) NOT NULL, sha256 varchar(64) NOT NULL,
+  uploaded_by bigint(20) NOT NULL, uploaded_at datetime NOT NULL, PRIMARY KEY (id),
+  KEY idx_sc_attachment_hash (sha256), KEY idx_sc_attachment_uploader (uploaded_by, uploaded_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链附件文件';
+
+CREATE TABLE IF NOT EXISTS document_attachments (
+  id bigint(20) NOT NULL, document_id bigint(20) NOT NULL, file_id bigint(20) NOT NULL,
+  version_id bigint(20), attachment_type varchar(32) NOT NULL DEFAULT 'SUPPORTING',
+  created_by bigint(20) NOT NULL, created_at datetime NOT NULL, PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_document_file (document_id, file_id), KEY idx_sc_document_attachment (document_id, version_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链单据附件绑定';
+
+CREATE TABLE IF NOT EXISTS version_attachments (
+  version_id bigint(20) NOT NULL, file_id bigint(20) NOT NULL, name_snapshot varchar(255) NOT NULL,
+  sha256 varchar(64) NOT NULL, PRIMARY KEY (version_id, file_id), KEY idx_sc_version_attachment_file (file_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链提交版本附件快照';
+
+CREATE TABLE IF NOT EXISTS document_comments (
+  id bigint(20) NOT NULL, document_id bigint(20) NOT NULL, version_id bigint(20), author_id bigint(20) NOT NULL,
+  author_snapshot varchar(200) NOT NULL, content varchar(2000) NOT NULL, created_at datetime NOT NULL,
+  PRIMARY KEY (id), KEY idx_sc_comment_document (document_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链单据追加评论';
+
+CREATE TABLE IF NOT EXISTS document_versions (
+  id bigint(20) NOT NULL, document_id bigint(20) NOT NULL, version_no int(11) NOT NULL, snapshot_json longtext NOT NULL,
+  content_hash varchar(128) NOT NULL, submitted_by bigint(20) NOT NULL, submitted_at datetime NOT NULL, PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_document_version (document_id, version_no), KEY idx_sc_version_document (document_id, submitted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链提交版本快照';
+
+CREATE TABLE IF NOT EXISTS workflow_instances (
+  id bigint(20) NOT NULL, document_id bigint(20) NOT NULL, version_id bigint(20) NOT NULL, config_version int(11) NOT NULL,
+  status varchar(20) NOT NULL, started_at datetime NOT NULL, finished_at datetime, PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_workflow_version (document_id, version_id), KEY idx_sc_workflow_document (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链审批流程实例';
+
+CREATE TABLE IF NOT EXISTS workflow_tasks (
+  id bigint(20) NOT NULL, instance_id bigint(20) NOT NULL, node varchar(20) NOT NULL, sequence_no int(11) NOT NULL,
+  assignee_id bigint(20) NOT NULL, status varchar(20) NOT NULL DEFAULT 'PENDING', decision varchar(20), comment varchar(2000),
+  acted_by bigint(20), acted_at datetime, revision int(11) NOT NULL DEFAULT 0, PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_workflow_task (instance_id, sequence_no), KEY idx_sc_task_assignee (assignee_id, status, id), KEY idx_sc_task_instance (instance_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链审批任务';
+
+CREATE TABLE IF NOT EXISTS audit_events (
+  id bigint(20) NOT NULL, document_id bigint(20) NOT NULL, version_id bigint(20), actor_id bigint(20) NOT NULL,
+  actor_snapshot varchar(200) NOT NULL, action varchar(50) NOT NULL, reason varchar(2000), changes_json longtext,
+  request_id varchar(64), created_at datetime NOT NULL, PRIMARY KEY (id), KEY idx_sc_audit_document (document_id, created_at), KEY idx_sc_audit_request (request_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链审计事件';
+
+CREATE TABLE IF NOT EXISTS receipts (
+  document_id bigint(20) NOT NULL, order_id bigint(20) NOT NULL, warehouse_id bigint(20) NOT NULL,
+  business_date date NOT NULL, confirmed_by bigint(20) NOT NULL, confirmed_at datetime NOT NULL,
+  remark varchar(2000), PRIMARY KEY (document_id), KEY idx_sc_receipt_order (order_id, confirmed_at), KEY idx_sc_receipt_date (business_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链入库单';
+
+CREATE TABLE IF NOT EXISTS receipt_lines (
+  id bigint(20) NOT NULL, receipt_id bigint(20) NOT NULL, order_line_id bigint(20) NOT NULL,
+  quantity_q4 decimal(20,4) NOT NULL, item_snapshot varchar(600) NOT NULL, PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_receipt_line (receipt_id, order_line_id), KEY idx_sc_receipt_line_order (order_line_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链入库明细';
+
+CREATE TABLE IF NOT EXISTS invoices (
+  document_id bigint(20) NOT NULL, order_id bigint(20) NOT NULL, invoice_number varchar(64) NOT NULL,
+  invoice_type varchar(32) NOT NULL DEFAULT 'VAT_SPECIAL', issue_date date NOT NULL, seller_name varchar(200) NOT NULL,
+  seller_tax_id varchar(32) NOT NULL, buyer_name varchar(200) NOT NULL, buyer_tax_id varchar(32) NOT NULL,
+  amount_cents bigint(20) NOT NULL DEFAULT 0, tax_cents bigint(20) NOT NULL DEFAULT 0, total_cents bigint(20) NOT NULL DEFAULT 0,
+  difference_note varchar(2000), manual_confirmed char(1) NOT NULL DEFAULT '0', confirmed_content_hash varchar(64), confirmed_by bigint(20), confirmed_at datetime, PRIMARY KEY (document_id), KEY idx_sc_invoice_order (order_id), KEY idx_sc_invoice_issue (issue_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链发票';
+SET @add_sc_invoice_confirm_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoices' AND COLUMN_NAME='manual_confirmed')=0,
+  'ALTER TABLE invoices ADD COLUMN manual_confirmed char(1) NOT NULL DEFAULT ''0'' AFTER difference_note, ADD COLUMN confirmed_content_hash varchar(64) AFTER manual_confirmed', 'SELECT 1'
+);
+PREPARE add_sc_invoice_confirm_stmt FROM @add_sc_invoice_confirm_sql;
+EXECUTE add_sc_invoice_confirm_stmt;
+DEALLOCATE PREPARE add_sc_invoice_confirm_stmt;
+SET @add_sc_invoice_hash_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoices' AND COLUMN_NAME='confirmed_content_hash')=0,
+  'ALTER TABLE invoices ADD COLUMN confirmed_content_hash varchar(64) AFTER manual_confirmed', 'SELECT 1'
+);
+PREPARE add_sc_invoice_hash_stmt FROM @add_sc_invoice_hash_sql;
+EXECUTE add_sc_invoice_hash_stmt;
+DEALLOCATE PREPARE add_sc_invoice_hash_stmt;
+SET @add_sc_invoice_confirmed_by_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoices' AND COLUMN_NAME='confirmed_by')=0,
+  'ALTER TABLE invoices ADD COLUMN confirmed_by bigint(20) AFTER confirmed_content_hash', 'SELECT 1'
+);
+PREPARE add_sc_invoice_confirmed_by_stmt FROM @add_sc_invoice_confirmed_by_sql;
+EXECUTE add_sc_invoice_confirmed_by_stmt;
+DEALLOCATE PREPARE add_sc_invoice_confirmed_by_stmt;
+SET @add_sc_invoice_confirmed_at_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoices' AND COLUMN_NAME='confirmed_at')=0,
+  'ALTER TABLE invoices ADD COLUMN confirmed_at datetime AFTER confirmed_by', 'SELECT 1'
+);
+PREPARE add_sc_invoice_confirmed_at_stmt FROM @add_sc_invoice_confirmed_at_sql;
+EXECUTE add_sc_invoice_confirmed_at_stmt;
+DEALLOCATE PREPARE add_sc_invoice_confirmed_at_stmt;
+CREATE TABLE IF NOT EXISTS invoice_lines (
+  id bigint(20) NOT NULL, invoice_id bigint(20) NOT NULL, line_no int(11) NOT NULL, is_current char(1) NOT NULL DEFAULT '1', order_line_id bigint(20) NOT NULL,
+  name varchar(200) NOT NULL, unit varchar(32) NOT NULL, quantity_q4 decimal(20,4) NOT NULL, price_p6 decimal(20,6) NOT NULL,
+  rate_r4 decimal(20,4) NOT NULL DEFAULT 0, amount_cents bigint(20) NOT NULL DEFAULT 0, tax_cents bigint(20) NOT NULL DEFAULT 0,
+  total_cents bigint(20) NOT NULL DEFAULT 0, PRIMARY KEY (id), UNIQUE KEY uk_sc_invoice_line (invoice_id, line_no, is_current), KEY idx_sc_invoice_line_order (order_line_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链发票明细';
+SET @add_sc_invoice_line_current_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice_lines' AND COLUMN_NAME='is_current')=0,
+  'ALTER TABLE invoice_lines ADD COLUMN is_current char(1) NOT NULL DEFAULT ''1'' AFTER line_no', 'SELECT 1'
+);
+PREPARE add_sc_invoice_line_current_stmt FROM @add_sc_invoice_line_current_sql;
+EXECUTE add_sc_invoice_line_current_stmt;
+DEALLOCATE PREPARE add_sc_invoice_line_current_stmt;
+SET @drop_sc_invoice_line_unique_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice_lines' AND INDEX_NAME='uk_sc_invoice_line')>0,
+  'ALTER TABLE invoice_lines DROP INDEX uk_sc_invoice_line', 'SELECT 1'
+);
+PREPARE drop_sc_invoice_line_unique_stmt FROM @drop_sc_invoice_line_unique_sql;
+EXECUTE drop_sc_invoice_line_unique_stmt;
+SET @add_sc_invoice_line_unique_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice_lines' AND INDEX_NAME='uk_sc_invoice_line_v')=0,
+  'ALTER TABLE invoice_lines ADD UNIQUE KEY uk_sc_invoice_line_v (invoice_id,line_no,is_current)', 'SELECT 1'
+);
+PREPARE add_sc_invoice_line_unique_stmt FROM @add_sc_invoice_line_unique_sql;
+EXECUTE add_sc_invoice_line_unique_stmt;
+DEALLOCATE PREPARE add_sc_invoice_line_unique_stmt;
+CREATE TABLE IF NOT EXISTS invoice_identities (
+  id bigint(20) NOT NULL, seller_tax_id varchar(32) NOT NULL, invoice_number varchar(64) NOT NULL, invoice_id bigint(20) NOT NULL,
+  ever_submitted char(1) NOT NULL DEFAULT '1', created_at datetime NOT NULL, PRIMARY KEY (id), UNIQUE KEY uk_sc_invoice_identity (seller_tax_id, invoice_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链发票身份唯一性';
+CREATE TABLE IF NOT EXISTS invoice_allocations (
+  id bigint(20) NOT NULL, invoice_id bigint(20) NOT NULL, version_id bigint(20) NOT NULL, invoice_line_id bigint(20) NOT NULL, receipt_line_id bigint(20) NOT NULL,
+  quantity_q4 decimal(20,4) NOT NULL, state varchar(20) NOT NULL DEFAULT 'RESERVED', PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_invoice_alloc (invoice_id, version_id, invoice_line_id, receipt_line_id), KEY idx_sc_invoice_alloc_receipt (receipt_line_id, state)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链发票入库分配';
+
+SET @add_sc_alloc_version_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice_allocations' AND COLUMN_NAME='version_id')=0,
+  'ALTER TABLE invoice_allocations ADD COLUMN version_id bigint(20) NOT NULL DEFAULT 0 AFTER invoice_id', 'SELECT 1'
+);
+PREPARE add_sc_alloc_version_stmt FROM @add_sc_alloc_version_sql;
+EXECUTE add_sc_alloc_version_stmt;
+DEALLOCATE PREPARE add_sc_alloc_version_stmt;
+SET @drop_sc_alloc_unique_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice_allocations' AND INDEX_NAME='uk_sc_invoice_alloc')>0,
+  'ALTER TABLE invoice_allocations DROP INDEX uk_sc_invoice_alloc', 'SELECT 1'
+);
+PREPARE drop_sc_alloc_unique_stmt FROM @drop_sc_alloc_unique_sql;
+EXECUTE drop_sc_alloc_unique_stmt;
+DEALLOCATE PREPARE drop_sc_alloc_unique_stmt;
+SET @add_sc_alloc_unique_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoice_allocations' AND INDEX_NAME='uk_sc_invoice_alloc_v')=0,
+  'ALTER TABLE invoice_allocations ADD UNIQUE KEY uk_sc_invoice_alloc_v (invoice_id,version_id,invoice_line_id,receipt_line_id)', 'SELECT 1'
+);
+PREPARE add_sc_alloc_unique_stmt FROM @add_sc_alloc_unique_sql;
+EXECUTE add_sc_alloc_unique_stmt;
+DEALLOCATE PREPARE add_sc_alloc_unique_stmt;

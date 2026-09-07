@@ -2,7 +2,7 @@
 -- AllinOne 业务菜单与权限种子数据
 -- 依赖：必须先执行 ry_20260417.sql（sys_menu 表结构）
 -- 幂等：使用 INSERT IGNORE，可重复执行
--- 菜单ID段：2000-2099（ry_20260417.sql 已占用 1-1060，sys_menu auto_increment 从 2000 开始）
+-- 菜单ID段：2100-2199（ry_20260417.sql 已占用 1-1060，避开现有业务菜单）
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -10,7 +10,47 @@
 -- ------------------------------------------------------------
 INSERT IGNORE INTO sys_menu VALUES
 (2000, '数据填报', 0, 1, 'collect', NULL, '', 'BusinessManage', 1, 0, 'M', '0', '0', '', 'example', 'admin', sysdate(), '', NULL, '数据填报目录'),
-(2001, '报表管理', 0, 2, 'report', NULL, '', 'ReportCenter', 1, 0, 'M', '0', '0', '', 'component', 'admin', sysdate(), '', NULL, '报表配置/查看/大屏目录');
+(2001, '报表管理', 0, 2, 'report', NULL, '', 'ReportCenter', 1, 0, 'M', '0', '0', '', 'component', 'admin', sysdate(), '', NULL, '报表配置/查看/大屏目录'),
+(2100, '供应链管理', 0, 3, 'supply', NULL, '', 'SupplyChain', 1, 0, 'M', '0', '0', '', 'shopping', 'admin', sysdate(), '', NULL, '供应链采购审批与票据台账目录');
+
+-- ------------------------------------------------------------
+-- 供应链基础页面
+-- ------------------------------------------------------------
+INSERT IGNORE INTO sys_menu VALUES
+(2106, '供应链工作台', 2100, 0, 'dashboard', 'supply/dashboard/index', '', 'SupplyDashboard', 1, 0, 'C', '0', '0', 'supply:dashboard:view', 'dashboard', 'admin', sysdate(), '', NULL, '供应链工作台'),
+(2101, '供应商管理', 2100, 1, 'supplier', 'supply/supplier/index', '', 'SupplySupplier', 1, 0, 'C', '0', '0', 'supply:supplier:list', 'peoples', 'admin', sysdate(), '', NULL, '供应商准入管理菜单'),
+(2102, '采购订单', 2100, 2, 'order', 'supply/order/index', '', 'SupplyOrder', 1, 0, 'C', '0', '0', 'supply:order:list', 'shopping', 'admin', sysdate(), '', NULL, '采购订单管理菜单'),
+(2103, '审批中心', 2100, 3, 'approval', 'supply/approval/index', '', 'SupplyApproval', 1, 0, 'C', '0', '0', 'supply:approval:list', 'audit', 'admin', sysdate(), '', NULL, '供应链审批中心'),
+(2104, '入库管理', 2100, 4, 'receipt', 'supply/receipt/index', '', 'SupplyReceipt', 1, 0, 'C', '0', '0', 'supply:receipt:add', 'box', 'admin', sysdate(), '', NULL, '分批入库管理'),
+(2105, '发票管理', 2100, 5, 'invoice', 'supply/invoice/index', '', 'SupplyInvoice', 1, 0, 'C', '0', '0', 'supply:invoice:query', 'tickets', 'admin', sysdate(), '', NULL, '发票登记与解析'),
+(2107, '综合台账', 2100, 6, 'ledger', 'supply/ledger/index', '', 'SupplyLedger', 1, 0, 'C', '0', '0', 'supply:ledger:list', 'list', 'admin', sysdate(), '', NULL, '采购入库发票综合台账'),
+(2108, '流程配置', 2100, 7, 'workflow-config', 'supply/config/workflow', '', 'SupplyWorkflowConfig', 1, 0, 'C', '0', '0', 'supply:config:workflow', 'edit', 'admin', sysdate(), '', NULL, '供应链审批候选人配置'),
+(2110, '供应商详情', 2100, 10, 'supplier/detail', 'supply/supplier/detail', '', 'SupplySupplierDetail', 1, 0, 'C', '1', '0', 'supply:supplier:query', '#', 'admin', sysdate(), '', NULL, '供应商详情页（隐藏）');
+
+INSERT IGNORE INTO sys_menu VALUES
+(2120, '供应商查询', 2101, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:supplier:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2121, '供应商新增', 2101, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:supplier:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2122, '供应商修改', 2101, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:supplier:edit', '#', 'admin', sysdate(), '', NULL, '');
+
+INSERT IGNORE INTO sys_menu VALUES
+(2130, '订单查询', 2102, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:order:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2131, '订单新增', 2102, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:order:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2132, '订单修改', 2102, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:order:edit', '#', 'admin', sysdate(), '', NULL, '');
+
+INSERT IGNORE INTO sys_menu VALUES
+(2140, '审批查询', 2103, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:approval:list', '#', 'admin', sysdate(), '', NULL, ''),
+(2141, '审批通过', 2103, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:approval:approve', '#', 'admin', sysdate(), '', NULL, ''),
+(2142, '审批退回', 2103, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:approval:reject', '#', 'admin', sysdate(), '', NULL, '');
+
+INSERT IGNORE INTO sys_menu VALUES
+(2150, '台账导出', 2107, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:ledger:export', '#', 'admin', sysdate(), '', NULL, '');
+
+INSERT IGNORE INTO sys_menu VALUES
+(2160, '入库查询', 2104, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:receipt:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2161, '入库确认', 2104, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:receipt:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2170, '发票查询', 2105, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:invoice:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2171, '发票新增', 2105, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:invoice:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2172, '发票修改', 2105, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:invoice:edit', '#', 'admin', sysdate(), '', NULL, '');
 
 -- ------------------------------------------------------------
 -- 业务管理子菜单

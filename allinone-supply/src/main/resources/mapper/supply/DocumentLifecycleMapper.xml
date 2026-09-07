@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.DocumentLifecycleMapper">
+  <resultMap id="DocumentResult" type="com.allinone.supply.domain.DocumentLifecycle"><id property="documentId" column="id"/><result property="creatorId" column="creator_id"/><result property="revision" column="revision"/><result property="currentVersion" column="current_version"/><result property="type" column="type"/><result property="status" column="approval_status"/></resultMap>
+  <select id="selectDocument" resultMap="DocumentResult">select id,creator_id,revision,current_version,type,approval_status from documents where id=#{documentId} and deleted='0'</select>
+  <select id="countSupplierReferences" resultType="int">select count(1) from purchase_orders p join documents d on d.id=p.document_id where p.supplier_id=#{documentId} and d.deleted='0' and d.approval_status&lt;&gt;'VOID'</select>
+  <select id="countOrderReceipts" resultType="int">select count(1) from receipts where order_id=#{documentId}</select>
+  <select id="countOrderInvoices" resultType="int">select count(1) from invoices i join documents d on d.id=i.document_id where i.order_id=#{documentId} and d.deleted='0' and d.approval_status&lt;&gt;'VOID'</select>
+  <update id="cancelTasks">update workflow_tasks t join workflow_instances i on i.id=t.instance_id set t.status='CANCELLED',t.revision=t.revision+1 where i.document_id=#{documentId} and t.status='PENDING'</update>
+  <update id="releaseAllocations">update invoice_allocations set state='RELEASED' where invoice_id=#{documentId} and state in('RESERVED','CONFIRMED')</update>
+  <update id="updateStatus">update documents set approval_status=#{status},current_node=null,revision=revision+1,update_time=now() where id=#{documentId} and revision=#{revision} and deleted='0'</update>
+  <update id="markDeleted">update documents set deleted='1',revision=revision+1,update_time=now() where id=#{documentId} and revision=#{revision} and approval_status='DRAFT' and current_version=0 and deleted='0'</update>
+  <update id="updateWorkflow">update workflow_instances set status=#{status},finished_at=now() where document_id=#{documentId} and status='RUNNING'</update>
+  <insert id="insertAudit">insert into audit_events(id,document_id,actor_id,actor_snapshot,action,reason,created_at) values(#{id},#{documentId},#{actorId},#{actorSnapshot},#{action},#{reason},now())</insert>
+</mapper>
