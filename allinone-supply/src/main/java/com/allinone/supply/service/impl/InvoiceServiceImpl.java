@@ -12,6 +12,7 @@ import com.allinone.supply.domain.PurchaseOrderLine;
 import com.allinone.supply.domain.WorkflowConfig;
 import com.allinone.supply.mapper.InvoiceMapper;
 import com.allinone.supply.service.IInvoiceService;
+import com.allinone.supply.support.SupplyDataScopeResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,10 +33,13 @@ public class InvoiceServiceImpl implements IInvoiceService {
 
     @Autowired
     private InvoiceMapper mapper;
+    @Autowired
+    private SupplyDataScopeResolver scopeResolver;
 
     @Override
     public List<Invoice> list(String invoiceNumber, String approvalStatus) {
-        return mapper.selectList(SecurityUtils.getUserId(), SecurityUtils.isAdmin() || hasAnyRole("supervisor", "purchasing_supervisor", "purchase_supervisor", "finance"), invoiceNumber, approvalStatus);
+        SupplyDataScopeResolver.Scope scope = scopeResolver.current();
+        return mapper.selectList(scope.mode(), scope.userId(), scope.deptId(), invoiceNumber, approvalStatus);
     }
 
     @Override
@@ -302,11 +306,6 @@ public class InvoiceServiceImpl implements IInvoiceService {
     }
 
     private String normalize(String value) { return value == null ? null : value.trim(); }
-
-    private boolean hasAnyRole(String... roleKeys) {
-        if (SecurityUtils.getLoginUser() == null || SecurityUtils.getLoginUser().getUser().getRoles() == null) return false;
-        return SecurityUtils.getLoginUser().getUser().getRoles().stream().anyMatch(role -> java.util.Arrays.asList(roleKeys).contains(role.getRoleKey()));
-    }
 
     private void requireOwner(Invoice invoice, String message) {
         if (invoice == null || (!SecurityUtils.isAdmin() && !SecurityUtils.getUserId().equals(invoice.getCreatorId()))) {

@@ -1,3 +1,19 @@
 package com.allinone.supply.service.impl;
-import com.allinone.common.utils.SecurityUtils; import com.allinone.supply.domain.SupplyDashboard; import com.allinone.supply.mapper.SupplyDashboardMapper; import com.allinone.supply.service.ISupplyDashboardService; import org.springframework.beans.factory.annotation.Autowired; import org.springframework.stereotype.Service;
-@Service public class SupplyDashboardServiceImpl implements ISupplyDashboardService { @Autowired private SupplyDashboardMapper mapper; @Override public SupplyDashboard summary(){boolean global=SecurityUtils.isAdmin()||SecurityUtils.getLoginUser()!=null&&SecurityUtils.getLoginUser().getUser().getRoles()!=null&&SecurityUtils.getLoginUser().getUser().getRoles().stream().anyMatch(role->java.util.Arrays.asList("supervisor","purchasing_supervisor","purchase_supervisor","finance").contains(role.getRoleKey()));return mapper.selectSummary(SecurityUtils.getUserId(),global);} }
+import com.allinone.supply.domain.SupplyDashboard;
+import com.allinone.supply.mapper.SupplyDashboardMapper;
+import com.allinone.supply.service.ISupplyDashboardService;
+import com.allinone.supply.support.SupplyDataScopeResolver;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class SupplyDashboardServiceImpl implements ISupplyDashboardService {
+    @Autowired private SupplyDashboardMapper mapper;
+    @Autowired private SupplyDataScopeResolver scopeResolver;
+
+    @Override
+    public SupplyDashboard summary() {
+        SupplyDataScopeResolver.Scope scope = scopeResolver.current();
+        return mapper.selectSummary(scope.mode(), scope.userId(), scope.deptId());
+    }
+}

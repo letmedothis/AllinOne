@@ -13,7 +13,7 @@
       coalesce((select sum(i.total_cents) from invoices i join documents idoc on idoc.id=i.document_id where i.order_id=d.id and idoc.approval_status='APPROVED'),0) approved_invoice_cents,
       coalesce((select sum(i.total_cents) from invoices i join documents idoc on idoc.id=i.document_id where i.order_id=d.id and idoc.approval_status='IN_REVIEW'),0) pending_invoice_cents
     from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id
-    where d.type='PURCHASE_ORDER' and d.deleted='0' and (#{admin}=true or d.creator_id=#{userId} or p.buyer_id=#{userId})
+    where d.type='PURCHASE_ORDER' and d.deleted='0'<if test="mode != 'ALL'"> and (<choose><when test="mode == 'SELF'">d.creator_id=#{userId} or p.buyer_id=#{userId}</when><otherwise>exists(select 1 from sys_user cu where cu.user_id=d.creator_id and cu.dept_id=#{deptId} and cu.del_flag='0') or exists(select 1 from sys_user bu where bu.user_id=p.buyer_id and bu.dept_id=#{deptId} and bu.del_flag='0')</otherwise></choose>)</if>
     <if test="number != null and number != ''">and d.number like concat('%',#{number},'%')</if>
     <if test="supplierName != null and supplierName != ''">and s.name like concat('%',#{supplierName},'%')</if>
     <if test="approvalStatus != null and approvalStatus != ''">and d.approval_status=#{approvalStatus}</if>

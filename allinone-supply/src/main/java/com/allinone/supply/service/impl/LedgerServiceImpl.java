@@ -1,3 +1,20 @@
 package com.allinone.supply.service.impl;
-import com.allinone.common.utils.SecurityUtils; import com.allinone.supply.domain.LedgerRow; import com.allinone.supply.mapper.LedgerMapper; import com.allinone.supply.service.ILedgerService; import java.util.List; import org.springframework.beans.factory.annotation.Autowired; import org.springframework.stereotype.Service;
-@Service public class LedgerServiceImpl implements ILedgerService { @Autowired private LedgerMapper mapper; @Override public List<LedgerRow> combined(String number,String supplierName,String approvalStatus){boolean global=SecurityUtils.isAdmin()||SecurityUtils.getLoginUser()!=null&&SecurityUtils.getLoginUser().getUser().getRoles()!=null&&SecurityUtils.getLoginUser().getUser().getRoles().stream().anyMatch(role->java.util.Arrays.asList("supervisor","purchasing_supervisor","purchase_supervisor","finance").contains(role.getRoleKey()));return mapper.selectCombined(SecurityUtils.getUserId(),global,number,supplierName,approvalStatus);} }
+import com.allinone.supply.domain.LedgerRow;
+import com.allinone.supply.mapper.LedgerMapper;
+import com.allinone.supply.service.ILedgerService;
+import com.allinone.supply.support.SupplyDataScopeResolver;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class LedgerServiceImpl implements ILedgerService {
+    @Autowired private LedgerMapper mapper;
+    @Autowired private SupplyDataScopeResolver scopeResolver;
+
+    @Override
+    public List<LedgerRow> combined(String number, String supplierName, String approvalStatus) {
+        SupplyDataScopeResolver.Scope scope = scopeResolver.current();
+        return mapper.selectCombined(scope.mode(), scope.userId(), scope.deptId(), number, supplierName, approvalStatus);
+    }
+}
