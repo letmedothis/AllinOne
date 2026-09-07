@@ -142,3 +142,13 @@ INSERT IGNORE INTO sys_menu VALUES
 (2042, '分类新增', 2007, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'report:category:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2043, '分类修改', 2007, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'report:category:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2044, '分类删除', 2007, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'report:category:remove', '#', 'admin', sysdate(), '', NULL, '');
+
+-- ------------------------------------------------------------
+-- 供应链-付款管理(M4)
+-- ------------------------------------------------------------
+INSERT IGNORE INTO sys_menu VALUES
+(2130, '付款管理', 2100, 12, 'payment', 'supply/payment/index', '', 'SupplyPayment', 1, 0, 'C', '0', '0', 'supply:payment:query', 'money', 'admin', sysdate(), '', NULL, '采购付款与应付核销'),
+(2131, '付款查询', 2130, 1, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2132, '付款新增', 2130, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2133, '付款修改', 2130, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:edit', '#', 'admin', sysdate(), '', NULL, ''),
+(2134, '付款审批', 2130, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:approve', '#', 'admin', sysdate(), '', NULL, '');

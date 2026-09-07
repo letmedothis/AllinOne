@@ -375,3 +375,27 @@ SET @add_sys_user_rank_sql = IF(
 PREPARE add_sys_user_rank_stmt FROM @add_sys_user_rank_sql;
 EXECUTE add_sys_user_rank_stmt;
 DEALLOCATE PREPARE add_sys_user_rank_stmt;
+
+-- M4 付款 / 应付核销:新库见 allinone_biz.sql,此处为已有环境幂等建表。
+CREATE TABLE IF NOT EXISTS payments (
+  id bigint(20) NOT NULL, number varchar(64) NOT NULL, supplier_id bigint(20) NOT NULL,
+  amount_cents bigint(20) NOT NULL, threshold_exceeded char(1) NOT NULL DEFAULT '0',
+  status varchar(20) NOT NULL DEFAULT 'DRAFT', current_node varchar(32) DEFAULT NULL,
+  creator_id bigint(20) NOT NULL, creation_key varchar(80) NOT NULL, revision int(11) NOT NULL DEFAULT 0,
+  remark varchar(500), review_comment varchar(500), director_comment varchar(500),
+  create_time datetime NOT NULL, update_time datetime NOT NULL, deleted char(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (id), UNIQUE KEY uk_pay_number (number), UNIQUE KEY uk_pay_creation (creator_id, creation_key),
+  KEY idx_pay_status (status, update_time), KEY idx_pay_supplier (supplier_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链付款单';
+CREATE TABLE IF NOT EXISTS payment_lines (
+  id bigint(20) NOT NULL, payment_id bigint(20) NOT NULL, invoice_id bigint(20) NOT NULL,
+  allocated_cents bigint(20) NOT NULL, create_time datetime NOT NULL,
+  PRIMARY KEY (id), UNIQUE KEY uk_pay_line_invoice (payment_id, invoice_id), KEY idx_pay_line_invoice (invoice_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链付款核销明细';
+-- M4 付款菜单(已有环境升级;新库由 allinone_menu.sql 初始化)。
+INSERT IGNORE INTO sys_menu VALUES
+(2130, '付款管理', 2100, 12, 'payment', 'supply/payment/index', '', 'SupplyPayment', 1, 0, 'C', '0', '0', 'supply:payment:query', 'money', 'admin', sysdate(), '', NULL, '采购付款与应付核销'),
+(2131, '付款查询', 2130, 1, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2132, '付款新增', 2130, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2133, '付款修改', 2130, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:edit', '#', 'admin', sysdate(), '', NULL, ''),
+(2134, '付款审批', 2130, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:approve', '#', 'admin', sysdate(), '', NULL, '');

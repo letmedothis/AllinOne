@@ -561,3 +561,41 @@ CREATE TABLE version_attachments (
   version_id bigint(20) NOT NULL, file_id bigint(20) NOT NULL, name_snapshot varchar(255) NOT NULL,
   sha256 varchar(64) NOT NULL, PRIMARY KEY (version_id, file_id), KEY idx_sc_version_attachment_file (file_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链提交版本附件快照';
+
+-- ============================================================
+-- M4 付款 / 应付核销(单公司、CNY 分)
+-- ============================================================
+CREATE TABLE payments (
+  id bigint(20) NOT NULL,
+  number varchar(64) NOT NULL,
+  supplier_id bigint(20) NOT NULL,
+  amount_cents bigint(20) NOT NULL,
+  threshold_exceeded char(1) NOT NULL DEFAULT '0',
+  status varchar(20) NOT NULL DEFAULT 'DRAFT',
+  current_node varchar(32) DEFAULT NULL,
+  creator_id bigint(20) NOT NULL,
+  creation_key varchar(80) NOT NULL,
+  revision int(11) NOT NULL DEFAULT 0,
+  remark varchar(500),
+  review_comment varchar(500),
+  director_comment varchar(500),
+  create_time datetime NOT NULL,
+  update_time datetime NOT NULL,
+  deleted char(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_pay_number (number),
+  UNIQUE KEY uk_pay_creation (creator_id, creation_key),
+  KEY idx_pay_status (status, update_time),
+  KEY idx_pay_supplier (supplier_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链付款单';
+
+CREATE TABLE payment_lines (
+  id bigint(20) NOT NULL,
+  payment_id bigint(20) NOT NULL,
+  invoice_id bigint(20) NOT NULL,
+  allocated_cents bigint(20) NOT NULL,
+  create_time datetime NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_pay_line_invoice (payment_id, invoice_id),
+  KEY idx_pay_line_invoice (invoice_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链付款核销明细';
