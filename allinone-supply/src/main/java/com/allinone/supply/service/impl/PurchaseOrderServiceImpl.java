@@ -8,6 +8,7 @@ import com.allinone.common.utils.uuid.IdUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.allinone.supply.domain.PurchaseOrder;
 import com.allinone.supply.domain.PurchaseOrderLine;
+import com.allinone.supply.domain.SupplierOption;
 import com.allinone.supply.domain.WorkflowConfig;
 import com.allinone.supply.mapper.PurchaseOrderMapper;
 import com.allinone.supply.service.IPurchaseOrderService;
@@ -34,6 +35,9 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
         if (!SecurityUtils.isAdmin()) order.getParams().put("currentUserId", SecurityUtils.getUserId());
         order.getParams().put("supplyGlobal", SecurityUtils.isAdmin() || hasAnyRole("supervisor", "purchasing_supervisor", "purchase_supervisor", "finance"));
         return mapper.selectPurchaseOrderList(order);
+    }
+    @Override public List<SupplierOption> selectApprovedSupplierOptions() {
+        return mapper.selectApprovedSupplierOptions();
     }
     @Override public PurchaseOrder selectPurchaseOrderById(Long id) {
         PurchaseOrder order = mapper.selectPurchaseOrderById(id);

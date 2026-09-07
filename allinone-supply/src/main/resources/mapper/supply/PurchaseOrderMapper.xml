@@ -19,6 +19,18 @@
         <id property="id" column="id"/><result property="flowType" column="flow_type"/><result property="version" column="version"/>
         <result property="supervisorCandidates" column="supervisor_candidates"/><result property="financeCandidates" column="finance_candidates"/>
     </resultMap>
+    <resultMap id="SupplierOptionResult" type="com.allinone.supply.domain.SupplierOption">
+        <id property="documentId" column="document_id"/>
+        <result property="name" column="name"/>
+        <result property="taxId" column="tax_id"/>
+    </resultMap>
+    <select id="selectApprovedSupplierOptions" resultMap="SupplierOptionResult">
+        select cast(d.id as char) document_id, s.name, s.tax_id
+        from documents d
+        join suppliers s on s.document_id = d.id
+        where d.type = 'SUPPLIER' and d.approval_status = 'APPROVED' and d.deleted = '0'
+        order by s.name, d.id
+    </select>
     <sql id="orderColumns">d.id document_id,d.number,d.creator_id,d.creation_key,d.approval_status,d.current_node,d.current_version,d.revision,
         p.supplier_id,s.name supplier_name,p.buyer_id,p.expected_date,p.currency,p.amount_cents,p.tax_cents,p.total_cents,d.create_time,d.update_time</sql>
     <select id="selectPurchaseOrderList" parameterType="com.allinone.supply.domain.PurchaseOrder" resultMap="OrderResult">

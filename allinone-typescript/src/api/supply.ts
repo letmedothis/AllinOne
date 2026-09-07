@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 import type { AjaxResult, TableDataInfo } from '@/types'
-import type { ApprovalTask, Invoice, PurchaseOrder, Supplier } from '@/types/api/supply'
+import type { ApprovalTask, Invoice, PurchaseOrder, Supplier, SupplierOption } from '@/types/api/supply'
 
 export function listSuppliers(query: Record<string, unknown>): Promise<TableDataInfo<Supplier[]>> { return request({ url: '/supply/suppliers/list', method: 'get', params: query }) }
 export function getSupplier(id: string): Promise<AjaxResult<Supplier>> { return request({ url: `/supply/suppliers/${id}`, method: 'get' }) }
@@ -8,6 +8,7 @@ export function addSupplier(data: Supplier): Promise<AjaxResult> { return reques
 export function updateSupplier(data: Supplier): Promise<AjaxResult> { return request({ url: '/supply/suppliers', method: 'put', data }) }
 export function submitSupplier(id: string): Promise<AjaxResult> { return request({ url: `/supply/suppliers/${id}/submit`, method: 'post' }) }
 export function listOrders(query: Record<string, unknown>): Promise<TableDataInfo<PurchaseOrder[]>> { return request({ url: '/supply/orders/list', method: 'get', params: query }) }
+export function listOrderSupplierOptions(): Promise<AjaxResult<SupplierOption[]>> { return request({ url: '/supply/orders/supplier-options', method: 'get' }) }
 export function getOrder(id: string): Promise<AjaxResult<PurchaseOrder>> { return request({ url: `/supply/orders/${id}`, method: 'get' }) }
 export function addOrder(data: PurchaseOrder): Promise<AjaxResult> { return request({ url: '/supply/orders', method: 'post', data }) }
 export function updateOrder(data: PurchaseOrder): Promise<AjaxResult> { return request({ url: '/supply/orders', method: 'put', data }) }

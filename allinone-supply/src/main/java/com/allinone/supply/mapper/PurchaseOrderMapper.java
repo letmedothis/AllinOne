@@ -2,6 +2,7 @@ package com.allinone.supply.mapper;
 
 import com.allinone.supply.domain.PurchaseOrder;
 import com.allinone.supply.domain.PurchaseOrderLine;
+import com.allinone.supply.domain.SupplierOption;
 import com.allinone.supply.domain.WorkflowConfig;
 import java.util.Date;
 import java.util.List;
@@ -9,6 +10,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface PurchaseOrderMapper {
     List<PurchaseOrder> selectPurchaseOrderList(PurchaseOrder order);
+    List<SupplierOption> selectApprovedSupplierOptions();
     PurchaseOrder selectPurchaseOrderById(@Param("documentId") Long documentId);
     List<PurchaseOrderLine> selectLinesByOrderId(@Param("orderId") Long orderId);
     int selectApprovedSupplierCount(@Param("supplierId") Long supplierId);

@@ -55,5 +55,11 @@ export interface ApprovalTask {
   submittedAt?: string
 }
 
+export interface SupplierOption {
+  documentId: string
+  name: string
+  taxId?: string
+}
+
 export interface InvoiceLine { id?: string; orderLineId?: string; name?: string; unit?: string; quantity?: number; price?: number; rate?: number }
 export interface Invoice { documentId?: string; orderId?: string; invoiceNumber?: string; invoiceType?: string; issueDate?: string; sellerName?: string; sellerTaxId?: string; buyerName?: string; buyerTaxId?: string; amountCents?: number; taxCents?: number; totalCents?: number; differenceNote?: string; manualConfirmed?: boolean; revision?: number; lines?: InvoiceLine[] }
