@@ -394,8 +394,8 @@ CREATE TABLE IF NOT EXISTS payment_lines (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链付款核销明细';
 -- M4 付款菜单(已有环境升级;新库由 allinone_menu.sql 初始化)。
 INSERT IGNORE INTO sys_menu VALUES
-(2130, '付款管理', 2100, 12, 'payment', 'supply/payment/index', '', 'SupplyPayment', 1, 0, 'C', '0', '0', 'supply:payment:query', 'money', 'admin', sysdate(), '', NULL, '采购付款与应付核销'),
-(2131, '付款查询', 2130, 1, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:query', '#', 'admin', sysdate(), '', NULL, ''),
-(2132, '付款新增', 2130, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:add', '#', 'admin', sysdate(), '', NULL, ''),
-(2133, '付款修改', 2130, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:edit', '#', 'admin', sysdate(), '', NULL, ''),
-(2134, '付款审批', 2130, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:approve', '#', 'admin', sysdate(), '', NULL, '');
+(2115, '付款管理', 2100, 12, 'payment', 'supply/payment/index', '', 'SupplyPayment', 1, 0, 'C', '0', '0', 'supply:payment:query', 'money', 'admin', sysdate(), '', NULL, '采购付款与应付核销'),
+(2190, '付款查询', 2115, 1, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2191, '付款新增', 2115, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2192, '付款修改', 2115, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:edit', '#', 'admin', sysdate(), '', NULL, ''),
+(2193, '付款审批', 2115, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:approve', '#', 'admin', sysdate(), '', NULL, '');
