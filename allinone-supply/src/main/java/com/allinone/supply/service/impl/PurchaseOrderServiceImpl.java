@@ -12,6 +12,7 @@ import com.allinone.supply.domain.SupplierOption;
 import com.allinone.supply.domain.WorkflowConfig;
 import com.allinone.supply.mapper.PurchaseOrderMapper;
 import com.allinone.supply.service.IPurchaseOrderService;
+import com.allinone.supply.service.IWorkflowEngineService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,7 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
     private static final String FLOW_TYPE = "PURCHASE_ORDER_APPROVAL";
 
     @Autowired private PurchaseOrderMapper mapper;
+    @Autowired private IWorkflowEngineService workflowEngineService;
 
     @Override public List<PurchaseOrder> selectPurchaseOrderList(PurchaseOrder order) {
         if (!SecurityUtils.isAdmin()) order.getParams().put("currentUserId", SecurityUtils.getUserId());
@@ -78,11 +80,13 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
             Date now = DateUtils.getNowDate(); int version = order.getCurrentVersion() + 1; Long versionId = IdUtils.nextLongId();
             String snapshot = MAPPER.writeValueAsString(order); mapper.insertVersion(versionId, id, version, snapshot, sha256(snapshot), SecurityUtils.getUserId(), now);
             mapper.insertVersionAttachments(versionId, id);
-            Long workflowId = IdUtils.nextLongId(); mapper.insertWorkflow(workflowId, id, versionId, config.getVersion(), now); mapper.insertTask(IdUtils.nextLongId(), workflowId, assignee);
+            // 新提交的采购订单进入 Flowable；历史 workflow_* 实例仍由原审批中心继续处理。
+            workflowEngineService.startPurchaseOrder(order, versionId, assignee);
+            mapper.markEngineFlowable(id);
             order.setCurrentVersion(version); order.setCurrentNode("SUPERVISOR"); order.setApprovalStatus("IN_REVIEW"); order.setUpdateTime(now);
             if (mapper.updateDocument(order) == 0) throw new ServiceException("订单状态已变化，请刷新后重试");
             mapper.insertAudit(IdUtils.nextLongId(), id, versionId, SecurityUtils.getUserId(), SecurityUtils.getUsername(), "SUBMIT", now); return 1;
-        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("订单提交失败"); }
+        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("订单提交失败").setDetailMessage(String.valueOf(e.getMessage())); }
     }
     private void validate(PurchaseOrder order) {
         if (order == null || order.getSupplierId() == null || order.getBuyerId() == null || order.getLines() == null || order.getLines().isEmpty()) throw new ServiceException("供应商、采购员和订单明细不能为空");

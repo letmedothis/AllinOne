@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:allinone="https://allinone.local/workflow"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             id="Definitions_purchase_order_approval"
+             targetNamespace="https://allinone.local/workflow">
+  <process id="purchase-order-approval" name="采购订单审批" isExecutable="true">
+    <startEvent id="start" name="提交采购订单" />
+    <sequenceFlow id="flow_start_supervisor" sourceRef="start" targetRef="supervisorApproval" />
+    <userTask id="supervisorApproval" name="采购主管审批" flowable:assignee="${approverUserId}"
+              allinone:assigneeType="SUPERVISOR_CONFIG" allinone:assigneeValue="" />
+    <sequenceFlow id="flow_supervisor_decision" sourceRef="supervisorApproval" targetRef="approvalGateway" />
+    <exclusiveGateway id="approvalGateway" name="审批结果" default="flow_rejected" />
+    <sequenceFlow id="flow_approved" sourceRef="approvalGateway" targetRef="approvedEnd">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approvalAction == 'APPROVE'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow_rejected" sourceRef="approvalGateway" targetRef="rejectedEnd" />
+    <endEvent id="approvedEnd" name="审批通过" />
+    <endEvent id="rejectedEnd" name="审批退回" />
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_purchase_order_approval">
+    <bpmndi:BPMNPlane id="BPMNPlane_purchase_order_approval" bpmnElement="purchase-order-approval">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="100" y="120" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="supervisor_di" bpmnElement="supervisorApproval"><dc:Bounds x="210" y="98" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gateway_di" bpmnElement="approvalGateway" isMarkerVisible="true"><dc:Bounds x="395" y="113" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approved_di" bpmnElement="approvedEnd"><dc:Bounds x="520" y="65" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rejected_di" bpmnElement="rejectedEnd"><dc:Bounds x="520" y="180" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_start_supervisor_di" bpmnElement="flow_start_supervisor"><di:waypoint x="136" y="138" /><di:waypoint x="210" y="138" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_supervisor_decision_di" bpmnElement="flow_supervisor_decision"><di:waypoint x="330" y="138" /><di:waypoint x="395" y="138" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_approved_di" bpmnElement="flow_approved"><di:waypoint x="445" y="138" /><di:waypoint x="500" y="83" /><di:waypoint x="520" y="83" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_rejected_di" bpmnElement="flow_rejected"><di:waypoint x="445" y="138" /><di:waypoint x="500" y="198" /><di:waypoint x="520" y="198" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

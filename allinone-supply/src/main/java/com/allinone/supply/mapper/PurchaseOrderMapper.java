@@ -22,6 +22,10 @@ public interface PurchaseOrderMapper {
     int deleteLines(Long orderId);
     int updateOrder(PurchaseOrder order);
     int updateDocument(PurchaseOrder order);
+    int updateEngineWorkflowState(@Param("documentId") Long documentId, @Param("status") String status,
+                                  @Param("currentNode") String currentNode, @Param("updateTime") Date updateTime);
+    int markEngineFlowable(@Param("documentId") Long documentId);
+    Long selectCurrentVersionId(@Param("documentId") Long documentId);
     int insertSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     int incrementSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     Integer selectSequence(@Param("type") String type, @Param("businessDate") Date businessDate);

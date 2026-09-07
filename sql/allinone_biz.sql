@@ -250,6 +250,8 @@ CREATE TABLE IF NOT EXISTS `collect_export_task` (
 -- ============================================================
 DROP TABLE IF EXISTS workflow_tasks;
 DROP TABLE IF EXISTS workflow_instances;
+DROP TABLE IF EXISTS workflow_action_logs;
+DROP TABLE IF EXISTS workflow_designs;
 DROP TABLE IF EXISTS document_versions;
 DROP TABLE IF EXISTS version_attachments;
 DROP TABLE IF EXISTS document_comments;
@@ -311,6 +313,7 @@ CREATE TABLE documents (
   creation_key    varchar(80)  NOT NULL,
   approval_status varchar(20)  NOT NULL DEFAULT 'DRAFT',
   current_node    varchar(20)  DEFAULT NULL,
+  workflow_engine varchar(16)  NOT NULL DEFAULT 'LEGACY',
   current_version int(11)      NOT NULL DEFAULT 0,
   revision        int(11)      NOT NULL DEFAULT 0,
   deleted         char(1)      NOT NULL DEFAULT '0',
@@ -387,6 +390,39 @@ CREATE TABLE workflow_configs (
   PRIMARY KEY (id),
   UNIQUE KEY uk_sc_flow_config (flow_type, version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='固定审批流配置';
+
+CREATE TABLE workflow_designs (
+  id                      bigint(20)    NOT NULL,
+  process_key             varchar(100)  NOT NULL,
+  name                    varchar(100)  NOT NULL,
+  bpmn_xml                longtext      NOT NULL,
+  status                  varchar(20)   NOT NULL DEFAULT 'DRAFT',
+  revision                int(11)       NOT NULL DEFAULT 0,
+  published_definition_id varchar(128),
+  published_version       int(11),
+  create_by               varchar(64)   NOT NULL,
+  create_time             datetime      NOT NULL,
+  update_by               varchar(64)   NOT NULL,
+  update_time             datetime      NOT NULL,
+  published_at            datetime,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_workflow_design_key (process_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Flowable 流程设计草稿';
+
+CREATE TABLE workflow_action_logs (
+  id                  bigint(20)    NOT NULL,
+  process_instance_id varchar(128)  NOT NULL,
+  task_id             varchar(128)  NOT NULL,
+  task_definition_key varchar(100)  NOT NULL,
+  action              varchar(20)   NOT NULL,
+  comment             varchar(2000),
+  actor_id             bigint(20)    NOT NULL,
+  actor_name           varchar(100)  NOT NULL,
+  created_at           datetime      NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_sc_workflow_action_task (task_id),
+  KEY idx_sc_workflow_action_instance (process_instance_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Flowable 审批动作记录';
 
 CREATE TABLE document_versions (
   id              bigint(20)   NOT NULL,

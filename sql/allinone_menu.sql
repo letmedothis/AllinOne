@@ -25,7 +25,10 @@ INSERT IGNORE INTO sys_menu VALUES
 (2105, '发票管理', 2100, 5, 'invoice', 'supply/invoice/index', '', 'SupplyInvoice', 1, 0, 'C', '0', '0', 'supply:invoice:query', 'tickets', 'admin', sysdate(), '', NULL, '发票登记与解析'),
 (2107, '综合台账', 2100, 6, 'ledger', 'supply/ledger/index', '', 'SupplyLedger', 1, 0, 'C', '0', '0', 'supply:ledger:list', 'list', 'admin', sysdate(), '', NULL, '采购入库发票综合台账'),
 (2108, '流程配置', 2100, 7, 'workflow-config', 'supply/config/workflow', '', 'SupplyWorkflowConfig', 1, 0, 'C', '0', '0', 'supply:config:workflow', 'edit', 'admin', sysdate(), '', NULL, '供应链审批候选人配置'),
-(2110, '供应商详情', 2100, 10, 'supplier/detail', 'supply/supplier/detail', '', 'SupplySupplierDetail', 1, 0, 'C', '1', '0', 'supply:supplier:query', '#', 'admin', sysdate(), '', NULL, '供应商详情页（隐藏）');
+(2109, '流程待办', 2100, 8, 'workflow-tasks', 'supply/workflow/tasks', '', 'SupplyWorkflowTasks', 1, 0, 'C', '0', '0', 'supply:workflow:task', 'list', 'admin', sysdate(), '', NULL, 'Flowable 采购订单流程待办'),
+(2111, '流程设计', 2100, 9, 'workflow-designer', 'supply/workflow/index', '', 'SupplyWorkflowDesigner', 1, 0, 'C', '0', '0', 'supply:workflow:list', 'guide', 'admin', sysdate(), '', NULL, 'Flowable BPMN 流程设计与发布'),
+(2110, '供应商详情', 2100, 10, 'supplier/detail', 'supply/supplier/detail', '', 'SupplySupplierDetail', 1, 0, 'C', '1', '0', 'supply:supplier:query', '#', 'admin', sysdate(), '', NULL, '供应商详情页（隐藏）'),
+(2112, '流程详情', 2100, 11, 'workflow/detail', 'supply/workflow/detail', '', 'SupplyWorkflowDetail', 1, 0, 'C', '1', '0', 'supply:workflow:task', '#', 'admin', sysdate(), '', NULL, 'Flowable 流程实例详情');
 
 INSERT IGNORE INTO sys_menu VALUES
 (2120, '供应商查询', 2101, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:supplier:query', '#', 'admin', sysdate(), '', NULL, ''),
@@ -51,6 +54,11 @@ INSERT IGNORE INTO sys_menu VALUES
 (2170, '发票查询', 2105, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:invoice:query', '#', 'admin', sysdate(), '', NULL, ''),
 (2171, '发票新增', 2105, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:invoice:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2172, '发票修改', 2105, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:invoice:edit', '#', 'admin', sysdate(), '', NULL, '');
+
+INSERT IGNORE INTO sys_menu VALUES
+(2180, '流程定义查看', 2111, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:workflow:list', '#', 'admin', sysdate(), '', NULL, ''),
+(2181, '流程定义发布', 2111, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:workflow:deploy', '#', 'admin', sysdate(), '', NULL, ''),
+(2182, '流程待办处理', 2109, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:workflow:task', '#', 'admin', sysdate(), '', NULL, '');
 
 -- ------------------------------------------------------------
 -- 业务管理子菜单

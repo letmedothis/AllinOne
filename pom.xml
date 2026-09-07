@@ -39,6 +39,8 @@
         <mysql.version>9.2.0</mysql.version>
         <redis.version>3.5.14</redis.version>
         <jimureport.version>2.5.0</jimureport.version>
+        <!-- Flowable 7 保持 Spring Boot 3 / Java 17 兼容；Flowable 8 需要 Spring Boot 4。 -->
+        <flowable.version>7.2.0</flowable.version>
     </properties>
 
     <!-- 依赖声明 -->
