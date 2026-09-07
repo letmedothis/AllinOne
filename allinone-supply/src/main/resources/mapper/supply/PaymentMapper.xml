@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.PaymentMapper">
+  <resultMap id="PaymentResult" type="com.allinone.supply.domain.Payment">
+    <id property="id" column="id"/><result property="number" column="number"/><result property="supplierId" column="supplier_id"/>
+    <result property="supplierName" column="supplier_name"/><result property="amountCents" column="amount_cents"/>
+    <result property="thresholdExceeded" column="threshold_exceeded"/><result property="status" column="status"/>
+    <result property="currentNode" column="current_node"/><result property="creatorId" column="creator_id"/>
+    <result property="creationKey" column="creation_key"/><result property="revision" column="revision"/><result property="remark" column="remark"/>
+    <result property="reviewComment" column="review_comment"/><result property="directorComment" column="director_comment"/>
+    <result property="createTime" column="create_time"/><result property="updateTime" column="update_time"/>
+  </resultMap>
+  <resultMap id="LineResult" type="com.allinone.supply.domain.PaymentLine">
+    <id property="id" column="id"/><result property="paymentId" column="payment_id"/><result property="invoiceId" column="invoice_id"/>
+    <result property="allocatedCents" column="allocated_cents"/>
+  </resultMap>
+  <resultMap id="ApResult" type="com.allinone.supply.domain.ApBalanceRow">
+    <id property="invoiceId" column="invoice_id"/><result property="invoiceNumber" column="invoice_number"/>
+    <result property="issueDate" column="issue_date"/><result property="totalCents" column="total_cents"/>
+    <result property="allocatedCents" column="allocated_cents"/><result property="balanceCents" column="balance_cents"/>
+  </resultMap>
+
+  <select id="selectList" parameterType="com.allinone.supply.domain.Payment" resultMap="PaymentResult">
+    select p.id,p.number,p.supplier_id,sup.name supplier_name,p.amount_cents,p.threshold_exceeded,p.status,p.current_node,
+           p.creator_id,p.creation_key,p.revision,p.remark,p.review_comment,p.director_comment,p.create_time,p.update_time
+    from payments p left join suppliers sup on sup.document_id=p.supplier_id
+    where p.deleted='0'
+    <if test="params.supplyScopeMode == 'DEPT'">and exists(select 1 from sys_user cu where cu.user_id=p.creator_id and cu.dept_id=#{params.supplyScopeDeptId} and cu.del_flag='0')</if>
+    <if test="params.supplyScopeMode == 'SELF'">and p.creator_id=#{params.supplyScopeUserId}</if>
+    <if test="number != null and number != ''">and p.number like concat('%',#{number},'%')</if>
+    <if test="supplierId != null">and p.supplier_id=#{supplierId}</if>
+    <if test="status != null and status != ''">and p.status=#{status}</if>
+    <if test="params.pendingOnly != null and params.pendingOnly == true">and p.status='IN_REVIEW'</if>
+    order by p.update_time desc
+  </select>
+
+  <select id="selectById" parameterType="Long" resultMap="PaymentResult">
+    select p.id,p.number,p.supplier_id,sup.name supplier_name,p.amount_cents,p.threshold_exceeded,p.status,p.current_node,
+           p.creator_id,p.creation_key,p.revision,p.remark,p.review_comment,p.director_comment,p.create_time,p.update_time
+    from payments p left join suppliers sup on sup.document_id=p.supplier_id
+    where p.id=#{id} and p.deleted='0'
+  </select>
+
+  <select id="selectLines" parameterType="Long" resultMap="LineResult">
+    select id,payment_id,invoice_id,allocated_cents from payment_lines where payment_id=#{paymentId} order by id
+  </select>
+
+  <insert id="insertPayment" parameterType="com.allinone.supply.domain.Payment">
+    insert into payments(id,number,supplier_id,amount_cents,threshold_exceeded,status,current_node,creator_id,creation_key,revision,remark,create_time,update_time,deleted)
+    values(#{id},#{number},#{supplierId},#{amountCents},#{thresholdExceeded},#{status},#{currentNode},#{creatorId},#{creationKey},0,#{remark},#{createTime},#{updateTime},'0')
+  </insert>
+  <insert id="insertPaymentLine" parameterType="com.allinone.supply.domain.PaymentLine">
+    insert into payment_lines(id,payment_id,invoice_id,allocated_cents,create_time) values(#{id},#{paymentId},#{invoiceId},#{allocatedCents},#{createTime})
+  </insert>
+  <delete id="deleteLines">delete from payment_lines where payment_id=#{paymentId}</delete>
+
+  <update id="updatePayment" parameterType="com.allinone.supply.domain.Payment">
+    update payments set supplier_id=#{supplierId},amount_cents=#{amountCents},remark=#{remark},revision=revision+1,update_time=#{updateTime}
+    where id=#{id} and revision=#{revision} and status in('DRAFT','RETURNED') and deleted='0'
+  </update>
+  <update id="updateState">
+    update payments set status=#{status},current_node=#{node},revision=revision+1,update_time=#{updateTime}
+    <if test="reviewComment != null">,review_comment=#{reviewComment}</if>
+    <if test="directorComment != null">,director_comment=#{directorComment}</if>
+    where id=#{id} and revision=#{revision} and deleted='0'
+  </update>
+
+  <insert id="insertSequence">insert ignore into number_sequences(document_type,business_date,next_value) values(#{type},#{businessDate},1)</insert>
+  <update id="incrementSequence">update number_sequences set next_value=next_value+1 where document_type=#{type} and business_date=#{businessDate}</update>
+  <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type=#{type} and business_date=#{businessDate}</select>
+
+  <select id="selectSupplierApproved" resultType="int">select count(1) from documents where id=#{supplierId} and type='SUPPLIER' and approval_status='APPROVED' and deleted='0'</select>
+  <select id="selectInvoiceSupplierId" resultType="Long">select po.supplier_id from invoices i join purchase_orders po on po.document_id=i.order_id where i.document_id=#{invoiceId}</select>
+  <select id="lockApprovedInvoice" resultType="Long">
+    select i.total_cents from invoices i join documents d on d.id=i.document_id
+    where d.id=#{invoiceId} and d.type='INVOICE' and d.approval_status='APPROVED' and d.deleted='0' for update
+  </select>
+  <select id="selectAllocatedForInvoice" resultType="Long">
+    select coalesce(sum(pl.allocated_cents),0) from payment_lines pl join payments p on p.id=pl.payment_id
+    where pl.invoice_id=#{invoiceId} and p.deleted='0' and p.status in('IN_REVIEW','APPROVED')
+    <if test="excludePaymentId != null">and p.id&lt;&gt;#{excludePaymentId}</if>
+  </select>
+  <select id="countReviewEligible" resultType="int">
+    select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id
+    where u.user_id=#{userId} and u.user_id&lt;&gt;#{excludeId} and u.status='0' and u.del_flag='0' and r.status='0' and r.del_flag='0' and r.role_key='finance'
+  </select>
+  <select id="countDirectorEligible" resultType="int">
+    select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id
+    where u.user_id=#{userId} and u.user_id&lt;&gt;#{excludeId} and u.status='0' and u.del_flag='0' and r.status='0' and r.del_flag='0'
+      and r.role_key='finance' and u.rank_level='EXEC'
+  </select>
+
+  <select id="selectApBalance" resultMap="ApResult">
+    select d.id invoice_id,i.invoice_number,i.issue_date,i.total_cents,
+      coalesce((select sum(pl.allocated_cents) from payment_lines pl join payments pp on pp.id=pl.payment_id
+                where pl.invoice_id=d.id and pp.deleted='0' and pp.status in('IN_REVIEW','APPROVED')),0) allocated_cents,
+      i.total_cents-coalesce((select sum(pl.allocated_cents) from payment_lines pl join payments pp on pp.id=pl.payment_id
+                where pl.invoice_id=d.id and pp.deleted='0' and pp.status in('IN_REVIEW','APPROVED')),0) balance_cents
+    from invoices i join documents d on d.id=i.document_id
+    join purchase_orders po on po.document_id=i.order_id
+    where d.type='INVOICE' and d.approval_status='APPROVED' and d.deleted='0'
+    <if test="supplierId != null">and po.supplier_id=#{supplierId}</if>
+    order by i.issue_date,d.id
+  </select>
+</mapper>
