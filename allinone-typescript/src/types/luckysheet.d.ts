@@ -47,6 +47,11 @@ declare module 'luckysheet/dist/plugins/plugins.css' {
   export default css;
 }
 
+declare module 'luckysheet/dist/assets/iconfont/iconfont.css' {
+  const css: string;
+  export default css;
+}
+
 declare module 'luckysheet/dist/css/luckysheet.css' {
   const css: string;
   export default css;

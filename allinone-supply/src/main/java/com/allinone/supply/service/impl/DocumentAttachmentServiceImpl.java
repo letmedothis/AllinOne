@@ -17,6 +17,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,6 +27,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Service
 public class DocumentAttachmentServiceImpl implements IDocumentAttachmentService {
     private static final String[] ALLOWED = {"pdf", "png", "jpg", "jpeg", "xml", "ofd"};
+    private static final Logger log = LoggerFactory.getLogger(DocumentAttachmentServiceImpl.class);
     @Autowired private DocumentAttachmentMapper mapper;
 
     @Override @Transactional
@@ -52,7 +55,12 @@ public class DocumentAttachmentServiceImpl implements IDocumentAttachmentService
             result.setOriginalName(file.getOriginalFilename()); result.setStoragePath(path); result.setMediaType(file.getContentType());
             result.setSizeBytes(file.getSize()); result.setSha256(sha256(bytes)); result.setCreatedBy(SecurityUtils.getUserId()); result.setCreatedAt(now);
             mapper.insertFile(result); mapper.insertBinding(result); return result;
-        } catch (Exception e) { throw new ServiceException("附件上传失败：" + e.getMessage()); }
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("附件上传失败，documentId={}, fileName={}", documentId, file.getOriginalFilename(), e);
+            throw new ServiceException("附件上传失败，请检查服务器上传目录权限或文件格式");
+        }
     }
 
     @Override public List<DocumentAttachment> list(Long documentId) {

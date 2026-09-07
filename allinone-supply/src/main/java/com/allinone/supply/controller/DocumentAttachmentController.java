@@ -25,7 +25,7 @@ public class DocumentAttachmentController extends BaseController {
     @GetMapping("/{documentId}/attachments")
     public AjaxResult list(@PathVariable Long documentId) { return success(service.list(documentId)); }
 
-    @PreAuthorize("@ss.hasPermi('supply:supplier:edit') or @ss.hasPermi('supply:order:edit') or @ss.hasPermi('supply:invoice:edit')")
+    @PreAuthorize("@ss.hasAnyPermi('supply:supplier:add,supply:supplier:edit,supply:order:edit,supply:invoice:edit')")
     @PostMapping(value = "/{documentId}/attachments", consumes = "multipart/form-data")
     public AjaxResult upload(@PathVariable Long documentId, @RequestParam(value = "attachmentType", required = false) String attachmentType,
                              @RequestParam("file") MultipartFile file) { return success(service.upload(documentId, attachmentType, file)); }

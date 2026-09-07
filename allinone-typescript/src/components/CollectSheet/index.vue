@@ -34,6 +34,9 @@
 <script setup lang="ts" name="CollectSheet">
 
 // ===== 本地 Luckysheet 引入（从 allinone-luckysheet/ 本地源码构建）=====
+// 工具栏绝大多数图标由独立 iconfont 样式提供；独立版 index.html 会加载它，
+// 嵌入 Vue 时也必须显式引入，否则按钮存在但图标为空。
+import 'luckysheet/dist/assets/iconfont/iconfont.css'
 import 'luckysheet/dist/plugins/css/pluginsCss.css'
 import 'luckysheet/dist/plugins/plugins.css'
 import 'luckysheet/dist/css/luckysheet.css'

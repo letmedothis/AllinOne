@@ -22,6 +22,11 @@ const service = axios.create({
 
 // request拦截器
 service.interceptors.request.use((config: any) => {
+  // FormData 必须让浏览器自动生成 multipart boundary，不能沿用全局 JSON 请求头。
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (typeof config.headers?.delete === 'function') config.headers.delete('Content-Type')
+    else if (config.headers) delete config.headers['Content-Type']
+  }
   // 是否需要设置 token
   const isToken = (config.headers || {}).isToken === false
   // 是否需要防止数据重复提交
