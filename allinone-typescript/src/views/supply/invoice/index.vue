@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <el-card class="mb16"><template #header>发票登记列表</template><el-form :inline="true" :model="query"><el-form-item label="发票号码"><el-input v-model="query.invoiceNumber" clearable /></el-form-item><el-form-item label="状态"><el-select v-model="query.approvalStatus" clearable><el-option label="草稿" value="DRAFT" /><el-option label="审批中" value="IN_REVIEW" /><el-option label="退回" value="RETURNED" /><el-option label="已通过" value="APPROVED" /><el-option label="已作废" value="VOID" /></el-select></el-form-item><el-form-item><el-button type="primary" @click="loadList">查询</el-button></el-form-item></el-form><el-table v-loading="listLoading" :data="invoiceList"><el-table-column prop="number" label="系统单号" min-width="180" /><el-table-column prop="invoiceNumber" label="发票号码" width="150" /><el-table-column prop="sellerTaxId" label="销方税号" width="180" /><el-table-column prop="approvalStatus" label="状态" width="100" /><el-table-column prop="currentNode" label="当前节点" width="100" /></el-table><pagination v-show="total > 0" :total="total" v-model:page="query.pageNum" v-model:limit="query.pageSize" @pagination="loadList" /></el-card>
-    <el-alert title="仅支持 DemoInvoice schemaVersion=1.0；解析结果必须人工核对并补充订单行关联。" type="info" show-icon class="mb8" />
+    <el-alert title="支持 DemoInvoice v1（演示）与数电票蓝字 XML；解析结果必须人工核对并补充订单行关联，不代表税务验真。" type="info" show-icon class="mb8" />
     <el-form :model="form" label-width="110px">
       <el-form-item label="原始票据附件"><el-upload :auto-upload="false" :show-file-list="false" accept=".xml,.ofd,.pdf" :on-change="queueAttachment"><el-button>选择 XML/PDF/OFD</el-button></el-upload><span class="ml8">{{ pendingFiles.length ? `待上传 ${pendingFiles.length} 个` : '提交前至少上传一个附件' }}</span></el-form-item>
       <el-row>
@@ -33,7 +33,7 @@
       <el-button class="mt8" :disabled="!form.documentId" @click="confirm">确认当前内容</el-button>
       <el-button type="success" class="mt8" :disabled="!form.documentId" @click="submit">提交审批</el-button>
     </el-form>
-    <el-card class="mt8"><template #header>DemoInvoice XML 导入</template><el-input v-model="xml" type="textarea" :rows="10" placeholder="粘贴 DemoInvoice XML" /><el-button type="primary" class="mt8" @click="parse">解析并回填</el-button></el-card>
+    <el-card class="mt8"><template #header>XML 解析导入</template><el-input v-model="xml" type="textarea" :rows="10" placeholder="粘贴数电票蓝字 XML（演示可贴 DemoInvoice XML）" /><el-button type="primary" class="mt8" @click="parse">解析并回填</el-button></el-card>
   </div>
 </template>
 
