@@ -6,6 +6,7 @@ import com.allinone.common.utils.SecurityUtils;
 import com.allinone.common.utils.StringUtils;
 import com.allinone.common.utils.uuid.IdUtils;
 import com.allinone.report.domain.ReportConfig;
+import com.allinone.report.domain.JimuReportDefinition;
 import com.allinone.report.mapper.ReportConfigMapper;
 import com.allinone.report.service.IReportConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,13 @@ public class ReportConfigServiceImpl implements IReportConfigService {
     }
 
     @Override
+    public List<JimuReportDefinition> selectJimuReportDefinitionList() {
+        return reportConfigMapper.selectJimuReportDefinitionList();
+    }
+
+    @Override
     public int insertReportConfig(ReportConfig config) {
+        validateEngineReference(config);
         checkCodeConflict(config.getReportCode(), null);
         config.setReportId(IdUtils.nextLongId());
         config.setCreateBy(SecurityUtils.getUsername());
@@ -50,6 +57,7 @@ public class ReportConfigServiceImpl implements IReportConfigService {
 
     @Override
     public int updateReportConfig(ReportConfig config) {
+        validateEngineReference(config);
         checkCodeConflict(config.getReportCode(), config.getReportId());
         config.setUpdateBy(SecurityUtils.getUsername());
         config.setUpdateTime(DateUtils.getNowDate());
@@ -71,6 +79,21 @@ public class ReportConfigServiceImpl implements IReportConfigService {
         }
         if (reportConfigMapper.countReportCodeConflict(reportCode, excludeId) > 0) {
             throw new ServiceException("报表编码已存在(已删除报表的编码同样占用),请更换编码");
+        }
+    }
+
+    /**
+     * 普通报表必须指向仍存在的 JimuReport 定义，避免保存后 iframe 才暴露无效 ID。
+     */
+    private void validateEngineReference(ReportConfig config) {
+        if (!TYPE_REPORT.equals(config.getReportType())) {
+            return;
+        }
+        if (StringUtils.isEmpty(config.getJimuReportId())) {
+            throw new ServiceException("请选择 JimuReport 报表");
+        }
+        if (reportConfigMapper.countJimuReportDefinitionById(config.getJimuReportId()) == 0) {
+            throw new ServiceException("所选 JimuReport 报表不存在或已删除，请重新选择");
         }
     }
 

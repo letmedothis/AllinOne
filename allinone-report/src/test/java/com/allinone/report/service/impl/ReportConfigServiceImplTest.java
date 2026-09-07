@@ -71,6 +71,21 @@ class ReportConfigServiceImplTest {
     }
 
     @Test
+    void insertRejectsMissingJimuReportDefinition() {
+        ReportConfig config = new ReportConfig();
+        config.setReportType("0");
+        config.setJimuReportId("missing-report");
+        setLoginContext();
+        when(mapper.countJimuReportDefinitionById("missing-report")).thenReturn(0);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.insertReportConfig(config))
+                .isInstanceOf(com.allinone.common.exception.ServiceException.class)
+                .hasMessageContaining("不存在或已删除");
+
+        verify(mapper).countJimuReportDefinitionById("missing-report");
+    }
+
+    @Test
     void updateChecksCodeConflictExcludingItself() {
         ReportConfig config = new ReportConfig();
         config.setReportId(7L);

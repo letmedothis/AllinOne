@@ -159,8 +159,15 @@
           </el-col>
         </el-row>
         <el-form-item v-if="form.reportType === '0'" label="JimuReport ID" prop="jimuReportId">
-          <el-input v-model="form.jimuReportId" placeholder="请输入 JimuReport 报表ID" maxlength="64" />
-          <div class="form-item-tip">填写 JimuReport 报表设计器中的报表 ID（报表列表或设计器 URL /jmreport/list、/jmreport/view/{id} 中的 id）；填写的 ID 必须在积木报表引擎中真实存在</div>
+          <el-select v-model="form.jimuReportId" filterable clearable placeholder="搜索并选择 JimuReport 报表" style="width: 100%">
+            <el-option v-for="report in jimuReports" :key="report.id" :label="jimuReportLabel(report)" :value="report.id">
+              <div class="jimu-report-option">
+                <span>{{ report.name || '未命名报表' }}</span>
+                <small>{{ report.code || '无编码' }} · {{ report.id }}</small>
+              </div>
+            </el-option>
+          </el-select>
+          <div class="form-item-tip">从已保存的 JimuReport 报表中选择；系统会在保存时再次校验该报表仍存在。</div>
         </el-form-item>
         <el-form-item v-else label="JimuBI ID" prop="jmbiId">
           <el-input v-model="form.jmbiId" placeholder="请输入 JimuBI 大屏/仪表盘ID" maxlength="64" />
@@ -199,8 +206,8 @@
 </template>
 
 <script setup lang="ts" name="ReportConfig">
-import type { ReportConfig, ReportConfigQueryParams } from '@/types/api/report/config'
-import { listConfig, getConfig, delConfig, addConfig, updateConfig } from '@/api/report/config'
+import type { JimuReportDefinition, ReportConfig, ReportConfigQueryParams } from '@/types/api/report/config'
+import { listConfig, getConfig, delConfig, addConfig, updateConfig, listJimuReports } from '@/api/report/config'
 import { listCategory } from '@/api/report/category'
 import type { ReportCategory } from '@/types/api/report/category'
 import { useRouter } from 'vue-router'
@@ -214,6 +221,7 @@ const formRef = ref()
 
 const configList = ref<ReportConfig[]>([])
 const categoryOptions = ref<ReportCategory[]>([])
+const jimuReports = ref<JimuReportDefinition[]>([])
 const open = ref<boolean>(false)
 const loading = ref<boolean>(true)
 const showSearch = ref<boolean>(true)
@@ -238,7 +246,8 @@ const data = reactive({
       { required: true, message: '报表编码不能为空', trigger: 'blur' },
       { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码必须以字母开头，仅允许字母数字下划线', trigger: 'blur' }
     ],
-    reportType: [{ required: true, message: '报表类型不能为空', trigger: 'change' }]
+    reportType: [{ required: true, message: '报表类型不能为空', trigger: 'change' }],
+    jimuReportId: [{ required: true, message: '请选择 JimuReport 报表', trigger: 'change' }]
   }
 })
 
@@ -260,6 +269,16 @@ async function getList() {
 function loadCategoryTree() {
   listCategory().then(response => {
     categoryOptions.value = proxy.handleTree(response.data, 'categoryId')
+  })
+}
+
+function jimuReportLabel(report: JimuReportDefinition): string {
+  return `${report.name || '未命名报表'}${report.code ? `（${report.code}）` : ''}`
+}
+
+function loadJimuReports() {
+  listJimuReports().then(response => {
+    jimuReports.value = response.data || []
   })
 }
 
@@ -368,6 +387,7 @@ function handleView(row: ReportConfig) {
 
 getList()
 loadCategoryTree()
+loadJimuReports()
 </script>
 
 <style scoped>
@@ -375,6 +395,16 @@ loadCategoryTree()
   width: 100%;
   font-size: 12px;
   line-height: 1.5;
+  color: var(--el-text-color-secondary);
+}
+
+.jimu-report-option {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.jimu-report-option small {
   color: var(--el-text-color-secondary);
 }
 </style>

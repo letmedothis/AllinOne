@@ -6,6 +6,7 @@ import com.allinone.common.core.domain.AjaxResult;
 import com.allinone.common.core.page.TableDataInfo;
 import com.allinone.common.enums.BusinessType;
 import com.allinone.report.domain.ReportConfig;
+import com.allinone.report.domain.JimuReportDefinition;
 import com.allinone.report.service.IReportConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,16 @@ public class ReportConfigController extends BaseController {
     @GetMapping("/{reportId}")
     public AjaxResult getInfo(@PathVariable Long reportId) {
         return success(reportConfigService.selectReportConfigById(reportId));
+    }
+
+    /**
+     * 供报表配置页选择引擎报表；只读，不向前端暴露引擎的设计数据。
+     */
+    @PreAuthorize("@ss.hasPermi('report:config:list')")
+    @GetMapping("/jimu-reports")
+    public AjaxResult jimuReports() {
+        List<JimuReportDefinition> reports = reportConfigService.selectJimuReportDefinitionList();
+        return success(reports);
     }
 
     @PreAuthorize("@ss.hasPermi('report:config:add')")

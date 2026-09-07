@@ -1,5 +1,13 @@
 import request from '@/utils/request'
-import type { ReportConfigQueryParams, ReportConfig, AjaxResult, TableDataInfo } from '@/types'
+import type { ReportConfigQueryParams, ReportConfig, JimuReportDefinition, AjaxResult, TableDataInfo } from '@/types'
+
+/** 获取可配置的 JimuReport 报表目录。 */
+export function listJimuReports(): Promise<AjaxResult<JimuReportDefinition[]>> {
+  return request({
+    url: '/report/config/jimu-reports',
+    method: 'get'
+  })
+}
 
 /** 查询报表配置列表 */
 export function listConfig(query: ReportConfigQueryParams): Promise<TableDataInfo<ReportConfig[]>> {

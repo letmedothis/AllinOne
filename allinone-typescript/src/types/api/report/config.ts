@@ -41,3 +41,12 @@ export interface ReportConfig extends BaseEntity {
   /** 访问URL（后端按类型计算返回） */
   url?: string
 }
+
+/** JimuReport 引擎中可供配置引用的报表目录项（只读）。 */
+export interface JimuReportDefinition {
+  id: string
+  code?: string
+  name?: string
+  status?: string
+  updateTime?: string
+}
