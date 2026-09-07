@@ -87,6 +87,7 @@ docker compose exec mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" allin
 ## 注意事项
 
 - `.env` 含随机密钥且已被 `.gitignore` 忽略；迁移到新机器时重新生成即可，但**数据库密码更换后需同步 `docker compose down -v` 重置数据卷**（旧卷内 root 密码不会跟随变更）。
+- Flowable 引擎表（`ACT_*`）在首次启动时自动创建，生产初始化完成后请在 `.env` 追加 `FLOWABLE_DATABASE_SCHEMA_UPDATE=false` 固定引擎表结构。
 - JVM 内存经 `.env` 的 `JAVA_OPTS` 调整（如 `-Xms512m -Xmx2g`）。
 - JimuReport 设计器默认关闭，需要时在 `.env`/compose 的 backend 环境中追加 `JIMUREPORT_UI_ENABLE=true`。
 - 数据库仅容器网络内可达；需要宿主机直连时放开 compose 中 mysql 的 `ports` 注释。

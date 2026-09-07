@@ -25,3 +25,9 @@ SOURCE sql/ry_20260417.sql;
 - 联系方式统一替换为保留的示例值，不应被当作真实业务数据。
 
 如果以后用新的上游数据脚本覆盖这两个文件，执行 `scripts/sanitize-public-sql.ps1` 后再提交，并检查 Git diff。该脚本只做确定性的联系方式替换和分享记录删除，不会执行 SQL。
+
+## Flowable 引擎表
+
+- `ACT_*` 引擎表**由应用首次启动时自动创建**（`FLOWABLE_DATABASE_SCHEMA_UPDATE=true`，见 `application.yml`），不通过 SQL 脚本初始化；因此首次启动所用的数据库账号需具备 DDL 权限。
+- 生产环境在完成首次初始化后，应设置环境变量 `FLOWABLE_DATABASE_SCHEMA_UPDATE=false` 固定引擎表结构，避免运行期 DDL。
+- `documents.workflow_engine` 记录单据的审批引擎归属（`LEGACY`=内置固定流程、`FLOWABLE`=Flowable），由 `allinone_biz_update.sql` 幂等新增，撤回/作废据此同步取消引擎实例。

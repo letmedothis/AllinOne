@@ -334,6 +334,15 @@ PREPARE add_sc_alloc_unique_stmt FROM @add_sc_alloc_unique_sql;
 EXECUTE add_sc_alloc_unique_stmt;
 DEALLOCATE PREPARE add_sc_alloc_unique_stmt;
 
+-- documents 增加审批引擎归属列（LEGACY=内置固定流程；FLOWABLE=Flowable 引擎）。
+SET @add_sc_doc_engine_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='documents' AND COLUMN_NAME='workflow_engine')=0,
+  'ALTER TABLE documents ADD COLUMN workflow_engine varchar(16) NOT NULL DEFAULT ''LEGACY'' AFTER current_node', 'SELECT 1'
+);
+PREPARE add_sc_doc_engine_stmt FROM @add_sc_doc_engine_sql;
+EXECUTE add_sc_doc_engine_stmt;
+DEALLOCATE PREPARE add_sc_doc_engine_stmt;
+
 -- Flowable ACT_* 引擎表由应用首次启动时自动初始化（见 FLOWABLE_DATABASE_SCHEMA_UPDATE）。
 CREATE TABLE IF NOT EXISTS workflow_designs (
   id bigint(20) NOT NULL, process_key varchar(100) NOT NULL, name varchar(100) NOT NULL, bpmn_xml longtext NOT NULL,

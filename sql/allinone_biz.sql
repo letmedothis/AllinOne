@@ -313,6 +313,7 @@ CREATE TABLE documents (
   creation_key    varchar(80)  NOT NULL,
   approval_status varchar(20)  NOT NULL DEFAULT 'DRAFT',
   current_node    varchar(20)  DEFAULT NULL,
+  workflow_engine varchar(16)  NOT NULL DEFAULT 'LEGACY',
   current_version int(11)      NOT NULL DEFAULT 0,
   revision        int(11)      NOT NULL DEFAULT 0,
   deleted         char(1)      NOT NULL DEFAULT '0',

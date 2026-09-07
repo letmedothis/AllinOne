@@ -1,4 +1,4 @@
-﻿# 项目相关配置
+# 项目相关配置
 ruoyi:
   # 名称
   name: RuoYi
@@ -162,11 +162,13 @@ allinone:
 minidao:
   base-package: org.jeecg.modules.jmreport.desreport.dao*,org.jeecg.modules.jmreport.ai.tablemeta.dao*,org.jeecg.modules.drag.dao*
 
-# Flowable 在首次启动时创建 ACT_* 引擎表；生产初始化完成后可设置
+# Flowable 在首次启动时创建 ACT_* 引擎表；生产初始化完成后必须设置
 # FLOWABLE_DATABASE_SCHEMA_UPDATE=false，避免运行期变更引擎表结构。
+# 当前采购订单流程为同步单节点，无需异步作业执行器；引入异步/定时任务前需
+# 确认 Flowable 7 Boot 实际绑定的属性键后再开启。
 flowable:
   database-schema-update: ${FLOWABLE_DATABASE_SCHEMA_UPDATE:true}
-  async-executor-activate: true
+  async-executor-activate: false
 
 # 防止XSS攻击
 xss:

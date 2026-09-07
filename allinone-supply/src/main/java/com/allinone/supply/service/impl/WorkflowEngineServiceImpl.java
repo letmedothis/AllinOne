@@ -219,9 +219,10 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
         Task task = taskService.createTaskQuery().taskId(taskId).processDefinitionKey(PURCHASE_ORDER_PROCESS_KEY).singleResult();
         String userId = String.valueOf(SecurityUtils.getUserId());
         if (task == null || !canHandle(task, userId)) throw new ServiceException("待办不存在、已处理或无权处理");
-        if (StringUtils.isEmpty(task.getAssignee())) taskService.claim(task.getId(), userId);
         ProcessInstance instance = runtimeService.createProcessInstanceQuery().processInstanceId(task.getProcessInstanceId()).singleResult();
         Long documentId = toDocumentId(instance == null ? null : instance.getBusinessKey());
+        requireFlowableDocument(documentId);
+        if (StringUtils.isEmpty(task.getAssignee())) taskService.claim(task.getId(), userId);
         String comment = StringUtils.defaultString(decision.getComment()).trim();
         if (comment.length() > 2000) throw new ServiceException("审批意见不能超过 2000 个字符");
         WorkflowActionLog log = new WorkflowActionLog();
@@ -291,6 +292,16 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
                 throw new ServiceException("节点“" + assignment.nodeName() + "”没有可用审批人，请检查部门负责人配置");
             }
             if (userId != null) variables.put("wfAssignee_" + assignment.nodeId(), userId);
+        }
+    }
+
+    private void requireFlowableDocument(Long documentId) {
+        if (!"FLOWABLE".equals(workflowEngineMapper.selectDocumentWorkflowEngine(documentId))) {
+            throw new ServiceException("该采购订单仍由原审批中心处理，请在“审批中心”操作");
+        }
+        String status = workflowEngineMapper.selectDocumentApprovalStatus(documentId);
+        if (!"IN_REVIEW".equals(status)) {
+            throw new ServiceException("订单状态已变化（当前：" + status + "），请刷新后重试");
         }
     }
 
@@ -364,13 +375,13 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
         try (InputStream input = repositoryService.getResourceAsStream(definition.getDeploymentId(), definition.getResourceName())) {
             if (input == null) throw new ServiceException("流程定义文件不存在");
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("读取流程定义失败"); }
+        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("读取流程定义失败").setDetailMessage(String.valueOf(e.getMessage())); }
     }
 
     private String readClasspath(String path) {
         try (InputStream input = new ClassPathResource(path).getInputStream()) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (Exception e) { throw new ServiceException("默认流程样板读取失败"); }
+        } catch (Exception e) { throw new ServiceException("默认流程样板读取失败").setDetailMessage(String.valueOf(e.getMessage())); }
     }
 
     private WorkflowCandidateOption option(String type, String value, String label, String description) {

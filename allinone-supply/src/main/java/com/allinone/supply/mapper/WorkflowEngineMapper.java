@@ -24,6 +24,8 @@ public interface WorkflowEngineMapper {
     List<String> selectUserRoleKeys(@Param("userId") Long userId);
     String selectUserDisplayName(@Param("userId") String userId);
     Long selectDocumentCreatorId(@Param("documentId") Long documentId);
+    String selectDocumentWorkflowEngine(@Param("documentId") Long documentId);
+    String selectDocumentApprovalStatus(@Param("documentId") Long documentId);
     int insertActionLog(WorkflowActionLog log);
     List<WorkflowActionLog> selectActionLogs(@Param("processInstanceId") String processInstanceId);
 }

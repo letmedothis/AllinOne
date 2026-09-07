@@ -82,10 +82,11 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
             mapper.insertVersionAttachments(versionId, id);
             // 新提交的采购订单进入 Flowable；历史 workflow_* 实例仍由原审批中心继续处理。
             workflowEngineService.startPurchaseOrder(order, versionId, assignee);
+            mapper.markEngineFlowable(id);
             order.setCurrentVersion(version); order.setCurrentNode("SUPERVISOR"); order.setApprovalStatus("IN_REVIEW"); order.setUpdateTime(now);
             if (mapper.updateDocument(order) == 0) throw new ServiceException("订单状态已变化，请刷新后重试");
             mapper.insertAudit(IdUtils.nextLongId(), id, versionId, SecurityUtils.getUserId(), SecurityUtils.getUsername(), "SUBMIT", now); return 1;
-        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("订单提交失败"); }
+        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("订单提交失败").setDetailMessage(String.valueOf(e.getMessage())); }
     }
     private void validate(PurchaseOrder order) {
         if (order == null || order.getSupplierId() == null || order.getBuyerId() == null || order.getLines() == null || order.getLines().isEmpty()) throw new ServiceException("供应商、采购员和订单明细不能为空");

@@ -32,6 +32,8 @@
     <select id="selectUserRoleKeys" resultType="String">select distinct r.role_key from sys_user_role ur join sys_role r on r.role_id=ur.role_id where ur.user_id=#{userId} and r.status='0' and r.del_flag='0'</select>
     <select id="selectUserDisplayName" resultType="String">select coalesce(nullif(nick_name,''),user_name) from sys_user where cast(user_id as char)=#{userId} limit 1</select>
     <select id="selectDocumentCreatorId" resultType="Long">select creator_id from documents where id=#{documentId} and deleted='0'</select>
+    <select id="selectDocumentWorkflowEngine" resultType="String">select workflow_engine from documents where id=#{documentId} and deleted='0'</select>
+    <select id="selectDocumentApprovalStatus" resultType="String">select approval_status from documents where id=#{documentId} and deleted='0'</select>
     <insert id="insertActionLog">insert into workflow_action_logs(id,process_instance_id,task_id,task_definition_key,action,comment,actor_id,actor_name,created_at) values(#{id},#{processInstanceId},#{taskId},#{taskDefinitionKey},#{action},#{comment},#{actorId},#{actorName},#{createdAt})</insert>
     <select id="selectActionLogs" resultMap="ActionResult">select id,process_instance_id,task_id,task_definition_key,action,comment,actor_id,actor_name,created_at from workflow_action_logs where process_instance_id=#{processInstanceId} order by created_at,id</select>
 </mapper>
