@@ -32,6 +32,10 @@ public class PaymentController extends BaseController {
     @GetMapping("/list")
     public TableDataInfo list(Payment filter) { startPage(); List<Payment> list = service.list(filter); return getDataTable(list); }
 
+    @PreAuthorize("@ss.hasPermi('supply:payment:add')")
+    @GetMapping("/supplier-options")
+    public AjaxResult supplierOptions() { return success(service.supplierOptions()); }
+
     @PreAuthorize("@ss.hasAnyPermi('supply:payment:query,supply:payment:approve')")
     @GetMapping("/{id}")
     public AjaxResult get(@PathVariable Long id) { return success(service.get(id)); }

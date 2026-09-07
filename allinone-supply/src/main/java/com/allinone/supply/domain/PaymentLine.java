@@ -5,10 +5,14 @@ public class PaymentLine {
     private Long id;
     private Long paymentId;
     private Long invoiceId;
+    private String invoiceNumber;
+    private Long invoiceTotalCents;
     private Long allocatedCents;
 
     public Long getId() { return id; } public void setId(Long v) { id = v; }
     public Long getPaymentId() { return paymentId; } public void setPaymentId(Long v) { paymentId = v; }
     public Long getInvoiceId() { return invoiceId; } public void setInvoiceId(Long v) { invoiceId = v; }
+    public String getInvoiceNumber() { return invoiceNumber; } public void setInvoiceNumber(String v) { invoiceNumber = v; }
+    public Long getInvoiceTotalCents() { return invoiceTotalCents; } public void setInvoiceTotalCents(Long v) { invoiceTotalCents = v; }
     public Long getAllocatedCents() { return allocatedCents; } public void setAllocatedCents(Long v) { allocatedCents = v; }
 }

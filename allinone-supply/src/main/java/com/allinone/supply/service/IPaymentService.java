@@ -3,9 +3,11 @@ package com.allinone.supply.service;
 import com.allinone.supply.domain.ApBalanceRow;
 import com.allinone.supply.domain.Payment;
 import com.allinone.supply.domain.PaymentDecision;
+import com.allinone.supply.domain.SupplierOption;
 import java.util.List;
 
 public interface IPaymentService {
+    List<SupplierOption> supplierOptions();
     List<Payment> list(Payment filter);
     Payment get(Long id);
     int create(Payment payment);

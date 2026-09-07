@@ -9,6 +9,7 @@ import com.allinone.supply.domain.ApBalanceRow;
 import com.allinone.supply.domain.Payment;
 import com.allinone.supply.domain.PaymentDecision;
 import com.allinone.supply.domain.PaymentLine;
+import com.allinone.supply.domain.SupplierOption;
 import com.allinone.supply.mapper.PaymentMapper;
 import com.allinone.supply.service.IPaymentService;
 import com.allinone.supply.support.SupplyDataScopeResolver;
@@ -39,6 +40,11 @@ public class PaymentServiceImpl implements IPaymentService {
 
     @Autowired private PaymentMapper mapper;
     @Autowired private SupplyDataScopeResolver scopeResolver;
+
+    @Override
+    public List<SupplierOption> supplierOptions() {
+        return mapper.selectApprovedSupplierOptions();
+    }
 
     @Override
     public List<Payment> list(Payment filter) {

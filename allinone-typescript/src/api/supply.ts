@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 import type { AjaxResult, TableDataInfo } from '@/types'
-import type { ApprovalTask, Invoice, PurchaseOrder, Supplier, SupplierOption, WorkflowCandidateOption, WorkflowDeploymentRequest, WorkflowDesign, WorkflowInstanceDetail, WorkflowProcessDefinition, WorkflowTask } from '@/types/api/supply'
+import type { ApprovalTask, Invoice, PurchaseOrder, Supplier, SupplierOption, ApBalanceRow, Payment, WorkflowCandidateOption, WorkflowDeploymentRequest, WorkflowDesign, WorkflowInstanceDetail, WorkflowProcessDefinition, WorkflowTask } from '@/types/api/supply'
 
 export function listSuppliers(query: Record<string, unknown>): Promise<TableDataInfo<Supplier[]>> { return request({ url: '/supply/suppliers/list', method: 'get', params: query }) }
 export function getSupplier(id: string): Promise<AjaxResult<Supplier>> { return request({ url: `/supply/suppliers/${id}`, method: 'get' }) }
@@ -49,3 +49,13 @@ export function listMyWorkflowTasks(): Promise<AjaxResult<WorkflowTask[]>> { ret
 export function completeWorkflowTask(taskId: string, data: { action: 'APPROVE' | 'REJECT'; comment?: string }): Promise<AjaxResult> { return request({ url: `/supply/workflow/tasks/${taskId}/complete`, method: 'post', data }) }
 export function listMyStartedWorkflowInstances(): Promise<AjaxResult<WorkflowInstanceDetail[]>> { return request({ url: '/supply/workflow/instances/mine', method: 'get' }) }
 export function getWorkflowInstanceDetail(instanceId: string): Promise<AjaxResult<WorkflowInstanceDetail>> { return request({ url: `/supply/workflow/instances/${encodeURIComponent(instanceId)}`, method: 'get' }) }
+export function listPayments(query: Record<string, unknown>): Promise<TableDataInfo<Payment[]>> { return request({ url: '/supply/payments/list', method: 'get', params: query }) }
+export function getPayment(id: string | number): Promise<AjaxResult<Payment>> { return request({ url: `/supply/payments/${id}`, method: 'get' }) }
+export function listPaymentSupplierOptions(): Promise<AjaxResult<SupplierOption[]>> { return request({ url: '/supply/payments/supplier-options', method: 'get' }) }
+export function addPayment(data: Payment): Promise<AjaxResult<Payment>> { return request({ url: '/supply/payments', method: 'post', data }) }
+export function updatePayment(data: Payment): Promise<AjaxResult> { return request({ url: '/supply/payments', method: 'put', data }) }
+export function submitPayment(id: string | number): Promise<AjaxResult> { return request({ url: `/supply/payments/${id}/submit`, method: 'post' }) }
+export function reviewPayment(id: string | number, data: { approved: boolean; comment?: string }): Promise<AjaxResult> { return request({ url: `/supply/payments/${id}/review`, method: 'post', data }) }
+export function directorDecisionPayment(id: string | number, data: { approved: boolean; comment?: string }): Promise<AjaxResult> { return request({ url: `/supply/payments/${id}/director-decision`, method: 'post', data }) }
+export function voidPayment(id: string | number, reason?: string): Promise<AjaxResult> { return request({ url: `/supply/payments/${id}/void`, method: 'post', params: { reason } }) }
+export function listApBalance(supplierId?: string | number): Promise<AjaxResult<ApBalanceRow[]>> { return request({ url: '/supply/payments/ap-balance', method: 'get', params: { supplierId } }) }

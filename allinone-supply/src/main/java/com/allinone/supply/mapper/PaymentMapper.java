@@ -3,11 +3,13 @@ package com.allinone.supply.mapper;
 import com.allinone.supply.domain.ApBalanceRow;
 import com.allinone.supply.domain.Payment;
 import com.allinone.supply.domain.PaymentLine;
+import com.allinone.supply.domain.SupplierOption;
 import java.util.Date;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 public interface PaymentMapper {
+    List<SupplierOption> selectApprovedSupplierOptions();
     List<Payment> selectList(Payment payment);
     Payment selectById(@Param("id") Long id);
     List<PaymentLine> selectLines(@Param("paymentId") Long paymentId);

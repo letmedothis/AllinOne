@@ -141,3 +141,22 @@ export interface WorkflowDeploymentRequest {
 
 export interface InvoiceLine { id?: string; orderLineId?: string; name?: string; unit?: string; quantity?: number; price?: number; rate?: number }
 export interface Invoice { documentId?: string; orderId?: string; invoiceNumber?: string; invoiceType?: string; issueDate?: string; sellerName?: string; sellerTaxId?: string; buyerName?: string; buyerTaxId?: string; amountCents?: number; taxCents?: number; totalCents?: number; differenceNote?: string; manualConfirmed?: boolean; revision?: number; lines?: InvoiceLine[] }
+
+export interface PaymentLine { id?: string; invoiceId?: string; invoiceNumber?: string; invoiceTotalCents?: number; allocatedCents?: number }
+export interface Payment {
+  id?: string
+  number?: string
+  supplierId?: string
+  supplierName?: string
+  amountCents?: number
+  thresholdExceeded?: string
+  status?: string
+  currentNode?: string
+  creatorId?: string
+  remark?: string
+  reviewComment?: string
+  directorComment?: string
+  revision?: number
+  lines?: PaymentLine[]
+}
+export interface ApBalanceRow { invoiceId?: string; invoiceNumber?: string; issueDate?: string; totalCents?: number; allocatedCents?: number; balanceCents?: number }

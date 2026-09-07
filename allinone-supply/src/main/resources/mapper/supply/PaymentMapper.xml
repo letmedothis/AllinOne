@@ -12,8 +12,18 @@
   </resultMap>
   <resultMap id="LineResult" type="com.allinone.supply.domain.PaymentLine">
     <id property="id" column="id"/><result property="paymentId" column="payment_id"/><result property="invoiceId" column="invoice_id"/>
+    <result property="invoiceNumber" column="invoice_number"/><result property="invoiceTotalCents" column="invoice_total_cents"/>
     <result property="allocatedCents" column="allocated_cents"/>
   </resultMap>
+  <resultMap id="SupplierOptionResult" type="com.allinone.supply.domain.SupplierOption">
+    <id property="documentId" column="document_id"/><result property="name" column="name"/><result property="taxId" column="tax_id"/>
+  </resultMap>
+  <select id="selectApprovedSupplierOptions" resultMap="SupplierOptionResult">
+    select cast(d.id as char) document_id, s.name, s.tax_id
+    from documents d join suppliers s on s.document_id = d.id
+    where d.type='SUPPLIER' and d.approval_status='APPROVED' and d.deleted='0'
+    order by s.name, d.id
+  </select>
   <resultMap id="ApResult" type="com.allinone.supply.domain.ApBalanceRow">
     <id property="invoiceId" column="invoice_id"/><result property="invoiceNumber" column="invoice_number"/>
     <result property="issueDate" column="issue_date"/><result property="totalCents" column="total_cents"/>
@@ -42,7 +52,9 @@
   </select>
 
   <select id="selectLines" parameterType="Long" resultMap="LineResult">
-    select id,payment_id,invoice_id,allocated_cents from payment_lines where payment_id=#{paymentId} order by id
+    select pl.id,pl.payment_id,pl.invoice_id,pl.allocated_cents,i.invoice_number,i.total_cents invoice_total_cents
+    from payment_lines pl left join invoices i on i.document_id=pl.invoice_id
+    where pl.payment_id=#{paymentId} order by pl.id
   </select>
 
   <insert id="insertPayment" parameterType="com.allinone.supply.domain.Payment">
