@@ -365,3 +365,13 @@ INSERT IGNORE INTO sys_menu VALUES
 (2180, '流程定义查看', 2111, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:workflow:list', '#', 'admin', sysdate(), '', NULL, ''),
 (2181, '流程定义发布', 2111, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:workflow:deploy', '#', 'admin', sysdate(), '', NULL, ''),
 (2182, '流程待办处理', 2109, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:workflow:task', '#', 'admin', sysdate(), '', NULL, '');
+
+-- M2 数据范围:sys_user 增加职级维度(EXEC 总监看全部 / LEADER 部门领导看本部门 / STAFF 职员看本人)。
+-- 可空:未配置的用户回退旧的"角色全局或本人"逻辑,避免范围收缩。
+SET @add_sys_user_rank_sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='sys_user' AND COLUMN_NAME='rank_level')=0,
+  'ALTER TABLE sys_user ADD COLUMN rank_level varchar(16) DEFAULT NULL COMMENT ''职级:EXEC总监/LEADER部门领导/STAFF职员'' AFTER dept_id', 'SELECT 1'
+);
+PREPARE add_sys_user_rank_stmt FROM @add_sys_user_rank_sql;
+EXECUTE add_sys_user_rank_stmt;
+DEALLOCATE PREPARE add_sys_user_rank_stmt;
