@@ -36,10 +36,19 @@
     <select id="selectPurchaseOrderList" parameterType="com.allinone.supply.domain.PurchaseOrder" resultMap="OrderResult">
         select <include refid="orderColumns"/> from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id
         where d.type='PURCHASE_ORDER' and d.deleted='0'
-        <if test="params.currentUserId != null">and (#{params.supplyGlobal}=true or d.creator_id=#{params.currentUserId} or p.buyer_id=#{params.currentUserId})</if>
+        <if test="params.supplyScopeMode == 'DEPT'">and (exists(select 1 from sys_user cu where cu.user_id=d.creator_id and cu.dept_id=#{params.supplyScopeDeptId} and cu.del_flag='0') or exists(select 1 from sys_user bu where bu.user_id=p.buyer_id and bu.dept_id=#{params.supplyScopeDeptId} and bu.del_flag='0'))</if>
+        <if test="params.supplyScopeMode == 'SELF'">and (d.creator_id=#{params.supplyScopeUserId} or p.buyer_id=#{params.supplyScopeUserId})</if>
         <if test="supplierId != null">and p.supplier_id=#{supplierId}</if><if test="buyerId != null">and p.buyer_id=#{buyerId}</if>
         <if test="approvalStatus != null and approvalStatus != ''">and d.approval_status=#{approvalStatus}</if>
         <if test="number != null and number != ''">and d.number like concat('%',#{number},'%')</if> order by d.update_time desc
+    </select>
+    <select id="countVisibleByScope" resultType="int">
+        select count(1) from documents d join purchase_orders p on p.document_id=d.id
+        where d.id=#{documentId} and d.type='PURCHASE_ORDER' and d.deleted='0'
+        <choose>
+            <when test="mode == 'SELF'">and (d.creator_id=#{userId} or p.buyer_id=#{userId})</when>
+            <when test="mode == 'DEPT'">and (exists(select 1 from sys_user cu where cu.user_id=d.creator_id and cu.dept_id=#{deptId} and cu.del_flag='0') or exists(select 1 from sys_user bu where bu.user_id=p.buyer_id and bu.dept_id=#{deptId} and bu.del_flag='0'))</when>
+        </choose>
     </select>
     <select id="selectPurchaseOrderById" parameterType="Long" resultMap="OrderResult">
         select <include refid="orderColumns"/> from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id

@@ -9,6 +9,8 @@ import org.apache.ibatis.annotations.Param;
 public interface SupplierMapper {
     List<Supplier> selectSupplierList(Supplier supplier);
     Supplier selectSupplierById(@Param("documentId") Long documentId);
+    int countVisibleByScope(@Param("documentId") Long documentId, @Param("mode") String mode,
+                            @Param("userId") Long userId, @Param("deptId") Long deptId);
     int insertDocument(Supplier supplier);
     int insertSupplier(Supplier supplier);
     int updateSupplier(Supplier supplier);

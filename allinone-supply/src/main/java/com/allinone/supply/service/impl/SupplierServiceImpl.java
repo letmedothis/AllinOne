@@ -10,6 +10,8 @@ import com.allinone.supply.domain.Supplier;
 import com.allinone.supply.domain.WorkflowConfig;
 import com.allinone.supply.mapper.SupplierMapper;
 import com.allinone.supply.service.ISupplierService;
+import com.allinone.supply.support.SupplyDataScopeResolver;
+import static com.allinone.supply.support.SupplyDataScopeResolver.MODE_ALL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
@@ -28,13 +30,12 @@ public class SupplierServiceImpl implements ISupplierService {
 
     @Autowired
     private SupplierMapper supplierMapper;
+    @Autowired
+    private SupplyDataScopeResolver scopeResolver;
 
     @Override
     public List<Supplier> selectSupplierList(Supplier supplier) {
-        if (!SecurityUtils.isAdmin()) {
-            supplier.getParams().put("currentUserId", SecurityUtils.getUserId());
-        }
-        supplier.getParams().put("supplyGlobal", SecurityUtils.isAdmin() || hasAnyRole("supervisor", "purchasing_supervisor", "purchase_supervisor", "finance"));
+        scopeResolver.putInto(supplier.getParams());
         return supplierMapper.selectSupplierList(supplier);
     }
 
@@ -166,8 +167,9 @@ public class SupplierServiceImpl implements ISupplierService {
 
     private void requireVisible(Supplier supplier) {
         if (supplier == null) throw new ServiceException("供应商不存在");
-        if (SecurityUtils.isAdmin() || hasAnyRole("supervisor", "purchasing_supervisor", "purchase_supervisor", "finance")) return;
-        if (!SecurityUtils.isAdmin() && !SecurityUtils.getUserId().equals(supplier.getCreatorId())) {
+        SupplyDataScopeResolver.Scope scope = scopeResolver.current();
+        if (MODE_ALL.equals(scope.mode())) return;
+        if (supplierMapper.countVisibleByScope(supplier.getDocumentId(), scope.mode(), scope.userId(), scope.deptId()) == 0) {
             throw new ServiceException("无权访问该供应商");
         }
     }
@@ -180,11 +182,6 @@ public class SupplierServiceImpl implements ISupplierService {
     }
 
     private String normalize(String value) { return value == null ? null : value.trim().toUpperCase(); }
-
-    private boolean hasAnyRole(String... roleKeys) {
-        if (SecurityUtils.getLoginUser() == null || SecurityUtils.getLoginUser().getUser().getRoles() == null) return false;
-        return SecurityUtils.getLoginUser().getUser().getRoles().stream().anyMatch(role -> java.util.Arrays.asList(roleKeys).contains(role.getRoleKey()));
-    }
 
     private String sha256(String value) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));

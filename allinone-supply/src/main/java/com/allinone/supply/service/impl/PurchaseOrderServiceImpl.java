@@ -13,6 +13,8 @@ import com.allinone.supply.domain.WorkflowConfig;
 import com.allinone.supply.mapper.PurchaseOrderMapper;
 import com.allinone.supply.service.IPurchaseOrderService;
 import com.allinone.supply.service.IWorkflowEngineService;
+import com.allinone.supply.support.SupplyDataScopeResolver;
+import static com.allinone.supply.support.SupplyDataScopeResolver.MODE_ALL;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -32,10 +34,10 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
 
     @Autowired private PurchaseOrderMapper mapper;
     @Autowired private IWorkflowEngineService workflowEngineService;
+    @Autowired private SupplyDataScopeResolver scopeResolver;
 
     @Override public List<PurchaseOrder> selectPurchaseOrderList(PurchaseOrder order) {
-        if (!SecurityUtils.isAdmin()) order.getParams().put("currentUserId", SecurityUtils.getUserId());
-        order.getParams().put("supplyGlobal", SecurityUtils.isAdmin() || hasAnyRole("supervisor", "purchasing_supervisor", "purchase_supervisor", "finance"));
+        scopeResolver.putInto(order.getParams());
         return mapper.selectPurchaseOrderList(order);
     }
     @Override public List<SupplierOption> selectApprovedSupplierOptions() {
@@ -107,7 +109,13 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
     private Long first(String value) { if (StringUtils.isEmpty(value)) return null; try { return Long.valueOf(value.split(",")[0].trim()); } catch (Exception e) { return null; } }
     private Long firstEligibleSupervisor(String value) { if (StringUtils.isEmpty(value)) return null; for (String candidate : value.split(",")) { try { Long userId=Long.valueOf(candidate.trim()); if (mapper.selectEligibleSupervisorCount(userId, SecurityUtils.getUserId()) > 0) return userId; } catch (NumberFormatException ignored) { } } return null; }
     private void requireOwner(PurchaseOrder order) { if (order == null) throw new ServiceException("采购订单不存在"); if (!SecurityUtils.isAdmin() && !SecurityUtils.getUserId().equals(order.getCreatorId())) throw new ServiceException("无权访问该采购订单"); }
-    private void requireVisible(PurchaseOrder order) { if (order == null) throw new ServiceException("采购订单不存在"); if (SecurityUtils.isAdmin() || hasAnyRole("supervisor", "purchasing_supervisor", "purchase_supervisor", "finance")) return; if (!SecurityUtils.getUserId().equals(order.getCreatorId()) && !SecurityUtils.getUserId().equals(order.getBuyerId())) throw new ServiceException("无权访问该采购订单"); }
-    private boolean hasAnyRole(String... roleKeys) { if (SecurityUtils.getLoginUser() == null || SecurityUtils.getLoginUser().getUser().getRoles() == null) return false; return SecurityUtils.getLoginUser().getUser().getRoles().stream().anyMatch(role -> java.util.Arrays.asList(roleKeys).contains(role.getRoleKey())); }
+    private void requireVisible(PurchaseOrder order) {
+        if (order == null) throw new ServiceException("采购订单不存在");
+        SupplyDataScopeResolver.Scope scope = scopeResolver.current();
+        if (MODE_ALL.equals(scope.mode())) return;
+        if (mapper.countVisibleByScope(order.getDocumentId(), scope.mode(), scope.userId(), scope.deptId()) == 0) {
+            throw new ServiceException("无权访问该采购订单");
+        }
+    }
     private String sha256(String value) throws Exception { byte[] bytes = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)); StringBuilder s = new StringBuilder(); for (byte b : bytes) s.append(String.format("%02x", b)); return s.toString(); }
 }

@@ -10,6 +10,8 @@ import org.apache.ibatis.annotations.Param;
 
 public interface PurchaseOrderMapper {
     List<PurchaseOrder> selectPurchaseOrderList(PurchaseOrder order);
+    int countVisibleByScope(@Param("documentId") Long documentId, @Param("mode") String mode,
+                            @Param("userId") Long userId, @Param("deptId") Long deptId);
     List<SupplierOption> selectApprovedSupplierOptions();
     PurchaseOrder selectPurchaseOrderById(@Param("documentId") Long documentId);
     List<PurchaseOrderLine> selectLinesByOrderId(@Param("orderId") Long orderId);

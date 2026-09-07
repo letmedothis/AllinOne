@@ -39,12 +39,22 @@
         from documents d join suppliers s on s.document_id = d.id
         left join sys_user u on u.user_id = d.creator_id
         where d.type = 'SUPPLIER' and d.deleted = '0'
-        <if test="params.currentUserId != null">and (#{params.supplyGlobal} = true or d.creator_id = #{params.currentUserId} or exists (select 1 from purchase_orders po join documents pod on pod.id=po.document_id where po.supplier_id=d.id and po.buyer_id=#{params.currentUserId} and pod.deleted='0'))</if>
+        <if test="params.supplyScopeMode == 'DEPT'">and (exists(select 1 from sys_user cu where cu.user_id=d.creator_id and cu.dept_id=#{params.supplyScopeDeptId} and cu.del_flag='0') or exists(select 1 from purchase_orders po join documents pod on pod.id=po.document_id join sys_user bu on bu.user_id=po.buyer_id where po.supplier_id=d.id and pod.deleted='0' and bu.dept_id=#{params.supplyScopeDeptId} and bu.del_flag='0'))</if>
+        <if test="params.supplyScopeMode == 'SELF'">and (d.creator_id=#{params.supplyScopeUserId} or exists (select 1 from purchase_orders po join documents pod on pod.id=po.document_id where po.supplier_id=d.id and po.buyer_id=#{params.supplyScopeUserId} and pod.deleted='0'))</if>
         <if test="name != null and name != ''">and s.name like concat('%', #{name}, '%')</if>
         <if test="taxId != null and taxId != ''">and s.tax_id like concat('%', #{taxId}, '%')</if>
         <if test="number != null and number != ''">and d.number like concat('%', #{number}, '%')</if>
         <if test="approvalStatus != null and approvalStatus != ''">and d.approval_status = #{approvalStatus}</if>
         order by d.update_time desc
+    </select>
+
+    <select id="countVisibleByScope" resultType="int">
+        select count(1) from documents d join suppliers s on s.document_id = d.id
+        where d.id = #{documentId} and d.type='SUPPLIER' and d.deleted='0'
+        <choose>
+            <when test="mode == 'SELF'">and (d.creator_id=#{userId} or exists(select 1 from purchase_orders po join documents pod on pod.id=po.document_id where po.supplier_id=d.id and po.buyer_id=#{userId} and pod.deleted='0'))</when>
+            <when test="mode == 'DEPT'">and (exists(select 1 from sys_user cu where cu.user_id=d.creator_id and cu.dept_id=#{deptId} and cu.del_flag='0') or exists(select 1 from purchase_orders po join documents pod on pod.id=po.document_id join sys_user bu on bu.user_id=po.buyer_id where po.supplier_id=d.id and pod.deleted='0' and bu.dept_id=#{deptId} and bu.del_flag='0'))</when>
+        </choose>
     </select>
 
     <select id="selectSupplierById" parameterType="Long" resultMap="SupplierResult">
