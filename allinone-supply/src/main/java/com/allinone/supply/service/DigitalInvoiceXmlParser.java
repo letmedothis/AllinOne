@@ -25,7 +25,7 @@ import org.w3c.dom.NodeList;
  * │   └ IssuItemInformation+(多行): ItemName/SpecMod/MeaUnits/Quantity/UnPrice/Amount/TaxRate/ComTaxAm …
  * └ TaxSupervisionInfo: InvoiceNumber(20位)/IssueTime(YYYY-MM-DD)
  * </pre>
- * 解析结果仅作回填与人工核对(契约 doc/M3_数电票解析_契约.md),不代表税务验真。
+ * 解析结果仅作回填与人工核对(契约 doc/02-设计与交付/供应链专项/M3_数电票解析_契约.md),不代表税务验真。
  */
 public final class DigitalInvoiceXmlParser {
 

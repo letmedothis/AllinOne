@@ -26,7 +26,7 @@ SOURCE sql/supply_demo_seed.sql;
 - `/supply/dashboard`：工作台统计
 - `/supply/config/workflows`：流程候选人配置
 
-当前 XML 解析入口支持 `DemoInvoice schemaVersion="1.0"`（演示）与数电票（蓝字）适配器路由；数电票真实字段映射待脱敏票样校准（见 `doc/M3_数电票解析_契约.md`），解析结果不代表税务验真。
+当前 XML 解析入口支持 `DemoInvoice schemaVersion="1.0"`（演示）与数电票（蓝字）适配器路由；数电票真实字段映射待脱敏票样校准（见 `doc/02-设计与交付/供应链专项/M3_数电票解析_契约.md`），解析结果不代表税务验真。
 
 ## 采购订单审批引擎
 

@@ -188,7 +188,7 @@ allinone
 ### 后端启动
 
 ```bash
-# 1. 创建数据库并按顺序导入 SQL（必须用 SOURCE 方式，详见 doc/SQL_EXECUTION_ORDER.md）
+# 1. 创建数据库并按顺序导入 SQL（必须用 SOURCE 方式，详见 doc/04-部署与运维/SQL_EXECUTION_ORDER.md）
 mysql -uroot -p
 mysql> create database allinone default charset utf8mb4;
 mysql> use allinone;
@@ -247,9 +247,9 @@ npm run dev
 
 | 文档 | 说明 |
 |------|------|
-| **[使用手册](doc/使用手册.md)** | 面向业务用户的完整操作手册:登录、填报模板设计、在线填报、草稿与提交、报表查看,含全流程截图、权限速查与常见问题 FAQ |
-| [SQL 执行顺序](doc/SQL_EXECUTION_ORDER.md) | 初始化脚本的执行顺序与逐条说明 |
-| [浏览器交互回归报告](doc/浏览器交互回归报告_2026-08-29.md) | 关键链路浏览器级回归验证记录(含已知限制) |
+| **[使用手册](doc/01-用户与操作/使用手册.md)** | 面向业务用户的完整操作手册:登录、填报模板设计、在线填报、草稿与提交、报表查看,含全流程截图、权限速查与常见问题 FAQ |
+| [SQL 执行顺序](doc/04-部署与运维/SQL_EXECUTION_ORDER.md) | 初始化脚本的执行顺序与逐条说明 |
+| [浏览器交互回归报告](doc/03-研发与质量/浏览器交互回归报告_2026-08-29.md) | 关键链路浏览器级回归验证记录(含已知限制) |
 
 ---
 
@@ -363,7 +363,7 @@ server {
 | 5 | sql/allinone_biz_update.sql | 本项目 | 业务增量：cell/mapping 补 sheet_index 并重建唯一键、collect_data 补 template_version、collect_export_task 异步导出任务表、WorkReport 下线菜单清理（**必须执行**） |
 | 6 | sql/allinone_menu.sql | 本项目 | 业务菜单与按钮权限（**必须执行**，否则前端无业务菜单入口） |
 
-> 完整执行顺序与逐条说明见 [doc/SQL_EXECUTION_ORDER.md](doc/SQL_EXECUTION_ORDER.md)。
+> 完整执行顺序与逐条说明见 [doc/04-部署与运维/SQL_EXECUTION_ORDER.md](doc/04-部署与运维/SQL_EXECUTION_ORDER.md)。
 > 导入前必须先阅读 [SQL 公开与初始化说明](sql/README.md)。公开脚本已清除数据源口令和分享令牌，内置管理员也不再携带通用默认密码。
 
 ## 📄 开源协议
