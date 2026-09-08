@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.TaskTransferMapper">
+    <select id="lockDocument" resultType="Long" flushCache="true" useCache="false">
+        select id from documents where id=#{documentId} and deleted='0' and approval_status='IN_REVIEW' for update
+    </select>
+    <sql id="activeRoles">
+        from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id
+        where u.user_id=#{userId} and u.status='0' and u.del_flag='0' and r.status='0' and r.del_flag='0'
+    </sql>
+    <select id="countRole" resultType="int">
+        select count(*) <include refid="activeRoles"/> and r.role_key=#{role}
+    </select>
+    <select id="countPermission" resultType="int">
+        select count(*) <include refid="activeRoles"/>
+        and exists(select 1 from sys_role_menu rm join sys_menu m on m.menu_id=rm.menu_id
+                   where rm.role_id=r.role_id and m.status='0' and m.perms=#{permission})
+    </select>
+    <select id="countScope" resultType="int">
+        select count(*) from documents d join sys_user owner on owner.user_id=d.creator_id
+        join sys_user u on u.user_id=#{userId}
+        where d.id=#{documentId} and d.deleted='0' and u.status='0' and u.del_flag='0'
+        and (u.rank_level='EXEC' or (u.rank_level='LEADER' and u.dept_id=owner.dept_id) or u.user_id=d.creator_id)
+    </select>
+    <select id="countConflict" resultType="int">
+        select count(*) from documents d where d.id=#{documentId} and
+        (d.creator_id=#{userId} or exists (
+            select 1 from document_versions v where v.document_id=d.id and v.version_no=d.current_version
+            and (v.submitted_by=#{userId} or exists (
+                select 1 from workflow_instances i join workflow_tasks t on t.instance_id=i.id
+                where i.version_id=v.id and t.status='COMPLETED' and t.acted_by=#{userId}))))
+    </select>
+</mapper>

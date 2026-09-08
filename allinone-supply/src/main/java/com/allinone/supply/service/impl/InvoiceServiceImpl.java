@@ -42,6 +42,14 @@ public class InvoiceServiceImpl implements IInvoiceService {
         return mapper.selectList(scope.mode(), scope.userId(), scope.deptId(), invoiceNumber, approvalStatus);
     }
 
+    @Override public Invoice get(Long id) {
+        var scope = scopeResolver.current();
+        Invoice invoice = mapper.selectVisibleById(id, scope.mode(), scope.userId(), scope.deptId());
+        if (invoice == null) throw new ServiceException("发票不存在或无权查看");
+        invoice.setLines(mapper.selectLines(id));
+        return invoice;
+    }
+
     @Override
     @Transactional
     public int createDraft(Invoice invoice) {

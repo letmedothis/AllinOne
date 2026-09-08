@@ -31,6 +31,10 @@ public class SysUser extends BaseEntity
     /** 部门ID */
     @Excel(name = "部门编号", type = Type.IMPORT)
     private Long deptId;
+    private String rankLevel;
+    @Pattern(regexp = "EXEC|LEADER|STAFF", message = "职级只能为总监、部门领导或职员")
+    public String getRankLevel() { return rankLevel; }
+    public void setRankLevel(String value) { rankLevel = value; }
 
     /** 用户账号 */
     @Excel(name = "登录名称")

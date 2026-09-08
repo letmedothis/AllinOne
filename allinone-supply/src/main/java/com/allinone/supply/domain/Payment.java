@@ -7,6 +7,12 @@ import java.util.Map;
 
 /** 付款单(M4)。金额统一为人民币分。 */
 public class Payment {
+    private java.util.Map<String,Object> accountSnapshot;
+    private boolean accountChangePending;
+    public java.util.Map<String,Object> getAccountSnapshot(){return accountSnapshot;}
+    public void setAccountSnapshot(java.util.Map<String,Object> v){accountSnapshot=v;}
+    public boolean isAccountChangePending(){return accountChangePending;}
+    public void setAccountChangePending(boolean v){accountChangePending=v;}
     private Long id;
     private String number;
     private Long supplierId;
@@ -25,6 +31,9 @@ public class Payment {
     private java.util.Date updateTime;
     private String deleted;
     private List<PaymentLine> lines = new ArrayList<>();
+    private List<PaymentEvent> events = new ArrayList<>();
+    public List<PaymentEvent> getEvents() { return events; }
+    public void setEvents(List<PaymentEvent> value) { events = value; }
     private Map<String, Object> params = new HashMap<>();
 
     public Map<String, Object> getParams() { return params; }

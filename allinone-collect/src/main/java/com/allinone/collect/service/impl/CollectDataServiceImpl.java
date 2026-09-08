@@ -16,6 +16,7 @@ import com.allinone.collect.domain.CollectTemplate;
 import com.allinone.collect.mapper.CollectDataMapper;
 import com.allinone.collect.mapper.CollectDataCellMapper;
 import com.allinone.collect.mapper.CollectTemplateMapper;
+import com.allinone.collect.mapper.CollectFieldMappingMapper;
 import com.allinone.collect.service.ICollectDataService;
 import com.allinone.collect.service.IDataWriteBackService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,8 +68,12 @@ public class CollectDataServiceImpl implements ICollectDataService {
     @Autowired
     private CollectDataCellMapper collectDataCellMapper;
 
+    @Autowired(required = false)
+    private CollectFieldMappingMapper collectFieldMappingMapper;
+
     @Override
     public List<CollectData> selectCollectDataList(CollectData data) {
+        data.getParams().remove("dataScopeSql");
         if (!currentUserIsAdmin()) {
             String scopeSql = buildDataScopeSql();
             if (scopeSql != null) {
@@ -81,7 +86,9 @@ public class CollectDataServiceImpl implements ICollectDataService {
     @Override
     public CollectData selectCollectDataById(Long dataId) {
         CollectData data = collectDataMapper.selectCollectDataById(dataId);
-        requireOwner(data);
+        if (data == null) throw new ServiceException("填报数据不存在");
+        CollectData query = new CollectData(); query.setDataId(dataId);
+        if (selectCollectDataList(query).isEmpty()) throw new ServiceException("无权访问该填报数据");
         return data;
     }
 
@@ -133,9 +140,11 @@ public class CollectDataServiceImpl implements ICollectDataService {
         CollectData data = collectDataMapper.selectCollectDataById(dataId);
         requireOwner(data);
         requireDraft(data);
-        CollectTemplate template = collectTemplateMapper.selectCollectTemplateById(data.getTemplateId());
+        CollectTemplate template = data.getTemplateVersion() == null
+                ? collectTemplateMapper.selectCollectTemplateById(data.getTemplateId())
+                : collectTemplateMapper.selectTemplateVersion(data.getTemplateId(), data.getTemplateVersion());
         if (template == null) {
-            throw new ServiceException("填报模板不存在或已删除", CollectErrorCode.TEMPLATE_NOT_FOUND);
+            throw new ServiceException("填报所绑定的模板版本不存在，请联系管理员迁移后再提交", CollectErrorCode.TEMPLATE_NOT_FOUND);
         }
 
         // Tier 2: 解析表单 JSON 写入 collect_data_cell（供 JimuReport SQL 查询）
@@ -157,6 +166,7 @@ public class CollectDataServiceImpl implements ICollectDataService {
                 collectDataCellMapper.batchUpsert(cells.subList(from, Math.min(from + 500, cells.size())));
             }
         }
+        recordDataVersion(data, template, cells, null);
 
         // Tier 3: 字段映射回写业务表
         if (dataWriteBackService != null) {
@@ -167,12 +177,35 @@ public class CollectDataServiceImpl implements ICollectDataService {
         data.setSubmitBy(currentUsername());
         data.setSubmitTime(DateUtils.getNowDate());
         data.setUpdateTime(DateUtils.getNowDate());
-        data.setTemplateVersion(template.getVersion());
+        data.setTemplateVersion(data.getTemplateVersion() == null ? template.getVersion() : data.getTemplateVersion());
         int rows = collectDataMapper.updateCollectDataStatus(data);
         if (rows == 0) {
             throw new ServiceException("填报状态已变化，请刷新后重试", CollectErrorCode.DATA_VERSION_CONFLICT);
         }
         return rows;
+    }
+
+    @Transactional
+    public void applyCorrection(Long dataId, Integer version, String formData, Long caseId) {
+        CollectData current = collectDataMapper.selectSubmittedForCorrection(dataId);
+        if (current == null || !version.equals(current.getVersion())) throw new ServiceException("填报已被修改，请重新生成更正申请");
+        List<CollectDataCell> cells = parseLuckysheetJson(formData);
+        CollectTemplate template = collectTemplateMapper.selectTemplateVersion(current.getTemplateId(), current.getTemplateVersion());
+        if (template == null) throw new ServiceException("原模板版本缺失，不能更正");
+        recordDataVersion(current, template, cells, caseId);
+        collectDataCellMapper.deleteCollectDataCellByDataId(dataId);
+        for (CollectDataCell cell : cells) { cell.setCellId(IdUtils.nextLongId()); cell.setDataId(dataId); cell.setTemplateId(current.getTemplateId()); cell.setCreateBy(currentUsername()); cell.setCreateTime(DateUtils.getNowDate()); }
+        for (int from=0;from<cells.size();from+=500) collectDataCellMapper.batchUpsert(cells.subList(from,Math.min(from+500,cells.size())));
+        if (collectDataMapper.updateCorrection(dataId,version,formData,currentUsername(),DateUtils.getNowDate())!=1) throw new ServiceException("更正生效失败，请刷新后重试");
+    }
+
+    private void recordDataVersion(CollectData data, CollectTemplate template, List<CollectDataCell> cells, Long caseId) {
+        if (collectFieldMappingMapper == null) return; // 兼容仅配置查询的轻量测试上下文；生产上下文必定装配该 Mapper
+        try {
+            if (collectDataMapper.insertDataVersion(data.getDataId(), data.getVersion(), data.getTemplateVersion(), template.getTemplateJson(), MAPPER.writeValueAsString(collectFieldMappingMapper.selectCollectFieldMappingByTemplate(data.getTemplateId())), data.getFormData(), MAPPER.writeValueAsString(cells), caseId, currentUsername(), DateUtils.getNowDate()) != 1) {
+                throw new ServiceException("历史版本快照保存失败");
+            }
+        } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("历史版本快照保存失败"); }
     }
 
     @Override

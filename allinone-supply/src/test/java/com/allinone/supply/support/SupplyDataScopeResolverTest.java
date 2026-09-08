@@ -36,10 +36,9 @@ class SupplyDataScopeResolverTest {
     }
 
     @Test
-    void unconfiguredRankFallsBackToLegacyRoleRule() {
-        // 未配置职级 + 持有旧全局角色 → 仍全局可见(过渡期不回退功能)
-        assertThat(resolveMode(false, null, Set.of("supervisor"))).isEqualTo(MODE_ALL);
-        assertThat(resolveMode(false, null, Set.of("finance", "purchaser"))).isEqualTo(MODE_ALL);
+    void unconfiguredRankNeverGrantsGlobalVisibility() {
+        assertThat(resolveMode(false, null, Set.of("supervisor"))).isEqualTo(MODE_SELF);
+        assertThat(resolveMode(false, null, Set.of("finance", "purchaser"))).isEqualTo(MODE_SELF);
         assertThat(resolveMode(false, null, Set.of("purchaser"))).isEqualTo(MODE_SELF);
         assertThat(resolveMode(false, null, Set.of())).isEqualTo(MODE_SELF);
         assertThat(resolveMode(false, null, null)).isEqualTo(MODE_SELF);

@@ -7,6 +7,7 @@ import com.allinone.common.utils.StringUtils;
 import com.allinone.common.utils.uuid.IdUtils;
 import com.allinone.supply.domain.ApprovalDecision;
 import com.allinone.supply.domain.ApprovalTask;
+import com.allinone.supply.domain.ApprovalTransfer;
 import com.allinone.supply.mapper.ApprovalMapper;
 import com.allinone.supply.service.IApprovalService;
 import java.util.Date;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ApprovalServiceImpl implements IApprovalService {
     @Autowired private ApprovalMapper mapper;
+    @Autowired private com.allinone.supply.support.TaskTransferAuthorization transferAuthorization;
 
     @Override public List<ApprovalTask> selectPendingTasks() {
         return mapper.selectPendingTasks(SecurityUtils.getUserId());
@@ -32,11 +34,39 @@ public class ApprovalServiceImpl implements IApprovalService {
         return decide(decision, "RETURN", "RETURNED");
     }
 
+    @Override @Transactional public int transfer(ApprovalTransfer request) {
+        if (request == null || request.getTaskId() == null || request.getAssigneeId() == null) {
+            throw new ServiceException("接替人不存在或已停用");
+        }
+        ApprovalTask task = mapper.selectTask(request.getTaskId());
+        if (task == null || !"PENDING".equals(task.getStatus())) throw new ServiceException("待办任务不存在或已处理");
+        transferAuthorization.requireOperator(task.getDocumentId(), "supply:approval:transfer");
+        transferAuthorization.lockDocument(task.getDocumentId());
+        task = mapper.selectTaskForUpdate(request.getTaskId());
+        if (task == null || !"PENDING".equals(task.getStatus())) throw new ServiceException("待办任务不存在或已处理");
+        transferAuthorization.requireRecipient(task.getDocumentId(), request.getAssigneeId(), "supply:approval:approve");
+        boolean eligible = "FINANCE".equals(task.getNode())
+                ? transferAuthorization.hasRole(request.getAssigneeId(), "finance")
+                : "PURCHASE".equals(task.getNode()) ? transferAuthorization.hasRole(request.getAssigneeId(), "purchaser")
+                : "SUPERVISOR".equals(task.getNode()) && transferAuthorization.isSupervisor(request.getAssigneeId());
+        if (!eligible) throw new ServiceException("接替人不具备当前审批节点的业务资格");
+        if (request.getAssigneeId().equals(task.getAssigneeId())) throw new ServiceException("接替人不能与当前办理人相同");
+        int rows = mapper.transferTask(request.getTaskId(), request.getAssigneeId(), task.getAssigneeId());
+        if (rows == 0) throw new ServiceException("任务已变化，请刷新后重试");
+        if (mapper.insertAudit(IdUtils.nextLongId(), task.getDocumentId(), task.getVersionId(), SecurityUtils.getUserId(), SecurityUtils.getUsername(), "TRANSFER", "原办理人：" + task.getAssigneeId() + "；接替人：" + request.getAssigneeId(), DateUtils.getNowDate()) != 1) {
+            throw new ServiceException("转交审计保存失败");
+        }
+        return rows;
+    }
+
     private int decide(ApprovalDecision decision, String taskDecision, String documentStatus) {
         if (decision == null || decision.getTaskId() == null || decision.getDocumentId() == null || decision.getTaskRevision() == null || decision.getDocumentRevision() == null) throw new ServiceException("缺少审批任务或单据版本号");
         if (decision.getComment() != null && decision.getComment().length() > 2000) throw new ServiceException("审批意见不能超过2000个字符");
         ApprovalTask task = mapper.selectTask(decision.getTaskId());
         if (task == null || !decision.getDocumentId().equals(task.getDocumentId())) throw new ServiceException("审批任务不存在");
+        transferAuthorization.lockDocument(task.getDocumentId());
+        task = mapper.selectTaskForUpdate(decision.getTaskId());
+        if (task == null) throw new ServiceException("审批任务已变化，请刷新后重试");
         if (!SecurityUtils.getUserId().equals(task.getAssigneeId())) throw new ServiceException("无权处理该审批任务");
         if (!"PENDING".equals(task.getStatus())) throw new ServiceException("该审批任务已处理，请刷新后重试");
         Date now = DateUtils.getNowDate();

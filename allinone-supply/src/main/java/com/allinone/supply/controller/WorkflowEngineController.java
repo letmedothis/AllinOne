@@ -9,6 +9,7 @@ import com.allinone.supply.domain.WorkflowDeploymentRequest;
 import com.allinone.supply.domain.WorkflowDefinitionStateRequest;
 import com.allinone.supply.domain.WorkflowDesign;
 import com.allinone.supply.domain.WorkflowTaskDecision;
+import com.allinone.supply.domain.WorkflowTaskTransfer;
 import com.allinone.supply.service.IWorkflowEngineService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -86,5 +87,13 @@ public class WorkflowEngineController extends BaseController {
     @PostMapping("/tasks/{taskId}/complete")
     public AjaxResult complete(@PathVariable String taskId, @RequestBody WorkflowTaskDecision decision) {
         return toAjax(workflowEngineService.completePurchaseOrderTask(taskId, decision));
+    }
+    @PreAuthorize("@ss.hasPermi('supply:workflow:transfer')")
+    @Log(title = "流程任务转交", businessType = BusinessType.UPDATE)
+    @RepeatSubmit
+    @PostMapping("/tasks/{taskId}/transfer")
+    public AjaxResult transfer(@PathVariable String taskId, @jakarta.validation.Valid @RequestBody WorkflowTaskTransfer request) {
+        if (request == null || !taskId.equals(request.getTaskId())) return error("任务编号不一致");
+        return toAjax(workflowEngineService.transferPurchaseOrderTask(taskId, request.getAssigneeId()));
     }
 }

@@ -8,6 +8,7 @@ public interface DocumentLifecycleMapper {
     int countSupplierReferences(@Param("documentId") Long documentId);
     int countOrderReceipts(@Param("documentId") Long documentId);
     int countOrderInvoices(@Param("documentId") Long documentId);
+    int countInvoicePayments(@Param("documentId") Long documentId);
     int cancelTasks(@Param("documentId") Long documentId);
     int releaseAllocations(@Param("documentId") Long documentId);
     int updateStatus(@Param("documentId") Long documentId, @Param("revision") Integer revision, @Param("status") String status);

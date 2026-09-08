@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.OpeningPayableMapper">
+  <select id="company" resultType="java.util.LinkedHashMap">select name,tax_id as taxId from company_profile order by id limit 1</select>
+  <insert id="insert">insert into opening_payables(invoice_id,supplier_id,opening_date,reason) values(#{documentId},#{supplierId},#{openingDate},#{reason})</insert>
+  <select id="select" resultType="com.allinone.supply.domain.OpeningPayable">
+    select o.invoice_id as document_id,d.number,d.approval_status,d.current_node,o.supplier_id,s.name as supplier_name,o.opening_date,o.reason,i.invoice_number,i.issue_date,i.total_cents as balance_cents,d.revision
+    from opening_payables o join invoices i on i.document_id=o.invoice_id join documents d on d.id=o.invoice_id join suppliers s on s.document_id=o.supplier_id where o.invoice_id=#{id} and d.deleted='0'
+  </select>
+  <select id="list" resultType="com.allinone.supply.domain.OpeningPayable">
+    select o.invoice_id as document_id,d.number,d.approval_status,d.current_node,o.supplier_id,s.name as supplier_name,o.opening_date,o.reason,i.invoice_number,i.issue_date,i.total_cents as balance_cents,d.revision
+    from opening_payables o join invoices i on i.document_id=o.invoice_id join documents d on d.id=o.invoice_id join suppliers s on s.document_id=o.supplier_id
+    where d.creator_id=#{userId} and d.deleted='0' order by d.update_time desc
+  </select>
+  <update id="update">update opening_payables set opening_date=#{openingDate},reason=#{reason} where invoice_id=#{documentId}</update>
+</mapper>

@@ -15,6 +15,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/supply/receipts")
 public class ReceiptController extends BaseController {
     @Autowired private IReceiptService service;
+    @PreAuthorize("@ss.hasPermi('supply:receipt:add')") @GetMapping("/order-options")
+    public AjaxResult orders() { return success(service.orderOptions()); }
+    @PreAuthorize("@ss.hasPermi('supply:receipt:add')") @GetMapping("/warehouse-options")
+    public AjaxResult warehouses() { return success(service.warehouseOptions()); }
+    @PreAuthorize("@ss.hasPermi('supply:receipt:add')") @GetMapping("/history")
+    public com.allinone.common.core.page.TableDataInfo history(@RequestParam(required=false) Long orderId) { startPage(); return getDataTable(service.history(orderId)); }
     @PreAuthorize("@ss.hasPermi('supply:receipt:add')") @GetMapping("/prepare/{orderId}")
     public AjaxResult prepare(@PathVariable Long orderId) { return success(service.prepare(orderId)); }
     @PreAuthorize("@ss.hasPermi('supply:receipt:add')") @Log(title="入库确认", businessType=BusinessType.INSERT) @RepeatSubmit @PostMapping("/confirm")

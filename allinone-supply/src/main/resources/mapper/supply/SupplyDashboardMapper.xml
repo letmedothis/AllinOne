@@ -14,6 +14,9 @@
       coalesce((select sum(i.total_cents) from invoices i join documents d on d.id=i.document_id where d.type='INVOICE' and d.approval_status='APPROVED' and d.deleted='0' <include refid="scopeDoc"/>),0) approved_invoice_cents,
       coalesce((select sum(i.total_cents) from invoices i join documents d on d.id=i.document_id where d.type='INVOICE' and d.approval_status='IN_REVIEW' and d.deleted='0' <include refid="scopeDoc"/>),0) pending_invoice_cents,
       (select count(1) from receipts r join documents d on d.id=r.document_id where d.deleted='0' <include refid="scopeDoc"/>) receipt_count,
-      (select count(1) from workflow_tasks where assignee_id=#{userId} and status='PENDING') pending_task_count
+      (select count(1) from workflow_tasks where assignee_id=#{userId} and status='PENDING')
+      + (select count(1) from payments p where p.status='IN_REVIEW' and p.deleted='0' and p.creator_id&lt;&gt;#{userId}
+           and ((p.current_node='FINANCE_REVIEW' and exists(select 1 from sys_user_role ur join sys_role r on r.role_id=ur.role_id where ur.user_id=#{userId} and r.role_key='finance' and r.status='0'))
+             or (p.current_node='FINANCE_DIRECTOR' and exists(select 1 from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id where u.user_id=#{userId} and u.rank_level='EXEC' and r.role_key='finance' and u.status='0' and r.status='0')))) pending_task_count
   </select>
 </mapper>

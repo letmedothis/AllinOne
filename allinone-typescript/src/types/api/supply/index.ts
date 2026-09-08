@@ -18,6 +18,7 @@ export interface Supplier {
 }
 
 export interface PurchaseOrderLine {
+  id?: string
   name?: string
   specification?: string
   unit?: string
@@ -140,9 +141,12 @@ export interface WorkflowDeploymentRequest {
 }
 
 export interface InvoiceLine { id?: string; orderLineId?: string; name?: string; unit?: string; quantity?: number; price?: number; rate?: number }
-export interface Invoice { documentId?: string; orderId?: string; invoiceNumber?: string; invoiceType?: string; issueDate?: string; sellerName?: string; sellerTaxId?: string; buyerName?: string; buyerTaxId?: string; amountCents?: number; taxCents?: number; totalCents?: number; differenceNote?: string; manualConfirmed?: boolean; revision?: number; lines?: InvoiceLine[] }
+export interface Invoice { number?: string; creatorId?: string; approvalStatus?: string; currentNode?: string; documentId?: string; orderId?: string; invoiceNumber?: string; invoiceType?: string; issueDate?: string; sellerName?: string; sellerTaxId?: string; buyerName?: string; buyerTaxId?: string; amountCents?: number; taxCents?: number; totalCents?: number; differenceNote?: string; manualConfirmed?: boolean; revision?: number; lines?: InvoiceLine[] }
+export interface OpeningPayable { documentId?: string; revision?: number; supplierId?: string; invoiceNumber?: string; issueDate?: string; openingDate?: string; balanceCents?: number; reason?: string }
 
-export interface PaymentLine { id?: string; invoiceId?: string; invoiceNumber?: string; invoiceTotalCents?: number; allocatedCents?: number }
+export interface PaymentLine { id?: string; invoiceId?: string; invoiceNumber?: string; invoiceTotalCents?: number; allocatedCents?: number; allocatedYuan?: number }
+export interface PaymentEvent { id: string; actorName: string; action: string; comment?: string; snapshot: string; createdAt: string }
+export interface PaymentExecution { revision: number; paidAt: string; reference: string; payerAccount: string }
 export interface Payment {
   id?: string
   number?: string
@@ -158,5 +162,6 @@ export interface Payment {
   directorComment?: string
   revision?: number
   lines?: PaymentLine[]
+  events?: PaymentEvent[]
 }
-export interface ApBalanceRow { invoiceId?: string; invoiceNumber?: string; issueDate?: string; totalCents?: number; allocatedCents?: number; balanceCents?: number }
+export interface ApBalanceRow { invoiceId?: string; invoiceNumber?: string; issueDate?: string; totalCents?: number; allocatedCents?: number; balanceCents?: number; paidCents?: number; reservedCents?: number; unpaidCents?: number }

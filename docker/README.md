@@ -80,15 +80,26 @@ docker compose ps                          # 查看容器状态/健康
 docker compose logs -f backend             # 后端日志
 docker compose up -d --build backend       # 改代码后只重建后端
 docker compose down                        # 停止（保留数据）
-docker compose down -v                     # 停止并清空数据卷（重新初始化数据库）
 docker compose exec mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" allinone' > backup.sql
 ```
 
 ## 注意事项
 
-- `.env` 含随机密钥且已被 `.gitignore` 忽略；迁移到新机器时重新生成即可，但**数据库密码更换后需同步 `docker compose down -v` 重置数据卷**（旧卷内 root 密码不会跟随变更）。
+- `.env` 含数据库连接凭据及 JWT 密钥，迁移时须受控转移并与恢复后的数据库保持一致。更换数据库密码时，在现有数据库中修改账号密码，再同步应用连接配置并重建受影响容器；不要删除数据卷。
 - Flowable 引擎表（`ACT_*`）在首次启动时自动创建，生产初始化完成后请在 `.env` 追加 `FLOWABLE_DATABASE_SCHEMA_UPDATE=false` 固定引擎表结构。
 - JVM 内存经 `.env` 的 `JAVA_OPTS` 调整（如 `-Xms512m -Xmx2g`）。
 - JimuReport 设计器默认关闭，需要时在 `.env`/compose 的 backend 环境中追加 `JIMUREPORT_UI_ENABLE=true`。
 - 数据库仅容器网络内可达；需要宿主机直连时放开 compose 中 mysql 的 `ports` 注释。
 - 内网环境无法访问 Docker Hub 时，把 Dockerfile/compose 里的基础镜像（`maven:3.9-eclipse-temurin-17`、`node:20-bookworm-slim`、`nginx:1.27-alpine`、`mysql:8.0`、`redis:7-alpine`）换成私有 registry 地址，Maven/npm 依赖可配置镜像源参数后放入 Dockerfile。
+
+## 生产密码轮换与备份恢复
+
+1. 密码轮换前确认有可用数据库管理员会话和近期备份。在数据库内部修改目标账号密码；通过安全输入方式执行，避免在命令行、工单或日志中留下密码。
+2. 同步 `.env` 中的连接凭据。已有数据库卷不会因修改环境变量而改变实际账号密码，所以必须先完成数据库内的密码变更。
+3. 在维护窗口重建相关容器并核对数据库健康、应用登录及业务查询；失败时通过保留的管理会话恢复凭据一致性。
+4. 备份应成套包含数据库、`upload-data` 中的原始附件、部署版本及加密保存的必要配置。单独的 `backup.sql` 不包含附件。对跨数据库/文件的业务，维护窗口暂停写入后取得同一恢复点。
+5. 在隔离环境恢复到新的卷，按记录的应用和迁移版本启动，验证历史单据、附件下载、在途审批和付款余额，再用于生产恢复。
+
+`docker compose down` 保留持久化卷。`docker compose down -v` 会删除本部署的命名卷，包括数据库和上传附件，只能用于确认可丢弃的演示环境重置，禁止作为生产密码轮换、升级或故障恢复步骤。
+
+健康检查验证 HTTP 成功及响应业务码，只表示基本服务就绪；正式发布还必须验证数据库业务查询、附件读写及审批闭环。

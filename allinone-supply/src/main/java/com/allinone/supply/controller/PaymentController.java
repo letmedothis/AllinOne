@@ -32,7 +32,7 @@ public class PaymentController extends BaseController {
     @GetMapping("/list")
     public TableDataInfo list(Payment filter) { startPage(); List<Payment> list = service.list(filter); return getDataTable(list); }
 
-    @PreAuthorize("@ss.hasPermi('supply:payment:add')")
+    @PreAuthorize("@ss.hasAnyPermi('supply:payment:add,supply:payment:query')")
     @GetMapping("/supplier-options")
     public AjaxResult supplierOptions() { return success(service.supplierOptions()); }
 
@@ -43,7 +43,7 @@ public class PaymentController extends BaseController {
     @PreAuthorize("@ss.hasPermi('supply:payment:add')")
     @Log(title = "付款单", businessType = BusinessType.INSERT)
     @PostMapping
-    public AjaxResult add(@RequestBody Payment payment) { return toAjax(service.create(payment)); }
+    public AjaxResult add(@RequestBody Payment payment) { service.create(payment); return success(payment); }
 
     @PreAuthorize("@ss.hasPermi('supply:payment:edit')")
     @Log(title = "付款单", businessType = BusinessType.UPDATE)
@@ -77,4 +77,12 @@ public class PaymentController extends BaseController {
     @PreAuthorize("@ss.hasPermi('supply:payment:query')")
     @GetMapping("/ap-balance")
     public AjaxResult apBalance(@RequestParam(required = false) Long supplierId) { return success(service.apBalance(supplierId)); }
+
+    @PreAuthorize("@ss.hasPermi('supply:payment:pay')")
+    @Log(title = "记录实际付款", businessType = BusinessType.UPDATE)
+    @RepeatSubmit
+    @PostMapping("/{id}/execution")
+    public AjaxResult execution(@PathVariable Long id, @jakarta.validation.Valid @RequestBody com.allinone.supply.domain.PaymentExecution execution) {
+        return toAjax(service.recordExecution(id, execution));
+    }
 }

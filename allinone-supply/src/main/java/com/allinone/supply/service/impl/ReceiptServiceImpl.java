@@ -25,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReceiptServiceImpl implements IReceiptService {
     private static final ObjectMapper JSON = new ObjectMapper();
     @Autowired private ReceiptMapper mapper;
+    @Override public java.util.List<Map<String, Object>> orderOptions() { return mapper.selectOrderOptions(); }
+    @Override public java.util.List<Map<String, Object>> warehouseOptions() { return mapper.selectWarehouseOptions(); }
+    @Override public java.util.List<Map<String, Object>> history(Long orderId) { return mapper.selectHistory(orderId); }
 
     @Override public Receipt prepare(Long orderId) {
         if (orderId == null || mapper.selectApprovedOrderCount(orderId) == 0) throw new ServiceException("订单不存在、未通过审批或已作废");

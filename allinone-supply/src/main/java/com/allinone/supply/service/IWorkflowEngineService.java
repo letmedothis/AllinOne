@@ -24,4 +24,5 @@ public interface IWorkflowEngineService {
     WorkflowInstanceDetail selectInstanceDetail(String instanceId);
     WorkflowProcessDefinition deploy(WorkflowDeploymentRequest request);
     int completePurchaseOrderTask(String taskId, WorkflowTaskDecision decision);
+    int transferPurchaseOrderTask(String taskId, Long assigneeId);
 }

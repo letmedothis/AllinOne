@@ -16,5 +16,6 @@ public interface IPaymentService {
     int review(Long id, PaymentDecision decision);
     int directorDecision(Long id, PaymentDecision decision);
     int voidPayment(Long id, String reason);
+    int recordExecution(Long id, com.allinone.supply.domain.PaymentExecution execution);
     List<ApBalanceRow> apBalance(Long supplierId);
 }

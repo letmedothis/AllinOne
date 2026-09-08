@@ -3,6 +3,18 @@
 <mapper namespace="com.allinone.supply.mapper.InvoiceMapper">
   <resultMap id="Target" type="com.allinone.supply.domain.AllocationTarget"><id property="receiptLineId" column="receipt_line_id"/><result property="remainingQuantity" column="remaining_quantity"/><result property="itemSnapshot" column="item_snapshot"/></resultMap>
   <resultMap id="InvoiceResult" type="com.allinone.supply.domain.Invoice"><id property="documentId" column="document_id"/><result property="creatorId" column="creator_id"/><result property="number" column="number"/><result property="revision" column="revision"/><result property="currentVersion" column="current_version"/><result property="approvalStatus" column="approval_status"/><result property="currentNode" column="current_node"/><result property="orderId" column="order_id"/><result property="invoiceNumber" column="invoice_number"/><result property="invoiceType" column="invoice_type"/><result property="issueDate" column="issue_date"/><result property="sellerName" column="seller_name"/><result property="sellerTaxId" column="seller_tax_id"/><result property="buyerName" column="buyer_name"/><result property="buyerTaxId" column="buyer_tax_id"/><result property="amountCents" column="amount_cents"/><result property="taxCents" column="tax_cents"/><result property="totalCents" column="total_cents"/><result property="differenceNote" column="difference_note"/><result property="manualConfirmed" column="manual_confirmed"/><result property="confirmedContentHash" column="confirmed_content_hash"/><result property="confirmedBy" column="confirmed_by"/><result property="confirmedAt" column="confirmed_at"/></resultMap>
+  <select id="selectVisibleById" resultMap="InvoiceResult">
+    select d.id document_id,d.creator_id,d.number,d.revision,d.current_version,d.approval_status,d.current_node,i.*
+    from documents d join invoices i on i.document_id=d.id left join purchase_orders po on po.document_id=i.order_id
+    where d.id=#{documentId} and d.type='INVOICE' and d.deleted='0'
+    <if test="mode != 'ALL'">and (
+      d.creator_id=#{userId} or po.buyer_id=#{userId}
+      or exists(select 1 from workflow_tasks t join workflow_instances wi on wi.id=t.instance_id where wi.document_id=d.id and (t.assignee_id=#{userId} or t.acted_by=#{userId}))
+      <if test="mode == 'DEPT'">or exists(select 1 from sys_user u where u.user_id in(d.creator_id,po.buyer_id) and u.dept_id=#{deptId} and u.del_flag='0')
+        or exists(select 1 from workflow_tasks t join workflow_instances wi on wi.id=t.instance_id join sys_user u on u.user_id=t.assignee_id where wi.document_id=d.id and u.dept_id=#{deptId} and u.del_flag='0')
+      </if>
+    )</if>
+  </select>
   <select id="selectApprovedOrderCount" parameterType="Long" resultType="int">select count(1) from documents where id=#{orderId} and type='PURCHASE_ORDER' and approval_status='APPROVED' and deleted='0'</select>
   <select id="selectIdentityCount" resultType="int">select count(1) from invoice_identities where seller_tax_id=#{sellerTaxId} and invoice_number=#{invoiceNumber}</select>
   <select id="selectSupplierTaxId" resultType="String">select s.tax_id from purchase_orders p join suppliers s on s.document_id=p.supplier_id where p.document_id=#{orderId}</select>

@@ -60,6 +60,7 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertCollectTemplate(CollectTemplate template) {
         checkCodeConflict(template.getTemplateCode(), null);
         template.setTemplateId(IdUtils.nextLongId());
@@ -67,7 +68,9 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
         template.setCreateBy(currentUsername());
         template.setVersion(1);
         template.setStatus("0");
-        return collectTemplateMapper.insertCollectTemplate(template);
+        int rows = collectTemplateMapper.insertCollectTemplate(template);
+        collectTemplateMapper.insertTemplateVersion(template.getTemplateId(), 1, template.getTemplateJson(), template.getTemplateName(), template.getStatus(), currentUsername(), template.getCreateTime());
+        return rows;
     }
 
     @Override
@@ -84,6 +87,8 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
         if (rows == 0) {
             throw new ServiceException("模板已被其他用户更新，请刷新后重试", CollectErrorCode.DATA_VERSION_CONFLICT);
         }
+        CollectTemplate current = collectTemplateMapper.selectCollectTemplateById(template.getTemplateId());
+        if (current != null) collectTemplateMapper.insertTemplateVersion(current.getTemplateId(), current.getVersion(), current.getTemplateJson(), current.getTemplateName(), current.getStatus(), currentUsername(), template.getUpdateTime());
         evictTemplateCache(template.getTemplateId());
         return rows;
     }
@@ -102,6 +107,7 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateStatus(Long templateId, String status) {
         if (!"1".equals(status) && !"2".equals(status)) {
             throw new ServiceException("模板状态只能是发布或下架");
@@ -114,6 +120,10 @@ public class CollectTemplateServiceImpl implements ICollectTemplateService {
         int rows = collectTemplateMapper.updateCollectTemplateStatus(template);
         if (rows == 0) {
             throw new ServiceException("模板不存在或已删除", CollectErrorCode.TEMPLATE_NOT_FOUND);
+        }
+        if ("1".equals(status)) {
+            CollectTemplate published = collectTemplateMapper.selectCollectTemplateById(templateId);
+            if (published != null) collectTemplateMapper.insertTemplateVersion(templateId, published.getVersion(), published.getTemplateJson(), published.getTemplateName(), published.getStatus(), currentUsername(), template.getUpdateTime());
         }
         evictTemplateCache(templateId);
         return rows;

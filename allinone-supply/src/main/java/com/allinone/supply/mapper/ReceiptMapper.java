@@ -7,6 +7,9 @@ import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 public interface ReceiptMapper {
+    List<java.util.Map<String, Object>> selectOrderOptions();
+    List<java.util.Map<String, Object>> selectWarehouseOptions();
+    List<java.util.Map<String, Object>> selectHistory(@Param("orderId") Long orderId);
     int selectApprovedOrderCount(@Param("orderId") Long orderId);
     int selectEnabledWarehouseCount(@Param("warehouseId") Long warehouseId);
     List<ReceiptLine> selectOrderLineBalances(@Param("orderId") Long orderId);

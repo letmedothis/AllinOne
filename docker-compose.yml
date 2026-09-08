@@ -86,6 +86,7 @@ services:
       # JVM 参数可经 .env 的 JAVA_OPTS 调整，如 -Xmx2g；
       # 默认按容器内存 75% 计算堆上限，配合 mem_limit 防止小内存主机 OOM
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75.0}
+      FLOWABLE_DATABASE_SCHEMA_UPDATE: ${FLOWABLE_DATABASE_SCHEMA_UPDATE:-true}
       TZ: Asia/Shanghai
     volumes:
       - upload-data:/app/uploadPath
@@ -99,7 +100,7 @@ services:
         max-file: "5"
     healthcheck:
       # /captchaImage 为登录页公开接口，可 200 即代表应用与 Redis 均已就绪
-      test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:8080/captchaImage"]
+      test: ["CMD-SHELL", "curl --fail --silent --show-error --max-time 4 http://127.0.0.1:8080/captchaImage | grep -Eq '\"code\"[[:space:]]*:[[:space:]]*200'"]
       interval: 15s
       timeout: 5s
       retries: 10

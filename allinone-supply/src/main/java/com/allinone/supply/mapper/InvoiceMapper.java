@@ -1,6 +1,7 @@
 package com.allinone.supply.mapper;
 import com.allinone.supply.domain.*; import java.util.*; import org.apache.ibatis.annotations.Param;
 public interface InvoiceMapper {
+    Invoice selectVisibleById(@Param("documentId") Long id, @Param("mode") String mode, @Param("userId") Long userId, @Param("deptId") Long deptId);
     List<Invoice> selectList(@Param("mode") String mode,@Param("userId") Long userId,@Param("deptId") Long deptId,@Param("invoiceNumber") String invoiceNumber,@Param("approvalStatus") String approvalStatus);
     int selectApprovedOrderCount(@Param("orderId") Long orderId); int selectIdentityCount(@Param("sellerTaxId") String sellerTaxId,@Param("invoiceNumber") String invoiceNumber);
     String selectSupplierTaxId(@Param("orderId") Long orderId); String selectCompanyTaxId(); Long selectOrderBuyerId(@Param("orderId") Long orderId); int selectEligibleBuyerCount(@Param("buyerId") Long buyerId); int selectEligibleFinanceCount(@Param("userId") Long userId, @Param("submitterId") Long submitterId, @Param("purchaseId") Long purchaseId);

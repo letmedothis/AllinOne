@@ -11,6 +11,20 @@
 -- -----------------------------------------------------------
 -- Phase 1: 为 collect_data_cell / collect_field_mapping 补齐多 Sheet 字段
 -- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `collect_template_version` (
+  `template_id` bigint(20) NOT NULL,
+  `version` int(8) NOT NULL,
+  `template_name` varchar(200) NOT NULL,
+  `template_json` longtext,
+  `status` char(1) NOT NULL DEFAULT '0',
+  `created_by` varchar(64) DEFAULT '',
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`template_id`,`version`),
+  KEY `idx_ctv_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='填报模板不可变版本快照';
+INSERT IGNORE INTO collect_template_version(template_id,version,template_name,template_json,status,created_by,created_at)
+SELECT template_id,version,template_name,template_json,status,COALESCE(update_by,create_by),COALESCE(update_time,create_time) FROM collect_template;
+
 SET @add_cell_sheet_index_sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'collect_data_cell' AND COLUMN_NAME = 'sheet_index') = 0,
@@ -242,12 +256,24 @@ CREATE TABLE IF NOT EXISTS receipt_lines (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链入库明细';
 
 CREATE TABLE IF NOT EXISTS invoices (
-  document_id bigint(20) NOT NULL, order_id bigint(20) NOT NULL, invoice_number varchar(64) NOT NULL,
+  document_id bigint(20) NOT NULL, order_id bigint(20) NULL, invoice_number varchar(64) NOT NULL,
   invoice_type varchar(32) NOT NULL DEFAULT 'VAT_SPECIAL', issue_date date NOT NULL, seller_name varchar(200) NOT NULL,
   seller_tax_id varchar(32) NOT NULL, buyer_name varchar(200) NOT NULL, buyer_tax_id varchar(32) NOT NULL,
   amount_cents bigint(20) NOT NULL DEFAULT 0, tax_cents bigint(20) NOT NULL DEFAULT 0, total_cents bigint(20) NOT NULL DEFAULT 0,
   difference_note varchar(2000), manual_confirmed char(1) NOT NULL DEFAULT '0', confirmed_content_hash varchar(64), confirmed_by bigint(20), confirmed_at datetime, PRIMARY KEY (document_id), KEY idx_sc_invoice_order (order_id), KEY idx_sc_invoice_issue (issue_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='供应链发票';
+SET @sc_invoice_order_nullable_sql = IF(
+  (SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoices' AND COLUMN_NAME='order_id')='NO',
+  'ALTER TABLE invoices MODIFY COLUMN order_id bigint(20) NULL', 'SELECT 1'
+);
+PREPARE sc_invoice_order_nullable_stmt FROM @sc_invoice_order_nullable_sql;
+EXECUTE sc_invoice_order_nullable_stmt;
+DEALLOCATE PREPARE sc_invoice_order_nullable_stmt;
+
+CREATE TABLE IF NOT EXISTS opening_payables (
+  invoice_id bigint(20) NOT NULL, supplier_id bigint(20) NOT NULL, opening_date date NOT NULL,
+  reason varchar(500) NOT NULL, PRIMARY KEY (invoice_id), KEY idx_sc_opening_supplier (supplier_id, opening_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='期初应付余额';
 SET @add_sc_invoice_confirm_sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='invoices' AND COLUMN_NAME='manual_confirmed')=0,
   'ALTER TABLE invoices ADD COLUMN manual_confirmed char(1) NOT NULL DEFAULT ''0'' AFTER difference_note, ADD COLUMN confirmed_content_hash varchar(64) AFTER manual_confirmed', 'SELECT 1'
@@ -399,3 +425,74 @@ INSERT IGNORE INTO sys_menu VALUES
 (2191, '付款新增', 2115, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2192, '付款修改', 2115, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2193, '付款审批', 2115, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:approve', '#', 'admin', sysdate(), '', NULL, '');
+
+-- 生产复盘修复：付款每次动作保留独立记录；旧 APPROVED 保持历史已付款语义。
+CREATE TABLE IF NOT EXISTS payment_events (
+  id bigint NOT NULL PRIMARY KEY,
+  payment_id bigint NOT NULL,
+  actor_id bigint NOT NULL,
+  actor_name varchar(64) NOT NULL,
+  action varchar(32) NOT NULL,
+  comment varchar(500),
+  snapshot longtext NOT NULL,
+  created_at datetime NOT NULL,
+  KEY idx_payment_event (payment_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='付款业务审计与实际支付凭据';
+-- 下一阶段：独立变更申请、带期限代理、不可变内容版本（无破坏性升级）。
+CREATE TABLE IF NOT EXISTS review_cases (
+ id bigint PRIMARY KEY, type varchar(32) NOT NULL, target_id bigint NOT NULL, owner_id bigint NOT NULL,
+ dept_id bigint NOT NULL, title varchar(200) NOT NULL, status varchar(24) NOT NULL, node varchar(40),
+ revision int NOT NULL DEFAULT 0, round int NOT NULL DEFAULT 0, base_version int NOT NULL DEFAULT 0,
+ before_json longtext, after_json longtext NOT NULL, reason varchar(1000), sensitive boolean NOT NULL DEFAULT false,
+ supervisor_id bigint, finance_id bigint, first_actor_id bigint, active_key varchar(100),
+ created_at datetime NOT NULL, updated_at datetime NOT NULL,
+ UNIQUE KEY uk_review_active(active_key), KEY idx_review_owner(owner_id,type,status), KEY idx_review_pending(status,supervisor_id,finance_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS review_events (
+ id bigint PRIMARY KEY, case_id bigint NOT NULL, round int NOT NULL, action varchar(32) NOT NULL,
+ actor_id bigint NOT NULL, responsible_id bigint NOT NULL, delegation_id bigint, comment varchar(2000),
+ snapshot longtext NOT NULL, request_key varchar(80), created_at datetime NOT NULL,
+ UNIQUE KEY uk_review_request(case_id,request_key), KEY idx_review_event(case_id,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS review_config (
+ type varchar(32) NOT NULL, target_key bigint NOT NULL DEFAULT 0, dept_id bigint NOT NULL,
+ supervisor_id bigint NOT NULL, finance_id bigint, open_from datetime, open_until datetime,
+ PRIMARY KEY(type,target_key,dept_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS review_files (
+ id bigint PRIMARY KEY, case_id bigint NOT NULL, file_name varchar(200) NOT NULL,
+ storage_path varchar(500) NOT NULL, sha256 varchar(64) NOT NULL, created_by bigint NOT NULL, created_at datetime NOT NULL,
+ KEY idx_review_file(case_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS approval_delegation (
+ id bigint PRIMARY KEY, principal_id bigint NOT NULL, agent_id bigint NOT NULL, dept_id bigint NOT NULL,
+ principal_dept_id bigint NOT NULL, agent_dept_id bigint NOT NULL, type varchar(32) NOT NULL, node varchar(80) NOT NULL,
+ max_cents bigint, starts_at datetime NOT NULL, ends_at datetime NOT NULL, status varchar(24) NOT NULL,
+ KEY idx_delegate_agent(agent_id,status,ends_at), KEY idx_delegate_principal(principal_id,type,node,starts_at,ends_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS approval_actor_events (
+ id bigint PRIMARY KEY, business_type varchar(32) NOT NULL, business_id varchar(80) NOT NULL, round_key varchar(80) NOT NULL,
+ node varchar(80) NOT NULL, responsible_id bigint NOT NULL, actor_id bigint NOT NULL, delegation_id bigint,
+ action varchar(32) NOT NULL, created_at datetime NOT NULL, KEY idx_actor_business(business_type,business_id,round_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS supplier_profile_version (
+ supplier_id bigint NOT NULL, version int NOT NULL, snapshot longtext NOT NULL, case_id bigint, created_at datetime NOT NULL,
+ PRIMARY KEY(supplier_id,version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS payment_account_snapshot (
+ payment_id bigint PRIMARY KEY, supplier_id bigint NOT NULL, profile_version int NOT NULL,
+ snapshot longtext NOT NULL, confirmed boolean NOT NULL DEFAULT true, updated_at datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS collect_data_version (
+ data_id bigint NOT NULL, version int NOT NULL, template_version int NOT NULL, template_json longtext NOT NULL,
+ mapping_json longtext NOT NULL, form_data longtext NOT NULL, cells_json longtext NOT NULL,
+ case_id bigint, created_by varchar(64) NOT NULL, created_at datetime NOT NULL, PRIMARY KEY(data_id,version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS collect_mapping_binding (
+ data_id bigint PRIMARY KEY, mapping_json longtext NOT NULL, created_at datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS collect_writeback_source (
+ target_hash varchar(64) PRIMARY KEY, data_id bigint NOT NULL, table_name varchar(64) NOT NULL,
+ key_json longtext NOT NULL, before_json longtext, after_json longtext NOT NULL, updated_at datetime NOT NULL,
+ KEY idx_writeback_source(data_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

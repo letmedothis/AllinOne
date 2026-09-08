@@ -126,6 +126,24 @@ INSERT IGNORE INTO sys_menu VALUES
 (2048, '映射修改', 2050, 5, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2049, '映射删除', 2050, 6, '', '', '', '', 1, 0, 'F', '0', '0', 'collect:mapping:remove', '#', 'admin', sysdate(), '', NULL, '');
 
+INSERT IGNORE INTO sys_menu VALUES
+(2200,'业务变更审批',2100,20,'business-reviews','business/reviews/index','','BusinessReviews',1,0,'C','0','0','supply:supplierChange:query','audit','admin',sysdate(),'',NULL,'供应商变更申请与审批');
+INSERT IGNORE INTO sys_menu VALUES
+(2201,'供应商变更申请',2200,1,'','','','',1,0,'F','0','0','supply:supplierChange:add','#','admin',sysdate(),'',NULL,''),
+(2202,'供应商变更审批',2200,2,'','','','',1,0,'F','0','0','supply:supplierChange:approve','#','admin',sysdate(),'',NULL,''),
+(2203,'供应商变更查询',2200,3,'','','','',1,0,'F','0','0','supply:supplierChange:query','#','admin',sysdate(),'',NULL,'');
+INSERT IGNORE INTO sys_menu VALUES
+(2210,'长期代理',2100,21,'business-delegation','business/reviews/index?type=DELEGATION','','BusinessDelegation',1,0,'C','0','0','system:delegation:query','user','admin',sysdate(),'',NULL,'审批代理授权');
+INSERT IGNORE INTO sys_menu VALUES
+(2211,'代理申请',2210,1,'','','','',1,0,'F','0','0','system:delegation:add','#','admin',sysdate(),'',NULL,''),
+(2212,'代理审批',2210,2,'','','','',1,0,'F','0','0','system:delegation:approve','#','admin',sysdate(),'',NULL,''),
+(2213,'代理管理',2210,3,'','','','',1,0,'F','0','0','system:delegation:manage','#','admin',sysdate(),'',NULL,'');
+INSERT IGNORE INTO sys_menu VALUES
+(2220,'填报更正',2000,12,'correction','business/reviews/index?type=COLLECT_CORRECTION','','CollectCorrection',1,0,'C','0','0','collect:correction:query','edit','admin',sysdate(),'',NULL,'已提交填报更正');
+INSERT IGNORE INTO sys_menu VALUES
+(2221,'更正申请',2220,1,'','','','',1,0,'F','0','0','collect:correction:add','#','admin',sysdate(),'',NULL,''),
+(2222,'更正审批',2220,2,'','','','',1,0,'F','0','0','collect:correction:approve','#','admin',sysdate(),'',NULL,'');
+
 -- ------------------------------------------------------------
 -- 报表配置按钮权限
 -- ------------------------------------------------------------
@@ -152,3 +170,20 @@ INSERT IGNORE INTO sys_menu VALUES
 (2191, '付款新增', 2115, 2, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2192, '付款修改', 2115, 3, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2193, '付款审批', 2115, 4, '', '', '', '', 1, 0, 'F', '0', '0', 'supply:payment:approve', '#', 'admin', sysdate(), '', NULL, '');
+
+-- 实际付款由独立按钮权限控制；管理员在角色管理中授予负责执行支付的财务岗位。
+INSERT IGNORE INTO sys_menu
+(menu_id,menu_name,parent_id,order_num,path,component,query,route_name,is_frame,is_cache,menu_type,visible,status,perms,icon,create_by,create_time,update_by,update_time,remark)
+VALUES (2194,'记录实际付款',2115,5,'','','','',1,0,'F','0','0','supply:payment:pay','#','admin',sysdate(),'',NULL,'审批通过后登记线下支付事实');
+
+INSERT IGNORE INTO sys_menu
+(menu_id,menu_name,parent_id,order_num,path,component,query,route_name,is_frame,is_cache,menu_type,visible,status,perms,icon,create_by,create_time,update_by,update_time,remark)
+VALUES (2195,'期初应付登记',2115,6,'opening','supply/payment/opening','','SupplyOpeningPayable',1,0,'C','0','0','supply:opening:manage','money','admin',sysdate(),'',NULL,'登记上线前供应商未付余额');
+
+INSERT IGNORE INTO sys_menu
+(menu_id,menu_name,parent_id,order_num,path,component,query,route_name,is_frame,is_cache,menu_type,visible,status,perms,icon,create_by,create_time,update_by,update_time,remark)
+VALUES (2143,'审批转交',2103,5,'','','','',1,0,'F','0','0','supply:approval:transfer','#','admin',sysdate(),'',NULL,'管理员或主管将待办交给接替人');
+
+INSERT IGNORE INTO sys_menu
+(menu_id,menu_name,parent_id,order_num,path,component,query,route_name,is_frame,is_cache,menu_type,visible,status,perms,icon,create_by,create_time,update_by,update_time,remark)
+VALUES (2183,'流程任务转交',2109,3,'','','','',1,0,'F','0','0','supply:workflow:transfer','#','admin',sysdate(),'',NULL,'管理员或主管转交流程引擎任务');

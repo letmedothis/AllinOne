@@ -12,6 +12,7 @@
               <el-button link type="primary" @click="openDetail(scope.row.processInstanceId)">详情</el-button>
               <el-button type="success" link @click="openDecision(scope.row, 'APPROVE')">通过</el-button>
               <el-button type="danger" link @click="openDecision(scope.row, 'REJECT')">退回</el-button>
+              <el-button link @click="openTransfer(scope.row)" v-hasPermi="['supply:workflow:transfer']">转交</el-button>
             </template></el-table-column>
           </el-table>
           <el-empty v-if="!loading && tasks.length === 0" description="暂无流程待办" />
@@ -33,11 +34,12 @@
       <el-input v-model="comment" type="textarea" :rows="4" maxlength="2000" show-word-limit :placeholder="action === 'APPROVE' ? '审批意见（选填）' : '退回原因（建议填写）'" />
       <template #footer><el-button @click="visible = false">取消</el-button><el-button :type="action === 'APPROVE' ? 'success' : 'danger'" :loading="submitting" @click="submitDecision">确认</el-button></template>
     </el-dialog>
+    <el-dialog v-model="transferVisible" title="转交流程任务" width="430px"><el-form label-width="110px"><el-form-item label="接替人用户ID"><el-input v-model="transferUserId" /></el-form-item></el-form><template #footer><el-button @click="transferVisible = false">取消</el-button><el-button type="primary" @click="submitTransfer">确认转交</el-button></template></el-dialog>
   </div>
 </template>
 
 <script setup lang="ts" name="SupplyWorkflowTasks">
-import { completeWorkflowTask, listMyStartedWorkflowInstances, listMyWorkflowTasks } from '@/api/supply'
+import { completeWorkflowTask, listMyStartedWorkflowInstances, listMyWorkflowTasks, transferWorkflowTask } from '@/api/supply'
 import type { WorkflowInstanceDetail, WorkflowTask } from '@/types/api/supply'
 
 const router = useRouter()
@@ -52,6 +54,9 @@ const submitting = ref(false)
 const activeTask = ref<WorkflowTask>()
 const action = ref<'APPROVE' | 'REJECT'>('APPROVE')
 const comment = ref('')
+const transferVisible = ref(false)
+const transferUserId = ref('')
+const transferTask = ref<WorkflowTask>()
 
 async function loadTasks() {
   loading.value = true
@@ -66,6 +71,8 @@ async function loadStarted() {
 function loadActiveTab(name: string | number) { if (name === 'started') loadStarted(); else loadTasks() }
 function openDetail(instanceId: string) { router.push({ path: '/supply/workflow/detail', query: { instanceId } }) }
 function openDecision(task: WorkflowTask, value: 'APPROVE' | 'REJECT') { activeTask.value = task; action.value = value; comment.value = ''; visible.value = true }
+function openTransfer(task: WorkflowTask) { transferTask.value = task; transferUserId.value = ''; transferVisible.value = true }
+async function submitTransfer() { if (!transferTask.value || !transferUserId.value.trim()) return proxy.$modal.msgError('请输入接替人用户ID'); await transferWorkflowTask(transferTask.value.id, transferUserId.value.trim()); transferVisible.value = false; proxy.$modal.msgSuccess('流程任务已转交'); await loadTasks() }
 
 async function submitDecision() {
   if (!activeTask.value) return

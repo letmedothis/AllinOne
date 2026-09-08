@@ -2,7 +2,11 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.allinone.supply.mapper.DocumentLifecycleMapper">
   <resultMap id="DocumentResult" type="com.allinone.supply.domain.DocumentLifecycle"><id property="documentId" column="id"/><result property="creatorId" column="creator_id"/><result property="revision" column="revision"/><result property="currentVersion" column="current_version"/><result property="type" column="type"/><result property="status" column="approval_status"/><result property="workflowEngine" column="workflow_engine"/></resultMap>
-  <select id="selectDocument" resultMap="DocumentResult">select id,creator_id,revision,current_version,type,approval_status,workflow_engine from documents where id=#{documentId} and deleted='0'</select>
+  <select id="selectDocument" resultMap="DocumentResult">select id,creator_id,revision,current_version,type,approval_status,workflow_engine from documents where id=#{documentId} and deleted='0' for update</select>
+  <select id="countInvoicePayments" resultType="int">
+    select count(1) from payment_lines pl join payments p on p.id=pl.payment_id
+    where pl.invoice_id=#{documentId} and p.deleted='0' and p.status in('IN_REVIEW','READY_TO_PAY','PAID','APPROVED') for update
+  </select>
   <select id="countSupplierReferences" resultType="int">select count(1) from purchase_orders p join documents d on d.id=p.document_id where p.supplier_id=#{documentId} and d.deleted='0' and d.approval_status&lt;&gt;'VOID'</select>
   <select id="countOrderReceipts" resultType="int">select count(1) from receipts where order_id=#{documentId}</select>
   <select id="countOrderInvoices" resultType="int">select count(1) from invoices i join documents d on d.id=i.document_id where i.order_id=#{documentId} and d.deleted='0' and d.approval_status&lt;&gt;'VOID'</select>

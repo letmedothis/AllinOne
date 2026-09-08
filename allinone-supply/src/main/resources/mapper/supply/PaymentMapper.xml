@@ -28,6 +28,8 @@
     <id property="invoiceId" column="invoice_id"/><result property="invoiceNumber" column="invoice_number"/>
     <result property="issueDate" column="issue_date"/><result property="totalCents" column="total_cents"/>
     <result property="allocatedCents" column="allocated_cents"/><result property="balanceCents" column="balance_cents"/>
+    <result property="paidCents" column="paid_cents"/><result property="reservedCents" column="reserved_cents"/>
+    <result property="unpaidCents" column="unpaid_cents"/>
   </resultMap>
 
   <select id="selectList" parameterType="com.allinone.supply.domain.Payment" resultMap="PaymentResult">
@@ -35,6 +37,7 @@
            p.creator_id,p.creation_key,p.revision,p.remark,p.review_comment,p.director_comment,p.create_time,p.update_time
     from payments p left join suppliers sup on sup.document_id=p.supplier_id
     where p.deleted='0'
+    <if test="id != null">and p.id=#{id}</if>
     <if test="params.supplyScopeMode == 'DEPT'">and exists(select 1 from sys_user cu where cu.user_id=p.creator_id and cu.dept_id=#{params.supplyScopeDeptId} and cu.del_flag='0')</if>
     <if test="params.supplyScopeMode == 'SELF'">and p.creator_id=#{params.supplyScopeUserId}</if>
     <if test="number != null and number != ''">and p.number like concat('%',#{number},'%')</if>
@@ -62,12 +65,18 @@
     values(#{id},#{number},#{supplierId},#{amountCents},#{thresholdExceeded},#{status},#{currentNode},#{creatorId},#{creationKey},0,#{remark},#{createTime},#{updateTime},'0')
   </insert>
   <insert id="insertPaymentLine" parameterType="com.allinone.supply.domain.PaymentLine">
-    insert into payment_lines(id,payment_id,invoice_id,allocated_cents,create_time) values(#{id},#{paymentId},#{invoiceId},#{allocatedCents},#{createTime})
+    insert into payment_lines(id,payment_id,invoice_id,allocated_cents,create_time) values(#{id},#{paymentId},#{invoiceId},#{allocatedCents},now())
   </insert>
   <delete id="deleteLines">delete from payment_lines where payment_id=#{paymentId}</delete>
 
   <update id="updatePayment" parameterType="com.allinone.supply.domain.Payment">
-    update payments set supplier_id=#{supplierId},amount_cents=#{amountCents},remark=#{remark},revision=revision+1,update_time=#{updateTime}
+    update payments set supplier_id=#{supplierId},amount_cents=#{amountCents},threshold_exceeded=#{thresholdExceeded},remark=#{remark},revision=revision+1,update_time=#{updateTime}
+    where id=#{id} and revision=#{revision} and status in('DRAFT','RETURNED') and deleted='0'
+  </update>
+  <update id="submitPayment" parameterType="com.allinone.supply.domain.Payment">
+    update payments set amount_cents=#{amountCents},threshold_exceeded=#{thresholdExceeded},
+      status='IN_REVIEW',current_node='FINANCE_REVIEW',review_comment=null,director_comment=null,
+      revision=revision+1,update_time=#{updateTime}
     where id=#{id} and revision=#{revision} and status in('DRAFT','RETURNED') and deleted='0'
   </update>
   <update id="updateState">
@@ -82,15 +91,16 @@
   <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type=#{type} and business_date=#{businessDate}</select>
 
   <select id="selectSupplierApproved" resultType="int">select count(1) from documents where id=#{supplierId} and type='SUPPLIER' and approval_status='APPROVED' and deleted='0'</select>
-  <select id="selectInvoiceSupplierId" resultType="Long">select po.supplier_id from invoices i join purchase_orders po on po.document_id=i.order_id where i.document_id=#{invoiceId}</select>
+  <select id="selectInvoiceSupplierId" resultType="Long">select coalesce(po.supplier_id,op.supplier_id) from invoices i left join purchase_orders po on po.document_id=i.order_id left join opening_payables op on op.invoice_id=i.document_id where i.document_id=#{invoiceId}</select>
   <select id="lockApprovedInvoice" resultType="Long">
     select i.total_cents from invoices i join documents d on d.id=i.document_id
     where d.id=#{invoiceId} and d.type='INVOICE' and d.approval_status='APPROVED' and d.deleted='0' for update
   </select>
   <select id="selectAllocatedForInvoice" resultType="Long">
     select coalesce(sum(pl.allocated_cents),0) from payment_lines pl join payments p on p.id=pl.payment_id
-    where pl.invoice_id=#{invoiceId} and p.deleted='0' and p.status in('IN_REVIEW','APPROVED')
+    where pl.invoice_id=#{invoiceId} and p.deleted='0' and p.status in('IN_REVIEW','READY_TO_PAY','PAID','APPROVED')
     <if test="excludePaymentId != null">and p.id&lt;&gt;#{excludePaymentId}</if>
+    for update
   </select>
   <select id="countReviewEligible" resultType="int">
     select count(1) from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id
@@ -104,14 +114,33 @@
 
   <select id="selectApBalance" resultMap="ApResult">
     select d.id invoice_id,i.invoice_number,i.issue_date,i.total_cents,
-      coalesce((select sum(pl.allocated_cents) from payment_lines pl join payments pp on pp.id=pl.payment_id
-                where pl.invoice_id=d.id and pp.deleted='0' and pp.status in('IN_REVIEW','APPROVED')),0) allocated_cents,
-      i.total_cents-coalesce((select sum(pl.allocated_cents) from payment_lines pl join payments pp on pp.id=pl.payment_id
-                where pl.invoice_id=d.id and pp.deleted='0' and pp.status in('IN_REVIEW','APPROVED')),0) balance_cents
+      coalesce(a.paid_cents,0) paid_cents,coalesce(a.reserved_cents,0) reserved_cents,
+      coalesce(a.paid_cents,0)+coalesce(a.reserved_cents,0) allocated_cents,
+      i.total_cents-coalesce(a.paid_cents,0) unpaid_cents,
+      i.total_cents-coalesce(a.paid_cents,0)-coalesce(a.reserved_cents,0) balance_cents
     from invoices i join documents d on d.id=i.document_id
-    join purchase_orders po on po.document_id=i.order_id
-    where d.type='INVOICE' and d.approval_status='APPROVED' and d.deleted='0'
-    <if test="supplierId != null">and po.supplier_id=#{supplierId}</if>
+    left join purchase_orders po on po.document_id=i.order_id
+    left join documents od on od.id=po.document_id
+    left join opening_payables op on op.invoice_id=i.document_id
+    left join (
+      select pl.invoice_id,
+        sum(case when pp.status in('PAID','APPROVED') then pl.allocated_cents else 0 end) paid_cents,
+        sum(case when pp.status in('IN_REVIEW','READY_TO_PAY') then pl.allocated_cents else 0 end) reserved_cents
+      from payment_lines pl join payments pp on pp.id=pl.payment_id
+      where pp.deleted='0' group by pl.invoice_id
+    ) a on a.invoice_id=d.id
+    where d.type='INVOICE' and d.approval_status='APPROVED' and d.deleted='0' and (po.document_id is not null or op.invoice_id is not null)
+    <if test="supplierId != null">and coalesce(po.supplier_id,op.supplier_id)=#{supplierId}</if>
+    <if test="params.supplyScopeMode == 'SELF'">and (d.creator_id=#{params.supplyScopeUserId} or od.creator_id=#{params.supplyScopeUserId} or po.buyer_id=#{params.supplyScopeUserId})</if>
+    <if test="params.supplyScopeMode == 'DEPT'">and exists(select 1 from sys_user u where u.user_id in(d.creator_id,od.creator_id,po.buyer_id) and u.dept_id=#{params.supplyScopeDeptId} and u.del_flag='0')</if>
     order by i.issue_date,d.id
+  </select>
+  <insert id="insertEvent">
+    insert into payment_events(id,payment_id,actor_id,actor_name,action,comment,snapshot,created_at)
+    values(#{id},#{paymentId},#{actorId},#{actorName},#{action},#{comment},#{snapshot},#{createdAt})
+  </insert>
+  <select id="selectEvents" resultType="com.allinone.supply.domain.PaymentEvent">
+    select id,payment_id,actor_id,actor_name,action,comment,snapshot,created_at from payment_events
+    where payment_id=#{paymentId} order by created_at,id
   </select>
 </mapper>

@@ -17,6 +17,9 @@ public interface PaymentMapper {
     int insertPaymentLine(PaymentLine line);
     int deleteLines(@Param("paymentId") Long paymentId);
     int updatePayment(Payment payment);
+    int submitPayment(Payment payment);
+    int insertEvent(com.allinone.supply.domain.PaymentEvent event);
+    List<com.allinone.supply.domain.PaymentEvent> selectEvents(@Param("paymentId") Long paymentId);
     int updateState(@Param("id") Long id, @Param("revision") Integer revision, @Param("status") String status,
                     @Param("node") String node, @Param("reviewComment") String reviewComment,
                     @Param("directorComment") String directorComment, @Param("updateTime") Date updateTime);
@@ -32,5 +35,5 @@ public interface PaymentMapper {
     int countReviewEligible(@Param("userId") Long userId, @Param("excludeId") Long excludeId);
     int countDirectorEligible(@Param("userId") Long userId, @Param("excludeId") Long excludeId);
 
-    List<ApBalanceRow> selectApBalance(@Param("supplierId") Long supplierId);
+    List<ApBalanceRow> selectApBalance(Payment filter);
 }

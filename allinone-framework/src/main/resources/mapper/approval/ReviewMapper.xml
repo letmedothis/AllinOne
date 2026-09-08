@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.framework.approval.mapper.ReviewMapper">
+<resultMap id="Case" type="com.allinone.common.approval.ReviewCase"><result property="id" column="id"/><result property="type" column="type"/><result property="targetId" column="target_id"/><result property="ownerId" column="owner_id"/><result property="deptId" column="dept_id"/><result property="title" column="title"/><result property="status" column="status"/><result property="node" column="node"/><result property="revision" column="revision"/><result property="round" column="round"/><result property="baseVersion" column="base_version"/><result property="beforeJson" column="before_json"/><result property="afterJson" column="after_json"/><result property="reason" column="reason"/><result property="sensitive" column="sensitive"/><result property="supervisorId" column="supervisor_id"/><result property="financeId" column="finance_id"/><result property="firstActorId" column="first_actor_id"/><result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/></resultMap>
+<resultMap id="Grant" type="com.allinone.common.approval.DelegationGrant"><result property="id" column="id"/><result property="principalId" column="principal_id"/><result property="agentId" column="agent_id"/><result property="deptId" column="dept_id"/><result property="principalDeptId" column="principal_dept_id"/><result property="agentDeptId" column="agent_dept_id"/><result property="type" column="type"/><result property="node" column="node"/><result property="maxCents" column="max_cents"/><result property="startsAt" column="starts_at"/><result property="endsAt" column="ends_at"/><result property="status" column="status"/></resultMap>
+<resultMap id="Config" type="com.allinone.common.approval.ReviewConfig"><result property="type" column="type"/><result property="targetKey" column="target_key"/><result property="deptId" column="dept_id"/><result property="supervisorId" column="supervisor_id"/><result property="financeId" column="finance_id"/><result property="openFrom" column="open_from"/><result property="openUntil" column="open_until"/></resultMap>
+<resultMap id="User" type="com.allinone.common.approval.ApprovalUser"><result property="id" column="user_id"/><result property="name" column="nick_name"/><result property="deptId" column="dept_id"/><result property="rank" column="rank_level"/></resultMap>
+<select id="get" resultMap="Case">select * from review_cases where id=#{id}</select>
+<select id="lock" resultMap="Case" useCache="false" flushCache="true">select * from review_cases where id=#{id} for update</select>
+<select id="list" resultMap="Case">select c.* from review_cases c where c.type=#{type}
+<if test="!admin">and (c.owner_id=#{userId} or c.supervisor_id=#{userId} or c.finance_id=#{userId}
+or exists(select 1 from approval_delegation g where g.agent_id=#{userId} and g.type=c.type and g.dept_id=c.dept_id
+and g.status='ACTIVE' and g.starts_at&lt;=now() and g.ends_at&gt;now() and c.status='IN_REVIEW'
+and ((c.node='SUPERVISOR' and g.node=c.node and g.principal_id=c.supervisor_id) or (c.node='FINANCE' and g.node=c.node and g.principal_id=c.finance_id))))</if>
+order by c.updated_at desc,c.id desc</select>
+<insert id="insert">insert into review_cases(id,type,target_id,owner_id,dept_id,title,status,node,revision,round,base_version,before_json,after_json,reason,sensitive,supervisor_id,finance_id,first_actor_id,created_at,updated_at,active_key)
+values(#{id},#{type},#{targetId},#{ownerId},#{deptId},#{title},#{status},#{node},#{revision},#{round},#{baseVersion},#{beforeJson},#{afterJson},#{reason},#{sensitive},#{supervisorId},#{financeId},#{firstActorId},#{createdAt},#{updatedAt},concat(#{type},':',#{targetId}))</insert>
+<update id="update">update review_cases set after_json=#{afterJson},reason=#{reason},status=#{status},node=#{node},
+supervisor_id=#{supervisorId},finance_id=#{financeId},first_actor_id=#{firstActorId},sensitive=#{sensitive},
+round=#{round},revision=revision+1,updated_at=now(),
+active_key=case when #{status} in('APPLIED','CANCELLED','REVOKED') then null else concat(type,':',target_id) end
+where id=#{id} and revision=#{revision}</update>
+<select id="user" resultMap="User">select user_id,nick_name,dept_id,rank_level from sys_user where user_id=#{id} and status='0' and del_flag='0'</select>
+<select id="lockUser" resultMap="User" useCache="false" flushCache="true">select user_id,nick_name,dept_id,rank_level from sys_user where user_id=#{id} and status='0' and del_flag='0' for update</select>
+<select id="users" resultMap="User">select user_id,nick_name,dept_id,rank_level from sys_user where status='0' and del_flag='0' order by nick_name</select>
+<sql id="roles">from sys_user u join sys_user_role ur on ur.user_id=u.user_id join sys_role r on r.role_id=ur.role_id
+where u.user_id=#{id} and u.status='0' and u.del_flag='0' and r.status='0' and r.del_flag='0'</sql>
+<select id="role" resultType="int">select count(*) <include refid="roles"/> and r.role_key=#{role}</select>
+<select id="permission" resultType="int">select count(*) <include refid="roles"/> and exists(select 1 from sys_role_menu rm join sys_menu m on m.menu_id=rm.menu_id where rm.role_id=r.role_id and m.status='0' and m.perms=#{permission})</select>
+<select id="config" resultMap="Config">select * from review_config where type=#{type} and target_key=#{targetKey} and dept_id=#{deptId}</select>
+<select id="configs" resultMap="Config">select * from review_config order by type,dept_id,target_key</select>
+<insert id="saveConfig">insert into review_config(type,target_key,dept_id,supervisor_id,finance_id,open_from,open_until)
+values(#{type},#{targetKey},#{deptId},#{supervisorId},#{financeId},#{openFrom},#{openUntil})
+on duplicate key update supervisor_id=#{supervisorId},finance_id=#{financeId},open_from=#{openFrom},open_until=#{openUntil}</insert>
+<insert id="event">insert into review_events(id,case_id,round,action,actor_id,responsible_id,delegation_id,comment,snapshot,request_key,created_at)
+values(#{id},#{request.id},#{request.round},#{action},#{actor.actorId},#{actor.responsibleId},#{actor.delegationId},#{comment},#{request.afterJson},#{key},now())</insert>
+<select id="hasEvent" resultType="int">select count(*) from review_events where case_id=#{caseId} and request_key=#{key} and actor_id=#{actorId}</select>
+<select id="events" resultType="map">select cast(e.id as char) as id,e.action,e.comment,e.round,e.created_at as createdAt,u.nick_name as actorName,
+cast(e.responsible_id as char) as responsibleId,cast(e.delegation_id as char) as delegationId,e.snapshot
+from review_events e left join sys_user u on u.user_id=e.actor_id where e.case_id=#{id} order by e.created_at,e.id</select>
+<insert id="insertFile">insert into review_files values(#{id},#{caseId},#{name},#{path},#{hash},#{userId},now())</insert>
+<select id="files" resultType="map">select cast(id as char) as id,file_name as name,sha256,created_at as createdAt from review_files where case_id=#{id} order by created_at</select>
+<select id="file" resultType="map">select storage_path as path,file_name as name from review_files where case_id=#{id} and id=#{fileId}</select>
+<select id="grants" resultMap="Grant">select * from approval_delegation where agent_id=#{agentId} and status='ACTIVE' and starts_at&lt;=now() and ends_at&gt;now()</select>
+<select id="grant" resultMap="Grant">select * from approval_delegation where id=#{id}</select>
+<select id="lockGrant" resultMap="Grant" useCache="false" flushCache="true">select * from approval_delegation where id=#{id} for update</select>
+<insert id="insertGrant">insert into approval_delegation(id,principal_id,agent_id,dept_id,principal_dept_id,agent_dept_id,type,node,max_cents,starts_at,ends_at,status) values(#{id},#{principalId},#{agentId},#{deptId},#{principalDeptId},#{agentDeptId},#{type},#{node},#{maxCents},#{startsAt},#{endsAt},#{status})</insert>
+<update id="grantStatus">update approval_delegation set status=#{status} where id=#{id}</update>
+<update id="replaceGrant">update approval_delegation set principal_id=#{principalId},agent_id=#{agentId},dept_id=#{deptId},principal_dept_id=#{principalDeptId},agent_dept_id=#{agentDeptId},type=#{type},node=#{node},max_cents=#{maxCents},starts_at=#{startsAt},ends_at=#{endsAt},status='PENDING' where id=#{id} and status&lt;&gt;'ACTIVE'</update>
+<select id="overlapping" resultType="int">select count(*) from approval_delegation where id&lt;&gt;#{id} and principal_id=#{principalId} and type=#{type} and node=#{node} and dept_id=#{deptId} and status in('PENDING','ACTIVE') and starts_at&lt;#{endsAt} and ends_at&gt;#{startsAt}</select>
+<select id="chain" resultType="int">select count(*) from approval_delegation where id&lt;&gt;#{id} and status in('PENDING','ACTIVE') and starts_at&lt;#{endsAt} and ends_at&gt;#{startsAt} and (agent_id=#{principalId} or principal_id=#{agentId})</select>
+<insert id="recordActor">insert into approval_actor_events values(#{id},#{type},#{businessId},#{round},#{node},#{actor.responsibleId},#{actor.actorId},#{actor.delegationId},#{action},now())</insert>
+<select id="actorConflict" resultType="int">select count(*) from approval_actor_events where business_type=#{type} and business_id=#{businessId} and round_key=#{round} and node&lt;&gt;#{node} and action='APPROVE' and (actor_id=#{person} or responsible_id=#{person})</select>
+</mapper>

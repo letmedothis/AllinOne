@@ -1,6 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.allinone.supply.mapper.ReceiptMapper">
+  <select id="selectOrderOptions" resultType="java.util.LinkedHashMap">
+    select cast(d.id as char) id,concat(d.number,' · ',s.name) label,p.expected_date as expectedDate
+    from documents d join purchase_orders p on p.document_id=d.id join suppliers s on s.document_id=p.supplier_id
+    where d.type='PURCHASE_ORDER' and d.approval_status='APPROVED' and d.deleted='0'
+      and exists(select 1 from purchase_order_lines l where l.order_id=d.id and l.is_current='1'
+        and l.quantity_q4 > coalesce((select sum(rl.quantity_q4) from receipt_lines rl where rl.order_line_id=l.id),0))
+    order by p.expected_date,d.id
+  </select>
+  <select id="selectWarehouseOptions" resultType="java.util.LinkedHashMap">
+    select cast(id as char) id,name label from warehouses where enabled='1' order by name,id
+  </select>
+  <select id="selectHistory" resultType="java.util.LinkedHashMap">
+    select cast(d.id as char) id,d.number,od.number as orderNumber,w.name as warehouseName,
+      r.business_date as businessDate,r.confirmed_at as confirmedAt,u.nick_name as operatorName,
+      rl.item_snapshot as itemName,rl.quantity_q4 as quantity
+    from receipts r join documents d on d.id=r.document_id join documents od on od.id=r.order_id
+    join warehouses w on w.id=r.warehouse_id join receipt_lines rl on rl.receipt_id=r.document_id
+    left join sys_user u on u.user_id=r.confirmed_by where d.deleted='0'
+    <if test="orderId != null">and r.order_id=#{orderId}</if>
+    order by r.confirmed_at desc,d.id desc,rl.id
+  </select>
   <resultMap id="LineBalance" type="com.allinone.supply.domain.ReceiptLine"><id property="orderLineId" column="order_line_id"/><result property="itemSnapshot" column="item_snapshot"/><result property="orderQuantity" column="order_quantity"/><result property="receivedQuantity" column="received_quantity"/><result property="remainingQuantity" column="remaining_quantity"/></resultMap>
   <select id="selectApprovedOrderCount" parameterType="Long" resultType="int">select count(1) from documents where id=#{orderId} and type='PURCHASE_ORDER' and approval_status='APPROVED' and deleted='0'</select>
   <select id="selectEnabledWarehouseCount" parameterType="Long" resultType="int">select count(1) from warehouses where id=#{warehouseId} and enabled='1'</select>

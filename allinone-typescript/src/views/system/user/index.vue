@@ -146,6 +146,13 @@
         </el-row>
         <el-row>
           <el-col :span="12">
+            <el-form-item label="职级" prop="rankLevel">
+              <el-select v-model="form.rankLevel" placeholder="未配置时按本人范围">
+                <el-option label="职员（本人及指派业务）" value="STAFF" />
+                <el-option label="部门领导（本部门）" value="LEADER" />
+                <el-option label="总监（全部业务）" value="EXEC" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="岗位">
               <el-select v-model="form.postIds" multiple placeholder="请选择">
                 <el-option v-for="item in postOptions" :key="item.postId" :label="item.postName" :value="item.postId" :disabled="item.status == 1"></el-option>

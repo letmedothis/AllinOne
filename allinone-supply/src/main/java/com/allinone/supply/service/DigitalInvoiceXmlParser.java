@@ -34,6 +34,8 @@ public final class DigitalInvoiceXmlParser {
 
     public static ParsedInvoice parse(Document doc) {
         Element root = doc.getDocumentElement();
+        String rootName = root.getLocalName() == null ? root.getNodeName() : root.getLocalName();
+        if (!"EInvoice".equals(rootName)) throw new ServiceException("无法识别的数电票 XML 格式，请上传 EInvoice 蓝字票据");
         ParsedInvoice result = new ParsedInvoice();
         String number = DigitInvoiceNumbers.normalize(firstText(doc, "InvoiceNumber"));
         DigitInvoiceNumbers.require20Digits(number, "发票号码");

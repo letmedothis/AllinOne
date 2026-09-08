@@ -33,6 +33,9 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
 
     /** 表名校验正则：仅允许字母、数字、下划线 */
     private static final Pattern TABLE_NAME_PATTERN = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
+    private static final Set<String> PROTECTED_BUSINESS_TABLES = Set.of(
+            "documents", "suppliers", "purchase_orders", "purchase_order_lines", "receipts", "receipt_lines",
+            "invoices", "invoice_lines", "invoice_allocations", "payments", "payment_lines", "opening_payables");
 
     @Autowired
     private CollectDataMapper collectDataMapper;
@@ -85,6 +88,9 @@ public class DataWriteBackServiceImpl implements IDataWriteBackService {
                                   Map<String, CellValue> cellValueMap) {
         if (tableName == null || !TABLE_NAME_PATTERN.matcher(tableName).matches()) {
             throw new ServiceException("非法的回写表名");
+        }
+        if (PROTECTED_BUSINESS_TABLES.contains(tableName.toLowerCase(Locale.ROOT))) {
+            throw new ServiceException("供应链业务表不能由通用填报直接回写，请通过业务单据服务办理");
         }
         Set<String> tableAllowlist = Arrays.stream(allowedTables.split(","))
                 .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());

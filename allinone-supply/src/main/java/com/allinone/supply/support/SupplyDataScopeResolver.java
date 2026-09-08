@@ -60,9 +60,8 @@ public class SupplyDataScopeResolver {
         if (RANK_EXEC.equals(normalize(rank))) return MODE_ALL;
         if (RANK_LEADER.equals(normalize(rank))) return MODE_DEPT;
         if (RANK_STAFF.equals(normalize(rank))) return MODE_SELF;
-        boolean legacyGlobal = roleKeys != null
-                && roleKeys.stream().anyMatch(LEGACY_GLOBAL_ROLES::contains);
-        return legacyGlobal ? MODE_ALL : MODE_SELF;
+        // 未配置或非法职级不得扩大范围；管理员通过用户管理显式维护职级。
+        return MODE_SELF;
     }
 
     private static String normalize(String rank) {

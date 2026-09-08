@@ -39,8 +39,13 @@
         <if test="submitBy != null and submitBy != ''"> and cd.submit_by = #{submitBy}</if>
         <if test="createBy != null and createBy != ''"> and cd.create_by = #{createBy}</if>
         <!-- 部门级数据权限：CollectDataServiceImpl.buildDataScopeSql 按角色数据范围生成，OR 语义 -->
+        <if test="dataId != null">and cd.data_id=#{dataId}</if>
         <if test="params.dataScopeSql != null and params.dataScopeSql != ''"> and ${params.dataScopeSql}</if>
         order by cd.create_time desc
+    </select>
+
+    <select id="selectSubmittedForCorrection" parameterType="Long" resultMap="CollectDataResult">
+        select cd.data_id,cd.template_id,ct.template_name,ct.template_code,cd.form_data,cd.biz_status,cd.dept_id,cd.data_code,cd.version,cd.template_version,cd.submit_by,cd.submit_time,cd.remark,cd.del_flag,cd.create_by,cd.create_time,cd.update_by,cd.update_time from collect_data cd left join collect_template ct on ct.template_id=cd.template_id where cd.data_id=#{dataId} and cd.biz_status='submitted' and cd.del_flag='0' for update
     </select>
 
     <select id="selectCollectDataById" parameterType="Long" resultMap="CollectDataResult">
@@ -68,6 +73,14 @@
         </set>
         where data_id = #{dataId} and version = #{version} and biz_status = 'draft' and del_flag = '0'
     </update>
+
+    <update id="updateCorrection">
+        update collect_data set form_data=#{formData},version=version+1,update_by=#{updateBy},update_time=#{updateTime} where data_id=#{dataId} and version=#{version} and biz_status='submitted' and del_flag='0'
+    </update>
+    <insert id="insertDataVersion">
+        insert into collect_data_version(data_id,version,template_version,template_json,mapping_json,form_data,cells_json,case_id,created_by,created_at)
+        values(#{dataId},#{version},#{templateVersion},#{templateJson},#{mappingJson},#{formData},#{cellsJson},#{caseId},#{createdBy},#{createdAt})
+    </insert>
 
     <update id="updateCollectDataStatus" parameterType="CollectData">
         update collect_data set biz_status = #{bizStatus}, submit_by = #{submitBy}, submit_time = #{submitTime},

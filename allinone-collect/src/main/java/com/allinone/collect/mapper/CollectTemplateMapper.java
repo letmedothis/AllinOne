@@ -17,5 +17,10 @@ public interface CollectTemplateMapper {
     int deleteCollectTemplateByIds(Long[] templateIds);
     int countSubmittedDataByTemplateIds(Long[] templateIds);
     int countFieldMappingByTemplateIds(Long[] templateIds);
+    int insertTemplateVersion(@Param("templateId") Long templateId, @Param("version") Integer version,
+                              @Param("templateJson") String templateJson, @Param("templateName") String templateName,
+                              @Param("status") String status,
+                              @Param("createdBy") String createdBy, @Param("createdAt") java.util.Date createdAt);
+    CollectTemplate selectTemplateVersion(@Param("templateId") Long templateId, @Param("version") Integer version);
 }
 

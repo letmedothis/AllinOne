@@ -7,6 +7,7 @@ import com.allinone.common.core.page.TableDataInfo;
 import com.allinone.common.enums.BusinessType;
 import com.allinone.supply.domain.ApprovalDecision;
 import com.allinone.supply.domain.ApprovalTask;
+import com.allinone.supply.domain.ApprovalTransfer;
 import com.allinone.supply.service.IApprovalService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,4 +24,6 @@ public class ApprovalController extends BaseController {
     public AjaxResult approve(@RequestBody ApprovalDecision decision) { return toAjax(service.approve(decision)); }
     @PreAuthorize("@ss.hasPermi('supply:approval:reject')") @Log(title="供应链审批", businessType=BusinessType.UPDATE) @PostMapping("/reject")
     public AjaxResult reject(@RequestBody ApprovalDecision decision) { return toAjax(service.reject(decision)); }
+    @PreAuthorize("@ss.hasPermi('supply:approval:transfer')") @Log(title="供应链审批转交", businessType=BusinessType.UPDATE) @PostMapping("/transfer")
+    public AjaxResult transfer(@jakarta.validation.Valid @RequestBody ApprovalTransfer request) { return toAjax(service.transfer(request)); }
 }

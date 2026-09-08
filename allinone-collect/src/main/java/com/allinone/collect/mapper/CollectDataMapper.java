@@ -8,6 +8,9 @@ import org.apache.ibatis.annotations.Param;
 public interface CollectDataMapper {
     List<CollectData> selectCollectDataList(CollectData data);
     CollectData selectCollectDataById(Long dataId);
+    CollectData selectSubmittedForCorrection(Long dataId);
+    int updateCorrection(@Param("dataId") Long dataId,@Param("version") Integer version,@Param("formData") String formData,@Param("updateBy") String updateBy,@Param("updateTime") java.util.Date updateTime);
+    int insertDataVersion(@Param("dataId") Long dataId,@Param("version") Integer version,@Param("templateVersion") Integer templateVersion,@Param("templateJson") String templateJson,@Param("mappingJson") String mappingJson,@Param("formData") String formData,@Param("cellsJson") String cellsJson,@Param("caseId") Long caseId,@Param("createdBy") String createdBy,@Param("createdAt") java.util.Date createdAt);
     int insertCollectData(CollectData data);
     int updateCollectData(CollectData data);
     int updateCollectDataStatus(CollectData data);

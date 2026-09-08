@@ -28,6 +28,7 @@ export interface AuthUserQueryParams extends UserQueryParams {
 
 /** 用户信息 */
 export interface SysUser extends BaseEntity {
+  rankLevel?: 'EXEC' | 'LEADER' | 'STAFF';
   /** 用户ID */
   userId?: number;
   /** 部门ID */

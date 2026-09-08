@@ -8,6 +8,12 @@ public class ApBalanceRow {
     private Long totalCents;
     private Long allocatedCents;
     private Long balanceCents;
+    private Long paidCents;
+    private Long reservedCents;
+    private Long unpaidCents;
+    public Long getPaidCents() { return paidCents; } public void setPaidCents(Long v) { paidCents = v; }
+    public Long getReservedCents() { return reservedCents; } public void setReservedCents(Long v) { reservedCents = v; }
+    public Long getUnpaidCents() { return unpaidCents; } public void setUnpaidCents(Long v) { unpaidCents = v; }
 
     public Long getInvoiceId() { return invoiceId; } public void setInvoiceId(Long v) { invoiceId = v; }
     public String getInvoiceNumber() { return invoiceNumber; } public void setInvoiceNumber(String v) { invoiceNumber = v; }

@@ -4,6 +4,9 @@ package com.allinone.supply.domain;
 public class PaymentDecision {
     private Boolean approved;
     private String comment;
+    private Integer revision;
+    public Integer getRevision() { return revision; }
+    public void setRevision(Integer value) { revision = value; }
 
     public Boolean getApproved() { return approved; }
     public void setApproved(Boolean v) { approved = v; }

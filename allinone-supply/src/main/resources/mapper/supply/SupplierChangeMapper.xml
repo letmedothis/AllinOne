@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allinone.supply.mapper.SupplierChangeMapper">
+ <select id="lockSupplier" resultType="Long" flushCache="true" useCache="false">select id from documents where id=#{id} and type='SUPPLIER' and approval_status='APPROVED' and deleted='0' for update</select>
+ <select id="profileVersion" resultType="int">select coalesce(max(version),0) from supplier_profile_version where supplier_id=#{id}</select>
+ <insert id="insertVersion">insert into supplier_profile_version values(#{id},#{version},#{snapshot},#{caseId},now())</insert>
+ <update id="applySupplier">update suppliers set name=#{name},contact=#{contact},phone=#{phone},address=#{address},bank_name=#{bankName},account_name=#{accountName},bank_account=#{bankAccount} where document_id=#{documentId}</update>
+ <update id="bump">update documents set revision=revision+1,update_time=now() where id=#{id} and approval_status='APPROVED' and deleted='0'</update>
+ <select id="blocked" resultType="int">select count(*) from review_cases where type='SUPPLIER_CHANGE' and target_id=#{id} and sensitive=true and status='IN_REVIEW'</select>
+ <update id="invalidateAccounts">update payment_account_snapshot set confirmed=false,updated_at=now() where supplier_id=#{id} and payment_id in(select id from payments where status not in('PAID','APPROVED','VOID'))</update>
+ <update id="requireReview">update payments set status='IN_REVIEW',current_node='FINANCE_REVIEW',revision=revision+1,review_comment=null,director_comment=null,update_time=now() where supplier_id=#{id} and deleted='0' and status in('IN_REVIEW','READY_TO_PAY')</update>
+ <insert id="account">insert into payment_account_snapshot values(#{paymentId},#{supplierId},#{version},#{snapshot},true,now()) on duplicate key update supplier_id=#{supplierId},profile_version=#{version},snapshot=#{snapshot},confirmed=true,updated_at=now()</insert>
+ <select id="accountSnapshot" resultType="map">select profile_version as version,snapshot,confirmed,updated_at as updatedAt from payment_account_snapshot where payment_id=#{paymentId}</select>
+ <select id="history" resultType="map">select version,snapshot,cast(case_id as char) as caseId,created_at as createdAt from supplier_profile_version where supplier_id=#{id} order by version desc</select>
+ <select id="affected" resultType="map">select cast(id as char) as id,number,status,amount_cents as amountCents from payments where supplier_id=#{id} and deleted='0' and status not in('PAID','APPROVED','VOID') order by create_time desc</select>
+</mapper>

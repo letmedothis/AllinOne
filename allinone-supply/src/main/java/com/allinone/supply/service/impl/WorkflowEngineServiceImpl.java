@@ -60,6 +60,7 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
     @Autowired private IdentityService identityService;
     @Autowired private PurchaseOrderMapper purchaseOrderMapper;
     @Autowired private WorkflowEngineMapper workflowEngineMapper;
+    @Autowired private com.allinone.supply.support.TaskTransferAuthorization transferAuthorization;
 
     @Override
     public void startPurchaseOrder(PurchaseOrder order, Long versionId, Long approverUserId) {
@@ -221,6 +222,9 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
         if (task == null || !canHandle(task, userId)) throw new ServiceException("待办不存在、已处理或无权处理");
         ProcessInstance instance = runtimeService.createProcessInstanceQuery().processInstanceId(task.getProcessInstanceId()).singleResult();
         Long documentId = toDocumentId(instance == null ? null : instance.getBusinessKey());
+        transferAuthorization.lockDocument(documentId);
+        task = taskService.createTaskQuery().taskId(taskId).processDefinitionKey(PURCHASE_ORDER_PROCESS_KEY).active().singleResult();
+        if (task == null || !canHandle(task, userId)) throw new ServiceException("待办已变化或无权处理，请刷新后重试");
         requireFlowableDocument(documentId);
         if (StringUtils.isEmpty(task.getAssignee())) taskService.claim(task.getId(), userId);
         String comment = StringUtils.defaultString(decision.getComment()).trim();
@@ -244,6 +248,54 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
         Long versionId = purchaseOrderMapper.selectCurrentVersionId(documentId);
         if (versionId != null) purchaseOrderMapper.insertAudit(IdUtils.nextLongId(), documentId, versionId, SecurityUtils.getUserId(), SecurityUtils.getUsername(), "FLOWABLE_" + action, DateUtils.getNowDate());
         return 1;
+    }
+
+    @Override
+    @Transactional
+    public int transferPurchaseOrderTask(String taskId, Long assigneeId) {
+        if (StringUtils.isEmpty(taskId) || assigneeId == null) throw new ServiceException("任务和接替人不能为空");
+        Task task = taskService.createTaskQuery().taskId(taskId).processDefinitionKey(PURCHASE_ORDER_PROCESS_KEY).active().singleResult();
+        if (task == null) throw new ServiceException("流程任务不存在或已处理");
+        ProcessInstance instance = runtimeService.createProcessInstanceQuery().processInstanceId(task.getProcessInstanceId()).singleResult();
+        Long documentId = toDocumentId(instance == null ? null : instance.getBusinessKey());
+        transferAuthorization.requireOperator(documentId, "supply:workflow:transfer");
+        transferAuthorization.lockDocument(documentId);
+        task = taskService.createTaskQuery().taskId(taskId).processDefinitionKey(PURCHASE_ORDER_PROCESS_KEY).active().singleResult();
+        if (task == null) throw new ServiceException("流程任务不存在或已处理");
+        requireFlowableDocument(documentId);
+        transferAuthorization.requireRecipient(documentId, assigneeId, "supply:workflow:task");
+        if (workflowEngineMapper.selectActionLogs(task.getProcessInstanceId()).stream()
+                .anyMatch(log -> String.valueOf(assigneeId).equals(log.getActorId()) && ACTION_APPROVE.equals(log.getAction()))) {
+            throw new ServiceException("接替人已办理本轮其他审批节点");
+        }
+        requireTransferNodeRecipient(task, documentId, assigneeId);
+        if (String.valueOf(assigneeId).equals(task.getAssignee())) throw new ServiceException("接替人不能与当前办理人相同");
+        WorkflowActionLog log = new WorkflowActionLog();
+        log.setId(String.valueOf(IdUtils.nextLongId())); log.setProcessInstanceId(task.getProcessInstanceId());
+        log.setTaskId(task.getId()); log.setTaskDefinitionKey(task.getTaskDefinitionKey()); log.setAction("TRANSFER");
+        log.setComment("原办理人：" + task.getAssignee() + "；接替人：" + assigneeId);
+        log.setActorId(String.valueOf(SecurityUtils.getUserId())); log.setActorName(SecurityUtils.getUsername());
+        log.setCreatedAt(DateUtils.getNowDate());
+        taskService.setAssignee(task.getId(), String.valueOf(assigneeId));
+        if (workflowEngineMapper.insertActionLog(log) != 1) throw new ServiceException("转交审计保存失败");
+        return 1;
+    }
+
+    private void requireTransferNodeRecipient(Task task, Long documentId, Long assigneeId) {
+        WorkflowBpmnSupport.Assignment assignment = WorkflowBpmnSupport.parseAndValidate(
+                readDefinitionXml(requireDefinition(task.getProcessDefinitionId())), PURCHASE_ORDER_PROCESS_KEY)
+                .assignments().stream().filter(item -> item.nodeId().equals(task.getTaskDefinitionKey()))
+                .findFirst().orElseThrow(() -> new ServiceException("当前节点缺少审批资格配置，不能转交"));
+        String recipient = String.valueOf(assigneeId);
+        boolean eligible = switch (assignment.type()) {
+            case WorkflowBpmnSupport.TYPE_SUPERVISOR_CONFIG -> transferAuthorization.isSupervisor(assigneeId);
+            case WorkflowBpmnSupport.TYPE_ROLE -> transferAuthorization.hasRole(assigneeId, assignment.value());
+            case WorkflowBpmnSupport.TYPE_USER -> recipient.equals(assignment.value());
+            case WorkflowBpmnSupport.TYPE_DEPT_LEADER -> recipient.equals(workflowEngineMapper.selectLeaderUserIdByDeptId(assignment.value()));
+            case WorkflowBpmnSupport.TYPE_INITIATOR_MANAGER -> recipient.equals(workflowEngineMapper.selectInitiatorLeaderUserId(workflowEngineMapper.selectDocumentCreatorId(documentId)));
+            default -> false;
+        };
+        if (!eligible) throw new ServiceException("接替人不符合已发布流程的当前节点资格；固定人员节点不能任意换人");
     }
 
     private WorkflowProcessDefinition deployXml(String name, String xml) {
@@ -340,7 +392,10 @@ public class WorkflowEngineServiceImpl implements IWorkflowEngineService {
         item.setTaskId(task.getId()); item.setNodeId(task.getTaskDefinitionKey()); item.setNodeName(task.getName()); item.setAssigneeId(task.getAssignee());
         item.setAssigneeName(StringUtils.isEmpty(task.getAssignee()) ? null : workflowEngineMapper.selectUserDisplayName(task.getAssignee()));
         item.setStartTime(task.getStartTime()); item.setEndTime(task.getEndTime()); item.setStatus(task.getEndTime() == null ? "PENDING" : "COMPLETED");
-        if (log != null) { item.setAction(log.getAction()); item.setComment(log.getComment()); item.setAssigneeId(log.getActorId()); item.setAssigneeName(log.getActorName()); }
+        if (log != null) {
+            item.setAction(log.getAction()); item.setComment(log.getComment());
+            if (!"TRANSFER".equals(log.getAction())) { item.setAssigneeId(log.getActorId()); item.setAssigneeName(log.getActorName()); }
+        }
         return item;
     }
 
