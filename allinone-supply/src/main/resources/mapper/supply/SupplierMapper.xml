@@ -97,6 +97,9 @@
     <select id="selectSequence" resultType="Integer">
         select next_value from number_sequences where document_type = #{type} and business_date = #{businessDate}
     </select>
+    <select id="selectSequenceForUpdate" resultType="Integer">
+        select next_value from number_sequences where document_type = #{type} and business_date = #{businessDate} for update
+    </select>
 
     <select id="selectLatestConfig" resultMap="WorkflowConfigResult">
         select id, flow_type, version, supervisor_candidates, finance_candidates

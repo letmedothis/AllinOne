@@ -89,6 +89,7 @@
   <insert id="insertSequence">insert ignore into number_sequences(document_type,business_date,next_value) values(#{type},#{businessDate},1)</insert>
   <update id="incrementSequence">update number_sequences set next_value=next_value+1 where document_type=#{type} and business_date=#{businessDate}</update>
   <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type=#{type} and business_date=#{businessDate}</select>
+  <select id="selectSequenceForUpdate" resultType="Integer">select next_value from number_sequences where document_type=#{type} and business_date=#{businessDate} for update</select>
 
   <select id="selectSupplierApproved" resultType="int">select count(1) from documents where id=#{supplierId} and type='SUPPLIER' and approval_status='APPROVED' and deleted='0'</select>
   <select id="selectInvoiceSupplierId" resultType="Long">select coalesce(po.supplier_id,op.supplier_id) from invoices i left join purchase_orders po on po.document_id=i.order_id left join opening_payables op on op.invoice_id=i.document_id where i.document_id=#{invoiceId}</select>

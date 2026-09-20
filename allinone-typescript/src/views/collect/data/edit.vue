@@ -364,7 +364,7 @@ async function handleImportExcel(event: Event) {
 }
 
 /** 手动保存草稿（带成功/失败提示） */
-function handleSaveDraft() {
+async function handleSaveDraft() {
   return saveDraft(false)
 }
 

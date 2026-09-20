@@ -454,6 +454,9 @@ public class CollectDataServiceImpl implements ICollectDataService {
      * 供 Mapper 以 ${params.dataScopeSql} 拼接（OR 语义，与 RuoYi @DataScope 一致）。
      * collect_data 无 user_id 列，“仅本人”用 create_by 表达；任一角色为“全部”时返回 null 表示不过滤。
      * 内容全部来自服务端角色元数据与转义后的当前用户名，非用户输入。
+     * 安全说明：${} 属于 MyBatis 原生 SQL 替换，此处仅拼接服务端可信数据（角色 ID、部门 ID、
+     * 转义后的用户名）。为降低误用风险，生成后做白名单校验，仅允许字母、数字、空格、
+     * 括号、比较/逻辑运算符及单引号；禁止分号、双减号、块注释等危险字符。
      */
     protected String buildDataScopeSql() {
         Long deptId = currentDeptId();
@@ -467,7 +470,6 @@ public class CollectDataServiceImpl implements ICollectDataService {
                 }
                 switch (role.getDataScope()) {
                     case "1":
-                        // 全部数据权限
                         return null;
                     case "2":
                         if (role.getRoleId() != null) {
@@ -495,10 +497,20 @@ public class CollectDataServiceImpl implements ICollectDataService {
             }
         }
         if (scope.length() == 0) {
-            // 无角色或角色均未配置数据范围时兜底为“仅本人”，避免默认越权全量可见
             scope.append(" OR cd.create_by = '").append(username).append('\'');
         }
-        return "(" + scope.substring(4) + ")";
+        String raw = "(" + scope.substring(4) + ")";
+        String sanitized = sanitizeScopeSql(raw);
+        return sanitized;
+    }
+
+    /** 白名单校验：仅允许 SQL 片段中必然出现的字符，防止 ${} 被误用于用户输入场景 */
+    private String sanitizeScopeSql(String sql) {
+        if (sql == null || sql.isEmpty()) return sql;
+        if (!sql.matches("^[a-zA-Z0-9_\\s\\(\\)=<>!'.,]+$")) {
+            throw new ServiceException("数据范围 SQL 包含非法字符，请联系管理员");
+        }
+        return sql;
     }
 
     /**

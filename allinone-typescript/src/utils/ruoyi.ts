@@ -169,20 +169,23 @@ export function handleTree(data: any[], id?: string, parentId?: string, children
   const childrenListMap: Record<string, any> = {}
   const tree: any[] = []
   for (const d of data) {
-    const id = d[config.id]
-    childrenListMap[id] = d
-    if (!d[config.childrenList]) {
-      d[config.childrenList] = []
+    const nodeId = d[config.id]
+    const clone = { ...d }
+    childrenListMap[nodeId] = clone
+    if (!clone[config.childrenList]) {
+      clone[config.childrenList] = []
     }
   }
 
   for (const d of data) {
+    const nodeId = d[config.id]
+    const clone = childrenListMap[nodeId]
     const parentId = d[config.parentId]
     const parentObj = childrenListMap[parentId]
     if (!parentObj) {
-      tree.push(d)
+      tree.push(clone)
     } else {
-      parentObj[config.childrenList].push(d)
+      parentObj[config.childrenList].push(clone)
     }
   }
   return tree

@@ -34,6 +34,7 @@
   <insert id="insertSequence">insert ignore into number_sequences(document_type,business_date,next_value) values('RECEIPT',#{businessDate},1)</insert>
   <update id="incrementSequence">update number_sequences set next_value=next_value+1 where document_type='RECEIPT' and business_date=#{businessDate}</update>
   <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type='RECEIPT' and business_date=#{businessDate}</select>
+  <select id="selectSequenceForUpdate" resultType="Integer">select next_value from number_sequences where document_type='RECEIPT' and business_date=#{businessDate} for update</select>
   <insert id="insertDocument">insert into documents(id,type,number,creator_id,creation_key,approval_status,current_version,revision,deleted,create_time,update_time) values(#{documentId},'RECEIPT',#{number},#{confirmedBy},concat('RECEIPT-',#{documentId}),'',0,0,'0',#{createTime},#{createTime})</insert>
   <insert id="insertReceipt">insert into receipts(document_id,order_id,warehouse_id,business_date,confirmed_by,confirmed_at,remark) values(#{documentId},#{orderId},#{warehouseId},#{businessDate},#{confirmedBy},#{confirmedAt},#{remark})</insert>
   <insert id="insertLine">insert into receipt_lines(id,receipt_id,order_line_id,quantity_q4,item_snapshot) values(#{id},#{receiptId},#{orderLineId},#{quantity},#{itemSnapshot})</insert>

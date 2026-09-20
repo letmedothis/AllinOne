@@ -45,8 +45,8 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    # requirepass 与 .env 的 REDIS_PASSWORD 联动；为空时等价于无密码
-    command: ["sh", "-c", "exec redis-server --requirepass \"${REDIS_PASSWORD:-}\""]
+    # requirepass 与 .env 的 REDIS_PASSWORD 联动；生产环境必须设置密码
+    command: ["sh", "-c", "exec redis-server --requirepass \"${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}\""]
     environment:
       # 供下方健康检查在容器内读取；compose 解析期不展开 $$ 形式
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -74,7 +74,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: druid,prod
       SERVER_PORT: 8080
-      DB_URL: jdbc:mysql://mysql:3306/allinone?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+      DB_URL: jdbc:mysql://mysql:3306/allinone?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
       DB_USERNAME: root
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       REDIS_HOST: redis

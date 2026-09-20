@@ -27,6 +27,7 @@ public interface PaymentMapper {
     int insertSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     int incrementSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     Integer selectSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
+    Integer selectSequenceForUpdate(@Param("type") String type, @Param("businessDate") Date businessDate);
 
     int selectSupplierApproved(@Param("supplierId") Long supplierId);
     Long selectInvoiceSupplierId(@Param("invoiceId") Long invoiceId);

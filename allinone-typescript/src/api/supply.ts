@@ -19,6 +19,9 @@ export function reject(data: ApprovalTask & { comment?: string }): Promise<AjaxR
 export function transferApproval(data: { taskId: string | number; assigneeId: string | number }): Promise<AjaxResult> { return request({ url: '/supply/approvals/transfer', method: 'post', data }) }
 export function prepareReceipt(orderId: string): Promise<AjaxResult> { return request({ url: `/supply/receipts/prepare/${orderId}`, method: 'get' }) }
 export function confirmReceipt(data: Record<string, unknown>): Promise<AjaxResult> { return request({ url: '/supply/receipts/confirm', method: 'post', data }) }
+export function listReceiptOrderOptions(): Promise<AjaxResult<any[]>> { return request({ url: '/supply/receipts/order-options', method: 'get' }) }
+export function listWarehouseOptions(): Promise<AjaxResult<any[]>> { return request({ url: '/supply/receipts/warehouse-options', method: 'get' }) }
+export function listReceiptHistory(query: Record<string, unknown>): Promise<TableDataInfo<any[]>> { return request({ url: '/supply/receipts/history', method: 'get', params: query }) }
 export function parseInvoiceXml(xml: string): Promise<AjaxResult> { return request({ url: '/supply/invoices/parse-xml', method: 'post', data: xml, headers: { 'Content-Type': 'text/plain' } }) }
 export function addInvoice(data: Invoice): Promise<AjaxResult<Invoice>> { return request({ url: '/supply/invoices', method: 'post', data }) }
 export function updateInvoice(data: Invoice): Promise<AjaxResult> { return request({ url: '/supply/invoices', method: 'put', data }) }

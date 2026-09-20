@@ -137,9 +137,9 @@ public class SupplierServiceImpl implements ISupplierService {
 
     private String nextNumber(Date businessDate) {
         supplierMapper.insertSequence(DOCUMENT_TYPE, businessDate);
+        Integer current = supplierMapper.selectSequenceForUpdate(DOCUMENT_TYPE, businessDate);
         supplierMapper.incrementSequence(DOCUMENT_TYPE, businessDate);
-        Integer next = supplierMapper.selectSequence(DOCUMENT_TYPE, businessDate);
-        return String.format("SUP-%tY%<tm%<td-%05d", businessDate, next - 1);
+        return String.format("SUP-%tY%<tm%<td-%05d", businessDate, current);
     }
 
     private void validateFields(Supplier supplier) {

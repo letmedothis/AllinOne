@@ -25,7 +25,7 @@ if [ ! -f .env ]; then
     {
         echo "# 由 docker-deploy.sh 自动生成于 $(date '+%Y-%m-%d %H:%M:%S')"
         echo "MYSQL_ROOT_PASSWORD=$(gen_secret)"
-        echo "REDIS_PASSWORD="
+        echo "REDIS_PASSWORD=$(gen_secret)"
         echo "JWT_SECRET=$(gen_secret)$(gen_secret)"
         echo "HTTP_PORT=80"
         echo "JAVA_OPTS="

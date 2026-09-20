@@ -38,10 +38,11 @@ service.interceptors.request.use((config: any) => {
   }
   // get请求映射params参数
   if (config.method === 'get' && config.params) {
-    let url = config.url + '?' + tansParams(config.params)
-    url = url.slice(0, -1)
+    const query = tansParams(config.params)
+    if (query) {
+      config.url = config.url + '?' + query
+    }
     config.params = {}
-    config.url = url
   }
   if (!isRepeatSubmit && (config.method === 'post' || config.method === 'put')) {
     const requestObj = {
@@ -93,13 +94,16 @@ service.interceptors.response.use((res: any) => {
         ElMessageBox.confirm('登录状态已过期，您可以继续留在该页面，或者重新登录', '系统提示', { confirmButtonText: '重新登录', cancelButtonText: '取消', type: 'warning' }).then(() => {
           isRelogin.show = false
           useUserStore().logOut().then(() => {
-            // 携带当前页地址，重新登录后可回到原页面（登录页已支持 redirect 参数）
             const current = encodeURIComponent(window.location.pathname + window.location.search)
             location.href = `/login?redirect=${current}`
+          }).catch(() => {
+            isRelogin.show = false
           })
-      }).catch(() => {
-        isRelogin.show = false
-      })
+        }).catch(() => {
+          isRelogin.show = false
+        })
+      }
+      return Promise.reject(new Error('登录状态已过期'))
     }
       return Promise.reject(new Error('无效的会话，或者会话已过期，请重新登录。'))
     } else if (code === 500) {

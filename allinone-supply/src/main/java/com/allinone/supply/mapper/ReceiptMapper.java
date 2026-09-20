@@ -16,6 +16,7 @@ public interface ReceiptMapper {
     int insertSequence(@Param("businessDate") Date businessDate);
     int incrementSequence(@Param("businessDate") Date businessDate);
     Integer selectSequence(@Param("businessDate") Date businessDate);
+    Integer selectSequenceForUpdate(@Param("businessDate") Date businessDate);
     int insertDocument(Receipt receipt);
     int insertReceipt(Receipt receipt);
     int insertLine(@Param("id") Long id, @Param("receiptId") Long receiptId, @Param("orderLineId") Long orderLineId,

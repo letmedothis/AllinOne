@@ -105,7 +105,7 @@ public class PurchaseOrderServiceImpl implements IPurchaseOrderService {
         order.setAmountCents(amount); order.setTaxCents(tax); order.setTotalCents(amount + tax);
     }
     private void insertLines(PurchaseOrder order) { for (PurchaseOrderLine line : order.getLines()) mapper.insertLine(line); }
-    private String nextNumber(Date date) { mapper.insertSequence(DOCUMENT_TYPE, date); mapper.incrementSequence(DOCUMENT_TYPE, date); return String.format("PO-%tY%<tm%<td-%05d", date, mapper.selectSequence(DOCUMENT_TYPE, date) - 1); }
+    private String nextNumber(Date date) { mapper.insertSequence(DOCUMENT_TYPE, date); Integer current = mapper.selectSequenceForUpdate(DOCUMENT_TYPE, date); mapper.incrementSequence(DOCUMENT_TYPE, date); return String.format("PO-%tY%<tm%<td-%05d", date, current); }
     private Long first(String value) { if (StringUtils.isEmpty(value)) return null; try { return Long.valueOf(value.split(",")[0].trim()); } catch (Exception e) { return null; } }
     private Long firstEligibleSupervisor(String value) { if (StringUtils.isEmpty(value)) return null; for (String candidate : value.split(",")) { try { Long userId=Long.valueOf(candidate.trim()); if (mapper.selectEligibleSupervisorCount(userId, SecurityUtils.getUserId()) > 0) return userId; } catch (NumberFormatException ignored) { } } return null; }
     private void requireOwner(PurchaseOrder order) { if (order == null) throw new ServiceException("采购订单不存在"); if (!SecurityUtils.isAdmin() && !SecurityUtils.getUserId().equals(order.getCreatorId())) throw new ServiceException("无权访问该采购订单"); }

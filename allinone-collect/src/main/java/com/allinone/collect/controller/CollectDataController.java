@@ -39,16 +39,19 @@ public class CollectDataController extends BaseController {
     @Log(title = "填报数据", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
     public void export(HttpServletResponse response, CollectData data) {
-        SXSSFWorkbook wb = collectDataService.exportWorkbook(data);
+        SXSSFWorkbook wb = null;
         try {
+            wb = collectDataService.exportWorkbook(data);
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("utf-8");
             wb.write(response.getOutputStream());
         } catch (Exception e) {
             logger.error("导出填报数据异常{}", e.getMessage());
         } finally {
-            IOUtils.closeQuietly(wb);
-            wb.dispose();
+            if (wb != null) {
+                IOUtils.closeQuietly(wb);
+                wb.dispose();
+            }
         }
     }
 

@@ -70,6 +70,7 @@
     <insert id="insertSequence">insert ignore into number_sequences(document_type,business_date,next_value) values('PURCHASE_ORDER',#{businessDate},1)</insert>
     <update id="incrementSequence">update number_sequences set next_value=next_value+1 where document_type='PURCHASE_ORDER' and business_date=#{businessDate}</update>
     <select id="selectSequence" resultType="Integer">select next_value from number_sequences where document_type='PURCHASE_ORDER' and business_date=#{businessDate}</select>
+    <select id="selectSequenceForUpdate" resultType="Integer">select next_value from number_sequences where document_type='PURCHASE_ORDER' and business_date=#{businessDate} for update</select>
     <select id="selectLatestConfig" parameterType="String" resultMap="ConfigResult">select id,flow_type,version,supervisor_candidates,finance_candidates from workflow_configs where flow_type=#{flowType} order by version desc limit 1</select>
     <insert id="insertVersion">insert into document_versions(id,document_id,version_no,snapshot_json,content_hash,submitted_by,submitted_at) values(#{id},#{documentId},#{versionNo},#{snapshotJson},#{contentHash},#{submittedBy},#{submittedAt})</insert>
     <insert id="insertVersionAttachments">insert into version_attachments(version_id,file_id,name_snapshot,sha256) select #{versionId},f.id,f.original_name,f.sha256 from document_attachments a join attachment_files f on f.id=a.file_id where a.document_id=#{documentId}</insert>

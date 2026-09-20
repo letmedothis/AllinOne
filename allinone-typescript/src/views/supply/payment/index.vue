@@ -178,9 +178,17 @@ async function loadApRows() { apRows.value = (await listApBalance(apFilter.value
 async function openAp() { supplierOptions.value = (await listPaymentSupplierOptions()).data || []; apVisible.value = true; await loadApRows() }
 function addLine() { (form.value.lines ||= []).push({ invoiceId: undefined as any, allocatedYuan: 0 } as any) }
 function buildPayload(): Payment {
-  const payload: Payment = { ...form.value }
-  payload.amountCents = Math.round(Number(totalYuan.value) * 100)
-  payload.lines = (form.value.lines || []).filter((l: any) => l.invoiceId).map((l: any) => ({ invoiceId: l.invoiceId, allocatedCents: Math.round(Number(l.allocatedYuan || 0) * 100) }))
+  const payload: Payment = {
+    ...form.value,
+    amountCents: Math.round(Number(totalYuan.value) * 100),
+    lines: (form.value.lines || []).filter((l: any) => l.invoiceId).map((l: any) => ({ invoiceId: l.invoiceId, allocatedCents: Math.round(Number(l.allocatedYuan || 0) * 100) }))
+  }
+  delete payload.status
+  delete payload.currentNode
+  delete payload.creatorId
+  delete payload.reviewComment
+  delete payload.directorComment
+  delete payload.events
   return payload
 }
 async function save() {
@@ -207,7 +215,8 @@ function decide(approved: boolean) {
   const call = target.currentNode === 'FINANCE_DIRECTOR' ? directorDecisionPayment : reviewPayment
   call(target.id!, { approved, comment: decision.value.comment, revision: target.revision! })
     .then(() => { proxy.$modal.msgSuccess(approved ? '已通过' : '已退回'); decisionVisible.value = false; getList() })
-    .catch(() => {}).finally(() => { saving.value = false })
+    .catch((e: any) => { proxy.$modal.msgError(e?.message || '操作失败，请重试') })
+    .finally(() => { saving.value = false })
 }
 function handleVoid(row: Payment) {
   proxy.$prompt('请输入作废原因', '作废付款单', { inputPlaceholder: '原因必填', inputValidator: (v: string) => (v && v.trim() ? true : '原因不能为空') } as any)

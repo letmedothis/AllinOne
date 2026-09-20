@@ -58,6 +58,6 @@ for /f "tokens=1,* delims==" %%a in ('findstr /b "HTTP_PORT=" .env') do set "HTT
 if "%HTTP_PORT%"=="" set "HTTP_PORT=80"
 echo [deploy] 部署完成 ✔
 echo   访问地址：http://localhost:%HTTP_PORT%/
-echo   默认账号：admin / admin123（登录后请立即修改）
+echo   管理员账号：需在 .env 中设置 ADMIN_PASSWORD_BCRYPT 启用（见 docker/README.md）
 echo   常用命令：docker compose ps ^| logs -f backend ^| down
 exit /b 0

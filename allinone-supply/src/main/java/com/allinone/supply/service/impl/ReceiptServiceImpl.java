@@ -66,7 +66,7 @@ public class ReceiptServiceImpl implements IReceiptService {
         } catch (ServiceException e) { throw e; } catch (Exception e) { throw new ServiceException("入库快照保存失败"); }
         return 1;
     }
-    private String nextNumber(Date date) { mapper.insertSequence(date); mapper.incrementSequence(date); return String.format("GR-%tY%<tm%<td-%05d", date, mapper.selectSequence(date) - 1); }
+    private String nextNumber(Date date) { mapper.insertSequence(date); Integer current = mapper.selectSequenceForUpdate(date); mapper.incrementSequence(date); return String.format("GR-%tY%<tm%<td-%05d", date, current); }
     private boolean isWarehouseOperator() { if (SecurityUtils.isAdmin()) return true; return SecurityUtils.getLoginUser().getUser().getRoles().stream().anyMatch(role -> "warehouse".equals(role.getRoleKey())); }
     private String sha256(String value) throws Exception { byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)); StringBuilder result = new StringBuilder(); for (byte item : digest) result.append(String.format("%02x", item)); return result.toString(); }
 }

@@ -317,8 +317,8 @@ public class PaymentServiceImpl implements IPaymentService {
     private String nextNumber(Date date) {
         java.util.Date business = java.util.Date.from(date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant());
         mapper.insertSequence(DOC_TYPE, business);
+        Integer current = mapper.selectSequenceForUpdate(DOC_TYPE, business);
         mapper.incrementSequence(DOC_TYPE, business);
-        Integer next = mapper.selectSequence(DOC_TYPE, business);
-        return String.format("PAY-%tY%<tm%<td-%05d", business, next - 1);
+        return String.format("PAY-%tY%<tm%<td-%05d", business, current);
     }
 }

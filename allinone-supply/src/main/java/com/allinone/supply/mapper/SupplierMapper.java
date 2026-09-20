@@ -18,6 +18,7 @@ public interface SupplierMapper {
     int insertSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     int incrementSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     Integer selectSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
+    Integer selectSequenceForUpdate(@Param("type") String type, @Param("businessDate") Date businessDate);
     WorkflowConfig selectLatestConfig(@Param("flowType") String flowType);
     int selectEligibleSupervisorCount(@Param("userId") Long userId, @Param("excludeId") Long excludeId);
     int countAttachments(@Param("documentId") Long documentId);

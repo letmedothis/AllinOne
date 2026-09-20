@@ -31,6 +31,8 @@ public interface PurchaseOrderMapper {
     int insertSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     int incrementSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
     Integer selectSequence(@Param("type") String type, @Param("businessDate") Date businessDate);
+    Integer selectSequenceForUpdate(@Param("type") String type, @Param("businessDate") Date businessDate);
+    Integer selectSequenceForUpdate(@Param("type") String type, @Param("businessDate") Date businessDate);
     WorkflowConfig selectLatestConfig(String flowType);
     int insertVersion(@Param("id") Long id, @Param("documentId") Long documentId, @Param("versionNo") int versionNo,
                       @Param("snapshotJson") String snapshotJson, @Param("contentHash") String contentHash,
